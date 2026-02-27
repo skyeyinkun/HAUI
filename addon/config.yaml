@@ -1,5 +1,5 @@
 name: "HAUI Dashboard"
-version: "2.27.0"
+version: "2.27.1"
 slug: "haui_dashboard"
 description: "专为 Home Assistant 打造的高性能现代化前端控制面板，集成流媒体摄像监控与极致 UI 交互。"
 # 替换为你的 GitHub 用户名/仓库名

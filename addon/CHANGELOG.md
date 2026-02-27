@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.27.1] - 2026-02-27
+### 🔧 代码质量修复
+- 清理 `SettingsModal.tsx` 中所有未使用的导入（8 个 lucide 图标、`HassEntities`、`createOneOffConnection` 等）
+- 将弃用的 `verifyConnection` 独立函数重构为 `useEffect` 自动验证，token 输入后 1 秒防抖自动触发连接检查，恢复验证状态 UI 完整功能
+
 ## [2.27.0] - 2026-02-27
 ### ✨ 新增功能
 - **人员头像本地上传**：人员管理页面支持上传本地图片作为头像（限制 2MB），悬浮头像即可触发上传；支持随时清除自定义头像并恢复 Home Assistant 同步头像。

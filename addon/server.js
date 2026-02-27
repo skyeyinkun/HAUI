@@ -28,6 +28,54 @@ function ensureConfig() {
 // 允许较大的 body（摄像头配置、用户头像 Base64、布局信息均可能较大）
 app.use(express.json({ limit: '20mb' }));
 
+// ─── /ha-api 代理：将前端 REST 请求转发到 HA Core API ────────────────────────
+// 在 HA Add-on 中，HA Core 可通过 http://supervisor/core 访问
+// 前端 fetch('/ha-api/api/states') → Node → http://supervisor/core/api/states
+// 鉴权：使用前端传入的 Authorization header（用户自己的 Long-Lived Token）
+// 同时支持 SUPERVISOR_TOKEN 作为备用（当用户未传 token 时）
+const HA_CORE_URL = process.env.HA_CORE_URL || 'http://supervisor/core';
+const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN;
+
+app.all('/ha-api/*', async (req, res) => {
+    // 去掉 /ha-api 前缀，拼接到 HA Core 地址
+    const haPath = req.path.replace(/^\/ha-api/, '');
+    const targetUrl = `${HA_CORE_URL}${haPath}`;
+
+    try {
+        // 选用请求头中的 Authorization（用户 token），无则用 SUPERVISOR_TOKEN
+        const authHeader = req.headers['authorization'] ||
+            (SUPERVISOR_TOKEN ? `Bearer ${SUPERVISOR_TOKEN}` : undefined);
+
+        const headers = {
+            'Content-Type': req.headers['content-type'] || 'application/json',
+        };
+        if (authHeader) headers['Authorization'] = authHeader;
+
+        // 构建 fetch 请求参数
+        const fetchOpts = {
+            method: req.method,
+            headers,
+        };
+        // 对非 GET/HEAD 请求转发 body
+        if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+            fetchOpts.body = JSON.stringify(req.body);
+        }
+
+        const haRes = await fetch(targetUrl, fetchOpts);
+
+        // 透传 HA 返回的状态码和响应体
+        res.status(haRes.status);
+        const contentType = haRes.headers.get('content-type') || 'application/json';
+        res.set('Content-Type', contentType);
+
+        const buffer = await haRes.arrayBuffer();
+        res.send(Buffer.from(buffer));
+    } catch (e) {
+        console.error('[HAUI] /ha-api 代理转发失败:', e.message);
+        res.status(502).json({ error: `HA API 代理失败: ${e.message}` });
+    }
+});
+
 // 核心 API：读取配置（以 /api/* 路径支持 HA Ingress 转发）
 // HA Ingress 会将容器 8099 端口的所有路径全部透传，包括 /api/storage
 app.get('/api/storage', (_req, res) => {

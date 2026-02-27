@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Video, Cpu, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { HAConfig } from '@/types/home-assistant';
@@ -71,30 +71,78 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
     window.open(url, '_blank');
   };
 
+  // 验证连接核心函数——支持三种场景：HA Ingress代理、用户配置的直连地址
+  const runVerify = useCallback(async (token: string, localUrl?: string, publicUrl?: string) => {
+    if (!token || token.length < 20) {
+      setVerifyStatus('idle');
+      return;
+    }
+    setIsVerifying(true);
+    setVerifyStatus('idle');
+
+    const authHeader = `Bearer ${token}`;
+
+    // 场景1：通过本地 Node 代理（/ha-api → http://supervisor/core），HA Ingress 环境
+    try {
+      const res = await fetch('/ha-api/api/', {
+        headers: { 'Authorization': authHeader },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (res.ok || res.status === 401) {
+        // 200 = 成功；401 = 代理可达但 token 无效
+        setVerifyStatus(res.ok ? 'success' : 'error');
+        setIsVerifying(false);
+        return;
+      }
+    } catch {
+      // 代理不可达，继续尝试直连
+    }
+
+    // 场景2：用户配置的 HA 地址直连
+    const configUrl = publicUrl || localUrl;
+    if (configUrl) {
+      const cleanUrl = configUrl
+        .trim()
+        .replace(/^wss?:\/\//, (m) => m.startsWith('wss') ? 'https://' : 'http://')
+        .replace(/\/api\/websocket\/?$/, '')
+        .replace(/\/api\/?$/, '')
+        .replace(/\/$/, '');
+      try {
+        const res = await fetch(`${cleanUrl}/api/`, {
+          headers: { 'Authorization': authHeader },
+          signal: AbortSignal.timeout(5000),
+        });
+        setVerifyStatus(res.ok ? 'success' : 'error');
+        setIsVerifying(false);
+        return;
+      } catch {
+        // 直连也失败
+      }
+    }
+
+    setVerifyStatus('error');
+    setIsVerifying(false);
+  }, []);
+
   // 监听 token 变化，1s 防抖后自动验证连接
   useEffect(() => {
     if (!config.token) {
       setVerifyStatus('idle');
       return;
     }
-    const timer = setTimeout(async () => {
-      setIsVerifying(true);
-      setVerifyStatus('idle');
-      try {
-        // 优先通过本地代理验证（HA Ingress 环境）
-        const res = await fetch('/ha-api/api/', {
-          headers: { 'Authorization': `Bearer ${config.token}` },
-          signal: AbortSignal.timeout(5000),
-        });
-        setVerifyStatus(res.ok ? 'success' : 'error');
-      } catch {
-        setVerifyStatus('error');
-      } finally {
-        setIsVerifying(false);
-      }
+    const timer = setTimeout(() => {
+      runVerify(config.token, config.localUrl, config.publicUrl);
     }, 1000);
     return () => clearTimeout(timer);
-  }, [config.token]);
+  }, [config.token, config.localUrl, config.publicUrl, runVerify]);
+
+  // 打开模态框时，如果已有 token 立即验证（token 不变 useEffect 不触发）
+  useEffect(() => {
+    if (isOpen && config.token) {
+      runVerify(config.token, config.localUrl, config.publicUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleSave = async () => {
     setIsSaving(true);

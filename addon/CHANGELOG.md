@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.27.2] - 2026-02-27
+### 🐛 关键修复
+- **修复设备扫描失败**：在 server.js 中新增 `/ha-api` 反向代理路由，将前端 REST 请求（如 `fetchStatesRest`）正确转发到 HA Core（`http://supervisor/core`）。此前生产环境中 `/ha-api` 请求直接被 fallback 返回 `index.html`，导致"扫描失败，请检查连接"。
+- **修复连接验证一直显示灰色感叹号**：原 `useEffect` 仅在 `token` 值变化时触发，打开设置界面时 token 已存在但不变化导致不触发验证。新增打开模态框时立即验证逻辑；验证同时支持 HA Ingress 代理（`/ha-api`）和用户配置的直连地址两种方式。
+
 ## [2.27.1] - 2026-02-27
 ### 🔧 代码质量修复
 - 清理 `SettingsModal.tsx` 中所有未使用的导入（8 个 lucide 图标、`HassEntities`、`createOneOffConnection` 等）

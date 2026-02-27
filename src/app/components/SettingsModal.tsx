@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Search, Check, PlayCircle, Trash2, Edit2, Plus, ChevronDown, ChevronUp, Power, Layout, RefreshCw, Filter, Upload, Image as ImageIcon, Video, Cpu, Users } from 'lucide-react';
+import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Video, Cpu, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { HAConfig } from '@/types/home-assistant';
-import { HassEntities } from 'home-assistant-js-websocket';
-import { createOneOffConnection, verifyConnectionConfig } from '@/utils/ha-connection';
-import { categorizeDevice, inferDeviceType, DiscoveredDevice } from '@/utils/ha-discovery';
-import { discoverDevicesFromStates } from '@/utils/device-discovery';
+
 import { Device } from '@/types/device';
 import { User } from '@/types/user';
 import { Room } from '@/types/room';
@@ -28,12 +25,10 @@ interface SettingsModalProps {
   onUpdateRooms?: (rooms: Room[]) => void;
   onSave: (config: HAConfig) => void;
   initialConfig: HAConfig;
-  entities?: HassEntities;
-  fetchStates?: () => Promise<any[]>;
   defaultTab?: string | null;
 }
 
-export default function SettingsModal({ isOpen, onClose, devices, users, scenes = [], rooms = [], onUpdateUsers, onUpdateDevices, onUpdateScenes, onUpdateRooms, onSave, initialConfig, entities = {}, fetchStates, defaultTab }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, devices, users, scenes = [], rooms = [], onUpdateUsers, onUpdateDevices, onUpdateScenes, onUpdateRooms, onSave, initialConfig, defaultTab }: SettingsModalProps) {
   const windowSize = useSettingsWindowSize();
   const [activeTab, setActiveTab] = useState<'connection' | 'devices' | 'users' | 'rooms' | 'cameras'>('connection');
   const [config, setConfig] = useState<HAConfig>(initialConfig);
@@ -76,73 +71,30 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
     window.open(url, '_blank');
   };
 
-  const verifyConnection = async () => {
-    if (!config.token) return;
-
-    setIsVerifying(true);
-    setVerifyStatus('idle');
-
-    const baseUrl = config.publicUrl || config.localUrl;
-    if (!baseUrl) {
-      setIsVerifying(false);
+  // 监听 token 变化，1s 防抖后自动验证连接
+  useEffect(() => {
+    if (!config.token) {
+      setVerifyStatus('idle');
       return;
     }
-
-    try {
-      const proxyResponse = await fetch('/ha-api/api/', {
-        headers: {
-          'Authorization': `Bearer ${config.token}`,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (proxyResponse.ok) {
-        setVerifyStatus('success');
-        setIsVerifying(false);
-        return;
-      }
-    } catch (proxyError) {
-      console.warn('Proxy verification error:', proxyError);
-    }
-
-    const cleanUrl = baseUrl
-      .trim()
-      .replace(/^wss:\/\//, 'https://')
-      .replace(/^ws:\/\//, 'http://')
-      .replace(/\/api\/websocket\/?$/, '')
-      .replace(/\/api\/?$/, '')
-      .replace(/\/$/, '');
-
-    try {
-      const response = await fetch(`${cleanUrl}/api/`, {
-        headers: {
-          'Authorization': `Bearer ${config.token}`,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (response.ok) {
-        setVerifyStatus('success');
-        setIsVerifying(false);
-        return;
-      }
-    } catch (directError: any) {
-      console.warn('Direct connection failed:', directError);
-    }
-
-    try {
-      const wsSuccess = await verifyConnectionConfig({ url: baseUrl, token: config.token });
-      if (wsSuccess) {
-        setVerifyStatus('success');
-      } else {
+    const timer = setTimeout(async () => {
+      setIsVerifying(true);
+      setVerifyStatus('idle');
+      try {
+        // 优先通过本地代理验证（HA Ingress 环境）
+        const res = await fetch('/ha-api/api/', {
+          headers: { 'Authorization': `Bearer ${config.token}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        setVerifyStatus(res.ok ? 'success' : 'error');
+      } catch {
         setVerifyStatus('error');
+      } finally {
+        setIsVerifying(false);
       }
-    } catch (e) {
-      setVerifyStatus('error');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [config.token]);
 
   const handleSave = async () => {
     setIsSaving(true);

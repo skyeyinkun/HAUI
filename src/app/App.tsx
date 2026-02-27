@@ -726,8 +726,6 @@ function App() {
         scenes={scenes}
         onSave={saveConfig}
         initialConfig={haConfig}
-        entities={entities}
-        fetchStates={fetchStatesRest}
         defaultTab={settingsDefaultTab}
       />
 

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.27.3] - 2026-02-27
+
+### 修复
+- **连接配置**：修复长期访问令牌状态图标始终显示灰色感叹号的问题。根因为两个 `useEffect` 同时响应 `isOpen` 产生竞态（stale closure），合并为单一 effect 并直接读取 `initialConfig.token` 参数，彻底消除竞态。
+- **设备管理**：修复进入设备管理 Tab 后立即弹出「扫描失败」弹窗的问题。为自动扫描增加 1.5s 延迟，等待 WebSocket 建连完成后再执行，避免过早降级走 `/ha-api` REST 代理收到 502 错误。
+- **人员管理**：修复头像点击后不弹出文件选择器的兼容性问题。将 `hidden input` 嵌套在 `label` 的方式改为 `useRef` 数组 + 程序触发 `input.click()`，解决部分浏览器/移动端 `display:none` 阻止 label 关联点击的问题。
+- **代码质量**：修复 `DeviceDiscoveryPanel` 中 `visibility` 类型不兼容错误，清理多处未使用的 import 和变量声明。
+
+
 ## [1.2.0] - 2026-02-03
 
 ### Changed

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Video, Cpu, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { HAConfig } from '@/types/home-assistant';
@@ -47,6 +47,11 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
   const [verifyStatus, setVerifyStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSaved, setIsSaved] = useState(false);
 
+  // 头像文件选择器的 ref 数组——每个用户对应一个，用于程序触发 input.click()
+  const avatarInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // 打开弹窗时，一次性完成初始化 + 立即使用 initialConfig.token 触发验证
+  // 直接取 initialConfig 参数的值，避免 stale closure（config state 在同一渲染帧内不会更新）
   useEffect(() => {
     if (isOpen) {
       setLocalUsers(users);
@@ -55,9 +60,15 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
       setLocalRooms(rooms);
       setConfig(initialConfig);
       setVerifyStatus('idle');
+      // 使用 initialConfig 而非 config，避免读到旧 state
+      if (initialConfig.token && initialConfig.token.trim().length > 20) {
+        runVerify(initialConfig.token, initialConfig.localUrl, initialConfig.publicUrl);
+      }
     }
-  }, [isOpen, users, scenes, devices, rooms, initialConfig]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
+  // defaultTab 切换
   useEffect(() => {
     if (isOpen && defaultTab) {
       const validTabs = ['connection', 'devices', 'users', 'rooms', 'cameras'];
@@ -124,7 +135,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
     setIsVerifying(false);
   }, []);
 
-  // 监听 token 变化，1s 防抖后自动验证连接
+  // 监听 token / URL 变化，1s 防抖后自动重新验证
   useEffect(() => {
     if (!config.token) {
       setVerifyStatus('idle');
@@ -135,14 +146,6 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
     }, 1000);
     return () => clearTimeout(timer);
   }, [config.token, config.localUrl, config.publicUrl, runVerify]);
-
-  // 打开模态框时，如果已有 token 立即验证（token 不变 useEffect 不触发）
-  useEffect(() => {
-    if (isOpen && config.token) {
-      runVerify(config.token, config.localUrl, config.publicUrl);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -330,10 +333,10 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
                 <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                   <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 font-medium text-sm text-gray-700 flex justify-between items-center">
                     <span>人员列表</span>
-                    {/* 添加新人员按钮 */}
+                    {/* 新增人员按钮 */}
                     <button
                       onClick={() => {
-                        // 新增一条空白人员
+                        // 追加一条空白人员
                         const newUser = { name: `成员${localUsers.length + 1}`, avatar: '', online: false };
                         setLocalUsers(prev => [...prev, newUser]);
                       }}
@@ -346,48 +349,49 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
                   <div className="divide-y divide-gray-50">
                     {localUsers.map((user, index) => (
                       <div key={index} className="p-4 flex items-center justify-between gap-3">
-                        {/* 头像区域 —— 点击触发文件选择 */}
-                        <label
-                          htmlFor={`avatar-upload-${index}`}
+
+                        {/* 头像区域：使用 ref.click() 程序触发，彻底解决 hidden input 跨浏览器兼容问题 */}
+                        <div
                           className="relative w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity shrink-0 group"
                           title="点击上传本地头像"
+                          onClick={() => avatarInputRefs.current[index]?.click()}
                         >
                           {user.avatar
                             ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                             : <UserIcon className="w-6 h-6 text-gray-400" />}
-                          {/* 悬浮上传提示层 */}
+                          {/* 悬浮蒙版提示 */}
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <Upload className="w-4 h-4 text-white" />
                           </div>
-                          {/* 隐藏的 file input */}
-                          <input
-                            id={`avatar-upload-${index}`}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              // 限制大小：2MB
-                              if (file.size > 2 * 1024 * 1024) {
-                                toast.error('图片大小不能超过 2MB');
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const base64 = ev.target?.result as string;
-                                setLocalUsers(prev =>
-                                  prev.map((u, i) => i === index ? { ...u, avatar: base64 } : u)
-                                );
-                              };
-                              reader.readAsDataURL(file);
-                              // 清空 input，避免同一文件无法再次触发
-                              e.target.value = '';
-                            }}
-                          />
-                        </label>
+                        </div>
+                        {/* 隐藏 input 独立于 div 之外，避免 label/hidden 兼容性问题 */}
+                        <input
+                          ref={el => { avatarInputRefs.current[index] = el; }}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            // 限制图片大小 ≤ 2MB
+                            if (file.size > 2 * 1024 * 1024) {
+                              toast.error('图片大小不能超过 2MB');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const base64 = ev.target?.result as string;
+                              setLocalUsers(prev =>
+                                prev.map((u, i) => i === index ? { ...u, avatar: base64 } : u)
+                              );
+                            };
+                            reader.readAsDataURL(file);
+                            // 重置 input，允许重复选同一个文件
+                            e.target.value = '';
+                          }}
+                        />
 
-                        {/* 名称输入框 */}
+                        {/* 名称编辑框 */}
                         <div className="flex-1 min-w-0">
                           <input
                             type="text"
@@ -406,7 +410,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
                           </div>
                         </div>
 
-                        {/* 清除头像 + 删除操作 */}
+                        {/* 清除头像 + 删除成员 */}
                         <div className="flex items-center gap-1 shrink-0">
                           {user.avatar && user.avatar.startsWith('data:') && (
                             <button

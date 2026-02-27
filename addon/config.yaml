@@ -1,0 +1,28 @@
+name: "HAUI Dashboard"
+version: "2.27.0"
+slug: "haui_dashboard"
+description: "专为 Home Assistant 打造的高性能现代化前端控制面板，集成流媒体摄像监控与极致 UI 交互。"
+# 替换为你的 GitHub 用户名/仓库名
+url: "https://github.com/skyeyinkun/HAUI"
+startup: application
+boot: auto
+# 指定 ghcr.io 镜像，HA Supervisor 会拉取对应架构的镜像
+# {arch} 会被 HA 自动替换为当前设备的架构（如 amd64、aarch64）
+image: "ghcr.io/skyeyinkun/haui-{arch}"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+  - armhf
+  - i386
+map:
+  - config:rw
+  - ssl:rw
+options: {}
+schema: {}
+ingress: true
+ingress_port: 8099
+ingress_stream: true
+panel_icon: mdi:view-dashboard
+panel_title: "HAUI"
+stage: stable

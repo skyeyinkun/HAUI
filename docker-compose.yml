@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    volumes:
+      - ./config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - ./custom_components:/config/custom_components
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+  trae-frontend:
+    container_name: yinkun-ui
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "5173:5173"
+      - "8080:8080"
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      - TZ=Asia/Shanghai
+      - VITE_HA_URL=http://homeassistant:8123
+    depends_on:
+      - homeassistant

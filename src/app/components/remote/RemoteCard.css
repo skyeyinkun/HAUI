@@ -1,0 +1,11 @@
+.remote-card {
+  /* Keep touch adjustments for better mobile feel */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 
+   Legacy classes removed as they have been replaced by Tailwind CSS 
+   in the RemoteCard.tsx component for better maintainability and 
+   consistency with the new design system.
+*/

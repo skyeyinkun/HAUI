@@ -1,0 +1,23 @@
+# Configure a default setup of Home Assistant (frontend, api, etc)
+default_config:
+
+# Allow CORS for local development
+http:
+  cors_allowed_origins:
+    - http://localhost:5173
+    - http://127.0.0.1:5173
+    - http://localhost:8080
+  ip_ban_enabled: false
+  login_attempts_threshold: 10
+
+# Load our custom component
+yinkun_ui:
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+group: !include groups.yaml
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

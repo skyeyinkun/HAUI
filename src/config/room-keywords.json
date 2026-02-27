@@ -1,0 +1,34 @@
+{
+  "roomKeywords": {
+    "客厅": ["客厅", "Living Room", "Lounge", "电视背景墙", "沙发"],
+    "主卧": ["主卧", "Master Bedroom", "Master Bed", "床头"],
+    "次卧": ["次卧", "Bedroom", "Guest Room", "客房"],
+    "儿童房": ["儿童房", "Kids Room", "Baby Room"],
+    "老人房": ["老人房", "Parents Room"],
+    "厨房": ["厨房", "Kitchen", "Cooking", "橱柜"],
+    "餐厅": ["餐厅", "Dining Room", "餐桌"],
+    "卫生间": ["卫生间", "Bathroom", "Toilet", "浴室", "洗手间", "马桶"],
+    "书房": ["书房", "Study", "Office", "办公桌"],
+    "阳台": ["阳台", "Balcony", "Patio"],
+    "玄关": ["玄关", "Entrance", "Hallway", "门厅"],
+    "走廊": ["走廊", "Corridor", "过道"],
+    "车库": ["车库", "Garage"],
+    "花园": ["花园", "Garden", "Yard", "庭院"]
+  },
+  "priority": [
+    "客厅",
+    "主卧",
+    "厨房",
+    "书房",
+    "餐厅",
+    "卫生间",
+    "次卧",
+    "儿童房",
+    "老人房",
+    "阳台",
+    "玄关",
+    "走廊",
+    "车库",
+    "花园"
+  ]
+}

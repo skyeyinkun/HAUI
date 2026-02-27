@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "yinkun-ui://schemas/card-config.schema.json",
+  "title": "CardConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "entities"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20,
+      "pattern": "^[\\u4e00-\\u9fa5A-Za-z0-9\\s]+$"
+    },
+    "icon": {
+      "type": "string"
+    },
+    "entities": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entity_id"],
+        "properties": {
+          "entity_id": { "type": "string", "minLength": 1 },
+          "ha_name": { "type": "string" },
+          "display_name": { "type": "string" },
+          "icon": { "type": "string" },
+          "visible": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
+

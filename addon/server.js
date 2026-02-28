@@ -36,7 +36,7 @@ app.use(express.json({ limit: '20mb' }));
 const HA_CORE_URL = process.env.HA_CORE_URL || 'http://supervisor/core';
 const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN;
 
-app.all('/ha-api/*', async (req, res) => {
+app.all(/^\/ha-api\/.*/, async (req, res) => {
     // 去掉 /ha-api 前缀，拼接到 HA Core 地址
     const haPath = req.path.replace(/^\/ha-api/, '');
     const targetUrl = `${HA_CORE_URL}${haPath}`;

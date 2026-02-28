@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.27.4] - 2026-03-01
+
+### 修复
+- **重大故障 (Blank Screen)**：修复因项目中 Express 版本升级至 `5.x` 导致原有未命名通配符路由（`app.all('/ha-api/*')`）抛出 `PathError: Missing parameter name` 致命异常的问题。此异常导致 HA Ingress 模式下 Add-on 服务端无法启动，进而表现为面板打开完全空白。目前已将路由改为原生正则表达式匹配（`/^\/ha-api\/.*/`）以实现向下与向上兼容。
+
+
 ## [2.27.3] - 2026-02-27
 
 ### 修复

@@ -727,6 +727,7 @@ function App() {
         onSave={saveConfig}
         initialConfig={haConfig}
         defaultTab={settingsDefaultTab}
+        isConnected={isConnected}
       />
 
       <ApiLogModal

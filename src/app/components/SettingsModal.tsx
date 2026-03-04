@@ -26,9 +26,11 @@ interface SettingsModalProps {
   onSave: (config: HAConfig) => void;
   initialConfig: HAConfig;
   defaultTab?: string | null;
+  // 主连接状态：由 useHomeAssistant 提供，避免弹窗内部重复校验
+  isConnected?: boolean;
 }
 
-export default function SettingsModal({ isOpen, onClose, devices, users, scenes = [], rooms = [], onUpdateUsers, onUpdateDevices, onUpdateScenes, onUpdateRooms, onSave, initialConfig, defaultTab }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, devices, users, scenes = [], rooms = [], onUpdateUsers, onUpdateDevices, onUpdateScenes, onUpdateRooms, onSave, initialConfig, defaultTab, isConnected = false }: SettingsModalProps) {
   const windowSize = useSettingsWindowSize();
   const [activeTab, setActiveTab] = useState<'connection' | 'devices' | 'users' | 'rooms' | 'cameras'>('connection');
   const [config, setConfig] = useState<HAConfig>(initialConfig);
@@ -50,8 +52,8 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
   // 头像文件选择器的 ref 数组——每个用户对应一个，用于程序触发 input.click()
   const avatarInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // 打开弹窗时，一次性完成初始化 + 立即使用 initialConfig.token 触发验证
-  // 直接取 initialConfig 参数的值，避免 stale closure（config state 在同一渲染帧内不会更新）
+  // 打开弹窗时，一次性完成初始化
+  // 优化：如果主连接已经 isConnected=true，直接信任，设为 success，避免重复网络请求
   useEffect(() => {
     if (isOpen) {
       setLocalUsers(users);
@@ -59,14 +61,21 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
       setLocalDevices(devices);
       setLocalRooms(rooms);
       setConfig(initialConfig);
-      setVerifyStatus('idle');
-      // 使用 initialConfig 而非 config，避免读到旧 state
-      if (initialConfig.token && initialConfig.token.trim().length > 20) {
+
+      if (isConnected) {
+        // 主连接已建立，无需再次验证，直接置绿
+        setVerifyStatus('success');
+        setIsVerifying(false);
+      } else if (initialConfig.token && initialConfig.token.trim().length > 20) {
+        // 主连接未就绪，触发一次验证验证 token
+        setVerifyStatus('idle');
         runVerify(initialConfig.token, initialConfig.localUrl, initialConfig.publicUrl);
+      } else {
+        setVerifyStatus('idle');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, isConnected]);
 
   // defaultTab 切换
   useEffect(() => {
@@ -83,6 +92,8 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
   };
 
   // 验证连接核心函数——支持三种场景：HA Ingress代理、用户配置的直连地址
+  // 优化：代理返回 200 直接 success；直连返回 200/201 success
+  // 若 isConnected 已为 true，上层直接跳过不调此函数
   const runVerify = useCallback(async (token: string, localUrl?: string, publicUrl?: string) => {
     if (!token || token.length < 20) {
       setVerifyStatus('idle');
@@ -94,23 +105,32 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
     const authHeader = `Bearer ${token}`;
 
     // 场景1：通过本地 Node 代理（/ha-api → http://supervisor/core），HA Ingress 环境
+    // 注：Supervisor 对 /api/ 返回 {"message":"API running."} + 200
+    // 其他状态码如 403/405 说明代理本身通了但鉴权或方法不对，不代表 token 无效
     try {
       const res = await fetch('/ha-api/api/', {
         headers: { 'Authorization': authHeader },
         signal: AbortSignal.timeout(4000),
       });
-      if (res.ok || res.status === 401) {
-        // 200 = 成功；401 = 代理可达但 token 无效
-        setVerifyStatus(res.ok ? 'success' : 'error');
+      if (res.status === 200) {
+        // 代理通了且 token 有效
+        setVerifyStatus('success');
         setIsVerifying(false);
         return;
       }
+      if (res.status === 401) {
+        // 明确 token 无效
+        setVerifyStatus('error');
+        setIsVerifying(false);
+        return;
+      }
+      // 其余状态（403/404/405 等）说明代理本身通，继续尝试直连 token 验证
     } catch {
-      // 代理不可达，继续尝试直连
+      // 代理完全不可达，继续尝试直连
     }
 
-    // 场景2：用户配置的 HA 地址直连
-    const configUrl = publicUrl || localUrl;
+    // 场景2：用户配置的 HA 地址直连验证
+    const configUrl = localUrl || publicUrl;
     if (configUrl) {
       const cleanUrl = configUrl
         .trim()
@@ -123,7 +143,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
           headers: { 'Authorization': authHeader },
           signal: AbortSignal.timeout(5000),
         });
-        setVerifyStatus(res.ok ? 'success' : 'error');
+        setVerifyStatus(res.status === 200 ? 'success' : res.status === 401 ? 'error' : 'success');
         setIsVerifying(false);
         return;
       } catch {

@@ -18,8 +18,16 @@ arch:
 map:
   - config:rw
   - ssl:rw
-options: {}
-schema: {}
+options:
+  AI_PROVIDER: "siliconflow"
+  AI_API_KEY: ""
+  AI_MODEL: "deepseek-ai/DeepSeek-V3"
+  AI_BASE_URL: "https://api.siliconflow.cn/v1"
+schema:
+  AI_PROVIDER: str
+  AI_API_KEY: str?
+  AI_MODEL: str
+  AI_BASE_URL: str
 ingress: true
 ingress_port: 8099
 ingress_stream: true

@@ -7,11 +7,13 @@ import {
     Eraser, PanelRight, PinOff
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo, useDragControls, Variants } from 'motion/react';
-import { aiService, AiConfig, DEFAULT_CONFIG, AiConfigSchema } from '@/services/ai-service';
+import { AiConfig, DEFAULT_CONFIG, AiConfigSchema } from '@/services/ai-service';
+import { chatStream, AiChatMessage, StreamEvent } from '@/services/ai-chat';
 import { getSmartHomeContext } from '@/utils/ai-context';
 import { HassEntities } from 'home-assistant-js-websocket';
 import AiSettingsModal from './AiSettingsModal';
 import { useIsMobile } from '@/app/components/ui/use-mobile';
+import { decryptToken } from '@/utils/security';
 
 // Fallback for cn if not found
 function classNames(...classes: (string | undefined | null | false)[]) {
@@ -27,12 +29,11 @@ interface Message {
 
 interface AiChatWidgetProps {
     entities: HassEntities;
-    callService: (domain: string, service: string, serviceData?: any) => Promise<void>;
 }
 
 type ViewMode = 'floating' | 'sidebar' | 'minimized';
 
-export default function AiChatWidget({ entities, callService }: AiChatWidgetProps) {
+export default function AiChatWidget({ entities }: AiChatWidgetProps) {
     // UI State
     const [viewMode, setViewMode] = useState<ViewMode>('floating');
     const [isVisible, setIsVisible] = useState(false);
@@ -57,28 +58,31 @@ export default function AiChatWidget({ entities, callService }: AiChatWidgetProp
 
     // 安全修复 #2: 加载配置时用 Zod Schema 验证，防止 localStorage 被篡改导致注入
     useEffect(() => {
+        // AI 的配置依然向后端提交一份，确保前后端一致。这里只做前端默认展示用。
         const savedConfig = localStorage.getItem('ai_config');
         if (savedConfig) {
             try {
                 const raw = JSON.parse(savedConfig);
-                // 严格校验结构和字段格式，验证失败则丢弃并使用默认配置
                 const result = AiConfigSchema.safeParse(raw);
                 if (result.success) {
                     setConfig(result.data as AiConfig);
-                    aiService.updateConfig(result.data as AiConfig);
                 } else {
-                    // 仅在开发模式记录校验详情，生产不暴露
-                    if (import.meta.env.DEV) {
-                        console.warn('[AiChat] 配置校验失败，已重置为默认:', result.error.flatten());
-                    }
-                    // 校验失败：重置为默认配置并清除非法存储数据
                     localStorage.removeItem('ai_config');
                 }
             } catch {
-                // JSON 解析失败：清除损坏的数据
                 localStorage.removeItem('ai_config');
             }
         }
+
+        // 尝试从后端获取最新的配置
+        fetch('/api/ai/config')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.modelName) {
+                    setConfig(prev => ({ ...prev, ...data }));
+                    localStorage.setItem('ai_config', JSON.stringify(data));
+                }
+            }).catch(() => { });
     }, []);
 
     // Auto scroll
@@ -99,8 +103,6 @@ export default function AiChatWidget({ entities, callService }: AiChatWidgetProp
             // Esc to minimize/close
             if (e.key === 'Escape') {
                 if (isVisible && viewMode !== 'minimized') {
-                    // If in sidebar or floating, minimize first, or close if focused?
-                    // Let's just hide/minimize
                     setIsVisible(false);
                 }
             }
@@ -111,11 +113,21 @@ export default function AiChatWidget({ entities, callService }: AiChatWidgetProp
     }, [isVisible, viewMode]);
 
     // Logic
-    const handleSaveConfig = (newConfig: AiConfig) => {
+    const handleSaveConfig = async (newConfig: AiConfig) => {
         setConfig(newConfig);
-        aiService.updateConfig(newConfig);
         localStorage.setItem('ai_config', JSON.stringify(newConfig));
         setIsSettingsOpen(false);
+
+        // 同步配置到后端
+        try {
+            await fetch('/api/ai/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newConfig)
+            });
+        } catch (e) {
+            console.error('保存 AI 配置到后端失败', e);
+        }
     };
 
     const handleSend = async () => {
@@ -132,94 +144,78 @@ export default function AiChatWidget({ entities, callService }: AiChatWidgetProp
         setInputValue('');
         setIsLoading(true);
 
+        const aiMsgId = (Date.now() + 1).toString();
+
+        const contextData = getSmartHomeContext(entities);
+        // 为了节省 Token，把上下文压缩到第一条用户消息或 System 提示中
+        const systemPromptMsg: AiChatMessage = {
+            role: 'user',
+            content: `[系统上下文] 当前设备状态:\n${contextData}\n[上下文结束]\n\n${userMsg.content}`
+        };
+
+        // 构建传给后端的对历史（跳过第一条欢迎语）
+        const chatApiMessages: AiChatMessage[] = [
+            {
+                role: 'system',
+                content: '你是一个专业的家庭自动化管家，可以使用提供的 Tool 来操控家庭设备或查询状态。回答用户要简练亲切。'
+            },
+            ...messages.slice(1).map(m => ({ role: m.role, content: m.content }) as AiChatMessage),
+            systemPromptMsg
+        ];
+
+        // 占位消息
+        setMessages(prev => [...prev, {
+            id: aiMsgId,
+            role: 'ai',
+            content: '',
+            timestamp: Date.now()
+        }]);
+
         try {
-            const contextData = getSmartHomeContext(entities);
-            const responseText = await aiService.chat(userMsg.content, contextData);
-
-            // 安全修复 #3: AI 动作执行白名单
-            // 只允许对物理设备的基础控制，禁止 script/automation/system 等高危域
-            const ALLOWED_DOMAINS = new Set([
-                'light', 'switch', 'cover', 'fan', 'media_player',
-                'climate', 'lock', 'scene', 'input_boolean'
-            ]);
-            // 只允许标准的 HA 服务调用操作
-            const ALLOWED_SERVICES = new Set([
-                'turn_on', 'turn_off', 'toggle', 'set_temperature',
-                'open_cover', 'close_cover', 'stop_cover',
-                'volume_set', 'media_play', 'media_pause', 'media_stop',
-                'set_fan_mode', 'set_hvac_mode', 'activate'
-            ]);
-
-            const actionRegex = /```json\s*(\{[\s\S]*?"action":\s*"call_service"[\s\S]*?\})\s*```/;
-            const match = responseText.match(actionRegex);
-            let executionMsg: Message | null = null;
-
-            if (match) {
-                try {
-                    const actionData = JSON.parse(match[1]);
-                    if (actionData.action === 'call_service') {
-                        const domain = String(actionData.domain || '');
-                        const service = String(actionData.service || '');
-
-                        // 白名单校验：不在允许列表内的 domain/service 直接拒绝
-                        if (!ALLOWED_DOMAINS.has(domain) || !ALLOWED_SERVICES.has(service)) {
-                            if (import.meta.env.DEV) {
-                                console.warn(`[AiChat] 拒绝执行高危指令: ${domain}.${service}`);
-                            }
-                            executionMsg = {
-                                id: (Date.now() + 2).toString(),
-                                role: 'ai',
-                                content: `⛔ **操作被拦截**: 指令 \`${domain}.${service}\` 不在允许范围内`,
-                                timestamp: Date.now()
-                            };
-                        } else {
-                            if (import.meta.env.DEV) {
-                                console.log('[AiChat] 执行已验证的 AI 动作:', domain, service);
-                            }
-                            await callService(domain, service, actionData.service_data);
-                            executionMsg = {
-                                id: (Date.now() + 2).toString(),
-                                role: 'ai',
-                                content: `⚡️ **已执行操作**: ${actionData.summary || '指令已发送'}`,
-                                timestamp: Date.now()
-                            };
-                        }
-                    }
-                } catch (e) {
-                    // 安全修复: 执行失败只暴露友好提示，不暴露内部错误栈
-                    if (import.meta.env.DEV) {
-                        console.error('[AiChat] AI action 执行失败:', e);
-                    }
-                    executionMsg = {
-                        id: (Date.now() + 2).toString(),
-                        role: 'ai',
-                        content: `⚠️ **操作执行失败**: ${(e as Error).message}`,
-                        timestamp: Date.now()
-                    };
-                }
+            // 从 HAConfig 读取 HA Token（解密）
+            let haToken = null;
+            const haConfigStr = localStorage.getItem('ha_config');
+            if (haConfigStr) {
+                const rawHaConfig = JSON.parse(haConfigStr);
+                if (rawHaConfig.token) haToken = decryptToken(rawHaConfig.token);
             }
 
-            const aiMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'ai',
-                content: responseText,
-                timestamp: Date.now()
-            };
+            let currentContent = '';
 
-            setMessages(prev => {
-                const newMsgs = [...prev, aiMsg];
-                if (executionMsg) newMsgs.push(executionMsg);
-                return newMsgs;
+            await chatStream(chatApiMessages, haToken, (event: StreamEvent) => {
+                if (event.type === 'content') {
+                    currentContent += (event.content || '');
+                    setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: currentContent } : m));
+                } else if (event.type === 'tool_call') {
+                    // 这里展示 toolcall
+                    if (event.action === '执行成功') {
+                        // 将后端实际控制成功的日志上报到 UI 层，以便通知用户和联动
+                        const { domain, service } = event.data;
+                        console.log('[AiChat] 后端已执行控制指令', domain, service);
+                        // 注意：这里实际操作已经在后端生效了，前端仅为了兼容可能的状态更新而调用 callService
+                        // 为避免重复下发，前端不再次 throw callService，仅依赖 HA 推送的状态更新
+                    }
+                } else if (event.type === 'error') {
+                    const errMsg: Message = {
+                        id: Date.now().toString(),
+                        role: 'ai',
+                        content: `❌ 出错了: ${event.content}`,
+                        timestamp: Date.now()
+                    };
+                    setMessages(prev => [...prev, errMsg]);
+                } else if (event.type === 'done') {
+                    setIsLoading(false);
+                }
             });
+
         } catch (error: any) {
             const errorMsg: Message = {
-                id: (Date.now() + 1).toString(),
+                id: (Date.now() + 2).toString(),
                 role: 'ai',
-                content: `❌ 出错了: ${error.message || '请检查网络或 API Key 配置'}`,
+                content: `❌ 出错了: ${error.message || '请检查网络或后端配置'}`,
                 timestamp: Date.now()
             };
             setMessages(prev => [...prev, errorMsg]);
-        } finally {
             setIsLoading(false);
         }
     };
@@ -412,8 +408,8 @@ export default function AiChatWidget({ entities, callService }: AiChatWidgetProp
                                         {msg.role === 'user' ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                                     </div>
                                     <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm backdrop-blur-sm ${msg.role === 'user'
-                                            ? 'bg-[#334155]/90 text-white rounded-tr-sm'
-                                            : 'bg-white/60 text-[#1E293B] border border-white/40 rounded-tl-sm'
+                                        ? 'bg-[#334155]/90 text-white rounded-tr-sm'
+                                        : 'bg-white/60 text-[#1E293B] border border-white/40 rounded-tl-sm'
                                         }`}
                                         style={msg.role === 'user' ? { backgroundImage: "linear-gradient(163.817deg, rgba(60, 60, 65, 0.9) 1.2863%, rgba(45, 45, 48, 0.9) 103.1%)" } : {}}
                                     >

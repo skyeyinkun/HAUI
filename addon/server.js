@@ -9,6 +9,8 @@ const app = express();
 // HA Add-on 持久化存储目录（HA Supervisor 会将 /data 映射为持久卷）
 const DATA_DIR = '/data';
 const CONFIG_FILE = path.join(DATA_DIR, 'haui_config.json');
+// AI 配置独立存储，避免与面板数据混淆
+const AI_CONFIG_FILE_NAME = 'haui_ai_config.json';
 
 // 兼容本地开发时没有 /data 目录的情况
 const LOCAL_DATA_DIR = path.join(__dirname, '.data');
@@ -18,11 +20,26 @@ function getConfigFile() {
     return fs.existsSync(DATA_DIR) ? CONFIG_FILE : LOCAL_CONFIG_FILE;
 }
 
+function getAiConfigFile() {
+    const dir = fs.existsSync(DATA_DIR) ? DATA_DIR : LOCAL_DATA_DIR;
+    return path.join(dir, AI_CONFIG_FILE_NAME);
+}
+
 function ensureConfig() {
     const dir = fs.existsSync(DATA_DIR) ? DATA_DIR : LOCAL_DATA_DIR;
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const file = getConfigFile();
     if (!fs.existsSync(file)) fs.writeFileSync(file, '{}');
+}
+
+function readAiConfig() {
+    try {
+        const file = getAiConfigFile();
+        if (fs.existsSync(file)) {
+            return JSON.parse(fs.readFileSync(file, 'utf8'));
+        }
+    } catch (_) { /* 读取失败返回空对象 */ }
+    return {};
 }
 
 // 允许较大的 body（摄像头配置、用户头像 Base64、布局信息均可能较大）
@@ -178,6 +195,220 @@ app.post('/api/ezviz/url', async (req, res) => {
 // 健康检查（HA Ingress 心跳探测）
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// --- AI Config 接口 ---
+app.get('/api/ai/config', (_req, res) => {
+    try {
+        ensureConfig();
+        const config = readAiConfig();
+        res.json(config);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/ai/config', (req, res) => {
+    try {
+        ensureConfig();
+        const payload = typeof req.body === 'object' ? req.body : JSON.parse(req.body);
+        fs.writeFileSync(getAiConfigFile(), JSON.stringify(payload, null, 2));
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- AI Chat 代理端点 (支持 MCP Tools & SSE) ---
+
+// HA Tools Schema 定义
+const haTools = [
+    {
+        type: "function",
+        function: {
+            name: "call_ha_service",
+            description: "调用 Home Assistant 服务来控制设备，例如开灯、关窗帘、调节温度等。必须提供 domain 和 service。",
+            parameters: {
+                type: "object",
+                properties: {
+                    domain: { type: "string", description: "所属域，例如 light, switch, cover, climate, media_player, scene 等" },
+                    service: { type: "string", description: "服务名，例如 turn_on, turn_off, toggle, set_cover_position, set_temperature 等" },
+                    service_data: { type: "object", description: "服务调用的具体参数，例如 {'entity_id': 'light.living_room'} 或 {'entity_id': 'cover.window', 'position': 50}" }
+                },
+                required: ["domain", "service", "service_data"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_entity_state",
+            description: "获取特定实体的当前状态和属性。",
+            parameters: {
+                type: "object",
+                properties: {
+                    entity_id: { type: "string", description: "要查询的 entity_id，例如 light.living_room" }
+                },
+                required: ["entity_id"]
+            }
+        }
+    }
+];
+
+app.post('/api/ai/chat', async (req, res) => {
+    try {
+        const { messages, token } = req.body;
+        // token 是前端传过来的 HA access token，用于 HA-API 调用
+
+        let aiConfig = readAiConfig();
+
+        // 兜底环境变量
+        if (!aiConfig.apiKey && process.env.AI_API_KEY) {
+            aiConfig = {
+                provider: process.env.AI_PROVIDER || 'siliconflow',
+                apiKey: process.env.AI_API_KEY,
+                baseUrl: process.env.AI_BASE_URL || 'https://api.siliconflow.cn/v1',
+                modelName: process.env.AI_MODEL || 'deepseek-ai/DeepSeek-V3'
+            };
+        }
+
+        if (!aiConfig.apiKey) {
+            return res.status(400).json({ error: "AI API Key 未配置，请先在设置中绑定。" });
+        }
+
+        const cleanBaseUrl = aiConfig.baseUrl.endsWith('/') ? aiConfig.baseUrl.slice(0, -1) : aiConfig.baseUrl;
+        const apiUrl = `${cleanBaseUrl}/chat/completions`;
+
+        const authHeader = token ? `Bearer ${token}` : (SUPERVISOR_TOKEN ? `Bearer ${SUPERVISOR_TOKEN}` : undefined);
+
+        // 用于在内部处理 Tool Call 的辅助函数
+        async function fetchHaApi(path, method = 'GET', body = null) {
+            const targetUrl = `${HA_CORE_URL}${path}`;
+            const headers = { 'Content-Type': 'application/json' };
+            if (authHeader) headers['Authorization'] = authHeader;
+
+            const fetchOpts = { method, headers };
+            if (body) fetchOpts.body = JSON.stringify(body);
+
+            const response = await fetch(targetUrl, fetchOpts);
+            if (!response.ok) throw new Error(`HA API Error: ${response.status}`);
+            return response.json();
+        }
+
+        const openaiPayload = {
+            model: aiConfig.modelName,
+            messages: messages,
+            tools: haTools,
+            tool_choice: "auto",
+            stream: true
+        };
+
+        const aiRes = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${aiConfig.apiKey}`
+            },
+            body: JSON.stringify(openaiPayload)
+        });
+
+        if (!aiRes.ok) {
+            const errBody = await aiRes.text();
+            throw new Error(`AI API 失败: ${aiRes.status} ${errBody}`);
+        }
+
+        // 设置 SSE 响应头
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const reader = aiRes.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+
+        let toolCallBuffer = {}; // 用于拼接通过 stream 发送过来的 tool_call 信息
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+            for (const line of lines) {
+                if (line.includes('[DONE]')) {
+                    continue; // 过滤大模型的 END marker
+                }
+                if (line.startsWith('data: ')) {
+                    const dataStr = line.slice(6);
+                    if (dataStr === '[DONE]') continue;
+                    try {
+                        const parsed = JSON.parse(dataStr);
+                        const delta = parsed.choices[0]?.delta;
+
+                        if (delta?.tool_calls) {
+                            // 收集 tool_call 增量数据
+                            for (const tc of delta.tool_calls) {
+                                if (tc.function?.name) {
+                                    toolCallBuffer = {
+                                        id: tc.id,
+                                        name: tc.function.name,
+                                        arguments: tc.function.arguments || ''
+                                    };
+                                } else if (tc.function?.arguments) {
+                                    toolCallBuffer.arguments += tc.function.arguments;
+                                }
+                            }
+                        } else if (delta?.content) {
+                            // 主动推送文本到前端
+                            res.write(`data: ${JSON.stringify({ type: 'content', content: delta.content })}\n\n`);
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse stream chunk:', dataStr, e);
+                    }
+                }
+            }
+        }
+
+        // 检查是否有拦截到的 toolCall 需要自己执行
+        if (toolCallBuffer.name) {
+            try {
+                const args = JSON.parse(toolCallBuffer.arguments);
+                let toolResult = null;
+
+                // 执行 HA API
+                if (toolCallBuffer.name === 'call_ha_service') {
+                    // TODO: 在这里加入白名单进行安全性过滤
+                    const ALLOWED_DOMAINS = new Set(['light', 'switch', 'cover', 'fan', 'media_player', 'climate', 'lock', 'scene', 'input_boolean', 'script']);
+                    if (!ALLOWED_DOMAINS.has(args.domain)) {
+                        throw new Error(`Domain ${args.domain} is not in the whitelist.`);
+                    }
+                    toolResult = await fetchHaApi(`/api/services/${args.domain}/${args.service}`, 'POST', args.service_data);
+
+                    // 向前端发送控制成功日志
+                    res.write(`data: ${JSON.stringify({ type: 'tool_call', action: '执行成功', data: args })}\n\n`);
+                    res.write(`data: ${JSON.stringify({ type: 'content', content: `\n\n⚡️ **系统提示**: 已成功发送控制指令 ${args.domain}.${args.service}。` })}\n\n`);
+                } else if (toolCallBuffer.name === 'get_entity_state') {
+                    toolResult = await fetchHaApi(`/api/states/${args.entity_id}`);
+                    res.write(`data: ${JSON.stringify({ type: 'content', content: `\n\n🔍 **状态查询结果**: ${JSON.stringify(toolResult)}。` })}\n\n`);
+                }
+
+            } catch (err) {
+                res.write(`data: ${JSON.stringify({ type: 'error', content: `\n\n⚠️ AI 工具执行失败: ${err.message}` })}\n\n`);
+            }
+        }
+
+        res.write(`data: [DONE]\n\n`);
+        res.end();
+
+    } catch (e) {
+        console.error('[HAUI] /api/ai/chat 出错:', e.message);
+        if (!res.headersSent) {
+            res.status(500).json({ error: e.message });
+        } else {
+            res.write(`data: ${JSON.stringify({ type: 'error', content: `Server Error: ${e.message}` })}\n\n`);
+            res.end();
+        }
+    }
 });
 
 // 静态文件服务（React 打包产物）

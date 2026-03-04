@@ -954,7 +954,7 @@ function App() {
         </button>
       </div>
 
-      <AiChatWidget entities={entities} callService={callService} />
+      <AiChatWidget entities={entities} />
       <Toaster />
     </div>
   );

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] - 2026-03-04
+
+### 新特性
+- **AI 智能管家 (MCP 集成)**：全新接入基于 MCP (Model Context Protocol) 架构的智能对话功能。
+  - 自然语言控制：支持通过自然语言操控 Home Assistant 设备（例如灯光、开关、窗帘、空调等）。
+  - 安全白名单机制：内置安全拦截器，仅允许操控基础硬件，隔离高危系统服务调用。
+  - 灵活配置：支持通过 Add-on 配置页或前端面板自由切换 AI 供应商（如硅基流动、阿里云百炼，以及本地部署的 Ollama），API Key 仅保存在后端，大幅提升安全性。
+  - 流式响应 (SSE)：前端聊天组件采用 Server-Sent Events 流式渲染，带来丝滑打字机体验。
+  - 无感状态查询：AI 可直接读取当前家庭设备快照，进行状态播报与自动化方案建议。
+
 ## [2.27.4] - 2026-03-01
 
 ### 修复

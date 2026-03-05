@@ -11,8 +11,8 @@ export interface WeatherLocationState {
 
 export function useWeatherLocation(selectedRegion: { province: Region; city: Region; district: Region } | undefined, setLogs: React.Dispatch<React.SetStateAction<Log[]>>) {
   const [weatherCoords, setWeatherCoords] = useState<WeatherLocationState>(() => ({
-    lat: DEFAULT_REGION.district.lat,
-    lon: DEFAULT_REGION.district.lon,
+    lat: DEFAULT_REGION.district.lat as number,
+    lon: DEFAULT_REGION.district.lon as number,
     isFallback: false,
   }));
 
@@ -26,8 +26,8 @@ export function useWeatherLocation(selectedRegion: { province: Region; city: Reg
     // 1. 如果是默认地区，直接使用默认坐标
     if (isDefaultRegion) {
       setWeatherCoords({
-        lat: DEFAULT_REGION.district.lat,
-        lon: DEFAULT_REGION.district.lon,
+        lat: DEFAULT_REGION.district.lat as number,
+        lon: DEFAULT_REGION.district.lon as number,
         isFallback: false,
       });
       return;
@@ -43,8 +43,8 @@ export function useWeatherLocation(selectedRegion: { province: Region; city: Reg
     if (!districtCode) return;
 
     setWeatherCoords({
-      lat: DEFAULT_REGION.district.lat,
-      lon: DEFAULT_REGION.district.lon,
+      lat: DEFAULT_REGION.district.lat as number,
+      lon: DEFAULT_REGION.district.lon as number,
       isFallback: true,
     });
 
@@ -65,21 +65,21 @@ export function useWeatherLocation(selectedRegion: { province: Region; city: Reg
         // 这样解耦了 UI 状态和天气状态。
         // 如果需要同步回 selectedRegion，应该由调用者处理，或者通过 callback
         // 但为了保持 hook 纯粹，我们这里只负责 weatherCoords
-        
+
         // 记录日志
         const now = new Date();
-        const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
         setLogs(prev => [{
           time,
           message: `地理位置已同步：${cityName}·${districtName} (${result.resolution})`
-        }, ...prev].slice(0,50));
+        }, ...prev].slice(0, 50));
       } else {
         const now = new Date();
-        const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
         setLogs(prev => [{
           time,
           message: `地理位置同步失败：${cityName}·${districtName}（将使用默认天气位置）`
-        }, ...prev].slice(0,50));
+        }, ...prev].slice(0, 50));
       }
     })();
 

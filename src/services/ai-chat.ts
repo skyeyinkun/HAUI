@@ -51,10 +51,12 @@ export async function chatStream(
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
 
-        while (true) {
+        let keepReading = true;
+        while (keepReading) {
             const { done, value } = await reader.read();
             if (done) {
                 onEvent({ type: 'done' });
+                keepReading = false;
                 break;
             }
 

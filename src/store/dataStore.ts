@@ -103,7 +103,18 @@ export const useDataStore = create<DataState>()(
         }),
         {
             name: 'ha-data-storage', // name of the item in the storage (must be unique)
-            storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
+            storage: createJSONStorage(() => ({
+                getItem: (name) => localStorage.getItem(name),
+                setItem: (name, value) => {
+                    localStorage.setItem(name, value);
+                    // trigger sync manually instead of hijack
+                    import('@/utils/sync').then(({ syncToServer }) => syncToServer());
+                },
+                removeItem: (name) => {
+                    localStorage.removeItem(name);
+                    import('@/utils/sync').then(({ syncToServer }) => syncToServer());
+                }
+            })),
             partialize: (state) => ({
                 // Select which fields to persist
                 devices: state.devices,

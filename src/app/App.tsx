@@ -198,7 +198,9 @@ function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('selected_region', JSON.stringify(selectedRegion));
+      import('@/utils/sync').then(({ saveToLocalStorage }) => {
+        saveToLocalStorage('selected_region', JSON.stringify(selectedRegion));
+      });
     } catch {
       // ignore
     }
@@ -236,7 +238,9 @@ function App() {
       ...newConfig,
       token: encryptToken(newConfig.token)
     };
-    localStorage.setItem('ha_config', JSON.stringify(configToSave));
+    import('@/utils/sync').then(({ saveToLocalStorage }) => {
+      saveToLocalStorage('ha_config', JSON.stringify(configToSave));
+    });
   }, []);
 
 

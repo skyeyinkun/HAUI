@@ -44,7 +44,7 @@ export function useSpeechRecognition({ lang = 'zh-CN', onSpeechEnd }: SpeechReco
         }
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = true;
+        recognition.continuous = false;
         recognition.interimResults = true;
         recognition.lang = lang;
 

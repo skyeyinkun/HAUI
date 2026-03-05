@@ -68,12 +68,11 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
     const isLoadingRef = useRef(isLoading);
     isLoadingRef.current = isLoading;
 
-    // 语音对话模式：用户说完 → 自动发送
+    // 语音输入结束后自动发送（不限制全双工模式）
     const handleVoiceSpeechEnd = useCallback((finalText: string) => {
-        if (isVoiceModeRef.current && finalText.trim() && !isLoadingRef.current) {
-            // 把识别到的文字设为输入值并触发发送（通过 ref 触发，避免闭包问题）
+        if (finalText.trim() && !isLoadingRef.current) {
+            // 把识别到的文字设为输入值并触发发送
             setInputValue(finalText.trim());
-            // 主动触发发送需要用 setTimeout 让 inputValue 的 state 先更新
             setTimeout(() => sendMessageRef.current?.(finalText.trim()), 50);
         }
     }, []);
@@ -94,12 +93,12 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const dragControls = useDragControls();
 
-    // 非对话模式下：语音识别内容同步到输入框
+    // 任何情况下，只要正在语音识别，都会把识别内容实时同步到输入框，方便用户看见内容
     useEffect(() => {
-        if (!isVoiceMode && (transcript || interimTranscript)) {
+        if (transcript || interimTranscript) {
             setInputValue((transcript + interimTranscript).trim());
         }
-    }, [transcript, interimTranscript, isVoiceMode]);
+    }, [transcript, interimTranscript]);
     useEffect(() => {
         // AI 的配置依然向后端提交一份，确保前后端一致。这里只做前端默认展示用。
         const savedConfig = localStorage.getItem('ai_config');
@@ -178,10 +177,11 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
         const text = (textOverride ?? inputValue).trim();
         if (!text || isLoading) return;
 
-        // 语音对话模式下：发送时停止麦克风、取消正在朗读的内容
+        // 发送时，无论是否处于 VoiceMode 都停止本地话筒 & 停止前面没朗读完的内容
+        if (isListening) stopListening();
+        if (isSpeaking) cancelSpeak();
+
         if (isVoiceMode) {
-            stopListening();
-            cancelSpeak();
             setVoiceStatus('thinking');
         }
 
@@ -638,7 +638,10 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
                                     )}
                                     <textarea
                                         value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
+                                        onChange={(e) => {
+                                            if (isListening) stopListening(); // 用户手打时，如果是正在录音，主动中止它以免覆盖
+                                            setInputValue(e.target.value);
+                                        }}
                                         onKeyDown={handleKeyDown}
                                         placeholder={isListening ? "请说话..." : "输入指令..."}
                                         className="w-full bg-transparent border-none focus:ring-0 resize-none max-h-24 min-h-[44px] py-2.5 px-1 text-sm text-[#1E293B] placeholder:text-gray-500/70"

@@ -74,7 +74,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
         setVerifyStatus('idle');
       }
     }
-     
+
   }, [isOpen, isConnected]);
 
   // defaultTab 切换
@@ -402,7 +402,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
                             reader.onload = (ev) => {
                               const base64 = ev.target?.result as string;
                               setLocalUsers(prev =>
-                                prev.map((u, i) => i === index ? { ...u, avatar: base64 } : u)
+                                prev.map((u, i) => i === index ? { ...u, avatar: base64, isLocalAvatar: true } : u)
                               );
                             };
                             reader.readAsDataURL(file);
@@ -435,7 +435,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
                           {user.avatar && user.avatar.startsWith('data:') && (
                             <button
                               onClick={() => setLocalUsers(prev =>
-                                prev.map((u, i) => i === index ? { ...u, avatar: '' } : u)
+                                prev.map((u, i) => i === index ? { ...u, avatar: '', isLocalAvatar: false } : u)
                               )}
                               className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-amber-50 transition-colors"
                               title="清除本地头像（恢复 HA 头像）"

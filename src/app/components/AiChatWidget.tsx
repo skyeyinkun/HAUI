@@ -51,7 +51,7 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
         {
             id: 'welcome',
             role: 'ai',
-            content: '你好！我是你的 AI 智能管家。我可以帮你查看设备状态、提供自动化建议。请问有什么可以帮你的吗？',
+            content: '你好！我是你的 AI 智能管家。我们可以通过**文字**或顶部的**语音图标**开启“全双工对话”进行交流。我可以帮你查看设备状态、提供自动化建议。请问有什么可以帮你的吗？',
             timestamp: Date.now()
         }
     ]);
@@ -425,7 +425,7 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
                             {/* Window Controls */}
                             <div className="flex items-center gap-1 text-white/70" onPointerDown={(e) => e.stopPropagation()}>
                                 {/* 语音对话模式切换（需浏览器支持 STT 和 TTS） */}
-                                {(isSpeechSupported || isTtsSupported) && (
+                                {(isSpeechSupported || isTtsSupported) ? (
                                     <button
                                         onClick={() => {
                                             const next = !isVoiceMode;
@@ -433,6 +433,8 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
                                             if (next) {
                                                 // 开启语音模式：中断现有朗读，重置并开始监听
                                                 cancelSpeak();
+                                                // 某些手机端浏览器需要用户手势解锁 Web Audio / Speech
+                                                speak('');
                                                 resetTranscript();
                                                 setVoiceStatus('listening');
                                                 setTimeout(() => startListening(), 200);
@@ -444,14 +446,23 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
                                             }
                                         }}
                                         className={classNames(
-                                            "p-1.5 rounded-lg transition-colors",
+                                            "p-1.5 rounded-lg transition-all relative",
                                             isVoiceMode
                                                 ? "bg-rose-500/80 text-white"
-                                                : "hover:bg-white/10"
+                                                : "hover:bg-white/10 text-white/90"
                                         )}
                                         title={isVoiceMode ? "关闭语音对话" : "开启语音对话"}
                                     >
-                                        {isVoiceMode ? <MicOff className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                                        {isVoiceMode ? <MicOff className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                                        {/* 手机端功能提醒小圆点 */}
+                                        {!isVoiceMode && (
+                                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-rose-500 rounded-full border border-white animate-pulse" />
+                                        )}
+                                    </button>
+                                ) : (
+                                    // 不支持时显示置灰图标并给出提示提示（通过 title）
+                                    <button className="p-1.5 opacity-30 cursor-not-allowed" title="当前环境不支持语音 API (需 HTTPS)">
+                                        <Volume2 className="w-4 h-4 text-white" />
                                     </button>
                                 )}
 
@@ -476,10 +487,10 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
 
                                 <button
                                     onClick={clearHistory}
-                                    className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                                    className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/90"
                                     title="清空"
                                 >
-                                    <Eraser className="w-3.5 h-3.5" />
+                                    <Eraser className="w-4 h-4" />
                                 </button>
 
                                 <div className="w-px h-3 bg-white/20 mx-1" />

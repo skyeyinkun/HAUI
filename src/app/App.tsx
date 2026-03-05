@@ -405,12 +405,12 @@ function App() {
           let avatar = entity.attributes.entity_picture || '';
           if (avatar.startsWith('/api/')) avatar = `/ha-api${avatar}`;
 
-          if (u.online !== currentOnline || (avatar && u.avatar !== avatar)) {
+          if (u.online !== currentOnline || (!u.isLocalAvatar && avatar && u.avatar !== avatar)) {
             changed = true;
             return {
               ...u,
               online: currentOnline,
-              avatar: avatar || u.avatar
+              avatar: u.isLocalAvatar ? u.avatar : (avatar || u.avatar)
             };
           }
         }

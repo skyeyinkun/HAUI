@@ -74,7 +74,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
         setVerifyStatus('idle');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isOpen, isConnected]);
 
   // defaultTab 切换

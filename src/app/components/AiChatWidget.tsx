@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import {
     Bot, Send, X, Settings, Loader2, Sparkles, User as UserIcon,
-    Eraser, PanelRight, PinOff
+    Eraser, PanelRight, PinOff, Mic
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo, useDragControls, Variants } from 'motion/react';
 import { AiConfig, DEFAULT_CONFIG, AiConfigSchema } from '@/services/ai-service';
@@ -14,6 +14,7 @@ import { HassEntities } from 'home-assistant-js-websocket';
 import AiSettingsModal from './AiSettingsModal';
 import { useIsMobile } from '@/app/components/ui/use-mobile';
 import { decryptToken } from '@/utils/security';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 // Fallback for cn if not found
 function classNames(...classes: (string | undefined | null | false)[]) {
@@ -53,10 +54,25 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [config, setConfig] = useState<AiConfig>(DEFAULT_CONFIG);
 
+    const {
+        isListening,
+        transcript,
+        interimTranscript,
+        isSupported: isSpeechSupported,
+        startListening,
+        stopListening,
+        resetTranscript
+    } = useSpeechRecognition();
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const dragControls = useDragControls();
 
-    // 安全修复 #2: 加载配置时用 Zod Schema 验证，防止 localStorage 被篡改导致注入
+    // 当语音识别到新内容时，将其放入输入框
+    useEffect(() => {
+        if (transcript || interimTranscript) {
+            setInputValue((transcript + interimTranscript).trim());
+        }
+    }, [transcript, interimTranscript]);
     useEffect(() => {
         // AI 的配置依然向后端提交一份，确保前后端一致。这里只做前端默认展示用。
         const savedConfig = localStorage.getItem('ai_config');
@@ -443,26 +459,60 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
 
                         {/* Input Area */}
                         <div className="p-4 bg-white/40 border-t border-white/50 backdrop-blur-md shrink-0">
-                            <div className="relative flex items-end gap-2 bg-white/60 p-1.5 rounded-[20px] border border-white/50 focus-within:border-[#334155]/50 focus-within:ring-1 focus-within:ring-[#334155]/20 transition-all shadow-sm">
-                                <textarea
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="输入指令..."
-                                    className="w-full bg-transparent border-none focus:ring-0 resize-none max-h-24 min-h-[44px] py-2.5 px-3 text-sm text-[#1E293B] placeholder:text-gray-500/70"
-                                    rows={1}
-                                    style={{ height: 'auto', minHeight: '44px' }}
-                                />
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={handleSend}
-                                    disabled={!inputValue.trim() || isLoading}
-                                    className="p-2.5 text-white rounded-[16px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all mb-0.5 shadow-md"
-                                    style={{ backgroundImage: "linear-gradient(163.817deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" }}
-                                >
-                                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                </motion.button>
+                            <div className="relative flex flex-col gap-2 bg-white/60 p-2 rounded-[20px] border border-white/50 focus-within:border-[#334155]/50 focus-within:ring-1 focus-within:ring-[#334155]/20 transition-all shadow-sm">
+                                {isListening && (
+                                    <div className="flex items-center gap-2 px-3 pt-1 text-xs text-rose-500 animate-pulse">
+                                        <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                        <span>正在聆听...</span>
+                                    </div>
+                                )}
+                                <div className="flex items-end gap-2 px-1">
+                                    {isSpeechSupported && (
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => {
+                                                if (isListening) {
+                                                    stopListening();
+                                                } else {
+                                                    resetTranscript();
+                                                    startListening();
+                                                }
+                                            }}
+                                            className={classNames(
+                                                "p-2.5 rounded-[16px] transition-all mb-0.5 shadow-sm",
+                                                isListening
+                                                    ? "bg-rose-100 text-rose-600 border border-rose-200"
+                                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                            )}
+                                            title={isListening ? "点击停止录音" : "点击开始说话"}
+                                        >
+                                            <Mic className="w-4 h-4" />
+                                        </motion.button>
+                                    )}
+                                    <textarea
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder={isListening ? "请说话..." : "输入指令..."}
+                                        className="w-full bg-transparent border-none focus:ring-0 resize-none max-h-24 min-h-[44px] py-2.5 px-1 text-sm text-[#1E293B] placeholder:text-gray-500/70"
+                                        rows={1}
+                                        style={{ height: 'auto', minHeight: '44px' }}
+                                    />
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => {
+                                            if (isListening) stopListening();
+                                            handleSend();
+                                        }}
+                                        disabled={!inputValue.trim() || isLoading}
+                                        className="p-2.5 text-white rounded-[16px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all mb-0.5 shadow-md shrink-0"
+                                        style={{ backgroundImage: "linear-gradient(163.817deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" }}
+                                    >
+                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                    </motion.button>
+                                </div>
                             </div>
                         </div>
                     </motion.div>

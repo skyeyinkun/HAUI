@@ -19,10 +19,7 @@ export async function chatStream(
     haToken: string | null,
     onEvent: (event: StreamEvent) => void
 ): Promise<void> {
-    const isDev = import.meta.env.DEV;
-    // 兼容本地调试与 HA Ingress
-    const base = isDev ? 'http://localhost:8099' : '';
-    const url = `${base}/api/ai/chat`;
+    const url = `/api/ai/chat`;
 
     const payload = {
         messages,

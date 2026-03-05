@@ -26,6 +26,10 @@ export default defineConfig({
         ws: true, // Support WebSocket proxy
         rewrite: (path) => path.replace(/^\/ha-api/, ''),
       },
+      '/api': {
+        target: process.env.VITE_API_URL || 'http://localhost:8099',
+        changeOrigin: true,
+      },
     },
   },
   test: {

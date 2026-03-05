@@ -1,7 +1,7 @@
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { createRoot } from "react-dom/client";
-import App from "./app/App.tsx";
+
 import "./styles/index.css";
 import { ErrorBoundary } from "./app/components/ErrorBoundary";
 
@@ -69,7 +69,8 @@ const initStorage = async () => {
 // 先完成配置同步，再渲染 React 应用，确保首屏拿到完整配置。
 // ⚠️ initStorage 内部已做超时兜底，Promise 必然在有限时间内 resolve，
 //    不会因 fetch 挂起而永远不渲染（空白页根因修复）。
-initStorage().then(() => {
+initStorage().then(async () => {
+  const { default: App } = await import("./app/App.tsx");
   createRoot(document.getElementById("root")!).render(
     <ErrorBoundary>
       <DndProvider backend={HTML5Backend}>

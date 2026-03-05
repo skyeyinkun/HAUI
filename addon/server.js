@@ -325,7 +325,7 @@ app.post('/api/ai/chat', async (req, res) => {
         const reader = aiRes.body.getReader();
         const decoder = new TextDecoder('utf-8');
 
-        let toolCallBuffer = {}; // 用于拼接通过 stream 发送过来的 tool_call 信息
+        let toolCallBuffers = {}; // 用于拼接通过 stream 发送过来的多路 tool_call 信息
 
         while (true) {
             const { done, value } = await reader.read();
@@ -348,14 +348,14 @@ app.post('/api/ai/chat', async (req, res) => {
                         if (delta?.tool_calls) {
                             // 收集 tool_call 增量数据
                             for (const tc of delta.tool_calls) {
-                                if (tc.function?.name) {
-                                    toolCallBuffer = {
-                                        id: tc.id,
-                                        name: tc.function.name,
-                                        arguments: tc.function.arguments || ''
-                                    };
-                                } else if (tc.function?.arguments) {
-                                    toolCallBuffer.arguments += tc.function.arguments;
+                                const index = tc.index;
+                                if (!toolCallBuffers[index]) {
+                                    toolCallBuffers[index] = { arguments: '' };
+                                }
+                                if (tc.id) toolCallBuffers[index].id = tc.id;
+                                if (tc.function?.name) toolCallBuffers[index].name = tc.function.name;
+                                if (tc.function?.arguments) {
+                                    toolCallBuffers[index].arguments += tc.function.arguments;
                                 }
                             }
                         } else if (delta?.content) {
@@ -369,31 +369,33 @@ app.post('/api/ai/chat', async (req, res) => {
             }
         }
 
-        // 检查是否有拦截到的 toolCall 需要自己执行
-        if (toolCallBuffer.name) {
-            try {
-                const args = JSON.parse(toolCallBuffer.arguments);
-                let toolResult = null;
+        // 检查是否有拦截到的 toolCall 需要自己执行（支持并行调用）
+        for (const toolCallBuffer of Object.values(toolCallBuffers)) {
+            if (toolCallBuffer.name) {
+                try {
+                    const args = JSON.parse(toolCallBuffer.arguments);
+                    let toolResult = null;
 
-                // 执行 HA API
-                if (toolCallBuffer.name === 'call_ha_service') {
-                    // TODO: 在这里加入白名单进行安全性过滤
-                    const ALLOWED_DOMAINS = new Set(['light', 'switch', 'cover', 'fan', 'media_player', 'climate', 'lock', 'scene', 'input_boolean', 'script']);
-                    if (!ALLOWED_DOMAINS.has(args.domain)) {
-                        throw new Error(`Domain ${args.domain} is not in the whitelist.`);
+                    // 执行 HA API
+                    if (toolCallBuffer.name === 'call_ha_service') {
+                        // TODO: 在这里加入白名单进行安全性过滤
+                        const ALLOWED_DOMAINS = new Set(['light', 'switch', 'cover', 'fan', 'media_player', 'climate', 'lock', 'scene', 'input_boolean', 'script']);
+                        if (!ALLOWED_DOMAINS.has(args.domain)) {
+                            throw new Error(`Domain ${args.domain} is not in the whitelist.`);
+                        }
+                        toolResult = await fetchHaApi(`/api/services/${args.domain}/${args.service}`, 'POST', args.service_data);
+
+                        // 向前端发送控制成功日志
+                        res.write(`data: ${JSON.stringify({ type: 'tool_call', action: '执行成功', data: args })}\n\n`);
+                        res.write(`data: ${JSON.stringify({ type: 'content', content: `\n\n⚡️ **系统提示**: 已成功发送控制指令 ${args.domain}.${args.service}。` })}\n\n`);
+                    } else if (toolCallBuffer.name === 'get_entity_state') {
+                        toolResult = await fetchHaApi(`/api/states/${args.entity_id}`);
+                        res.write(`data: ${JSON.stringify({ type: 'content', content: `\n\n🔍 **状态查询结果**: ${JSON.stringify(toolResult)}。` })}\n\n`);
                     }
-                    toolResult = await fetchHaApi(`/api/services/${args.domain}/${args.service}`, 'POST', args.service_data);
 
-                    // 向前端发送控制成功日志
-                    res.write(`data: ${JSON.stringify({ type: 'tool_call', action: '执行成功', data: args })}\n\n`);
-                    res.write(`data: ${JSON.stringify({ type: 'content', content: `\n\n⚡️ **系统提示**: 已成功发送控制指令 ${args.domain}.${args.service}。` })}\n\n`);
-                } else if (toolCallBuffer.name === 'get_entity_state') {
-                    toolResult = await fetchHaApi(`/api/states/${args.entity_id}`);
-                    res.write(`data: ${JSON.stringify({ type: 'content', content: `\n\n🔍 **状态查询结果**: ${JSON.stringify(toolResult)}。` })}\n\n`);
+                } catch (err) {
+                    res.write(`data: ${JSON.stringify({ type: 'error', content: `\n\n⚠️ AI 工具 ${toolCallBuffer.name} 执行失败: ${err.message}` })}\n\n`);
                 }
-
-            } catch (err) {
-                res.write(`data: ${JSON.stringify({ type: 'error', content: `\n\n⚠️ AI 工具执行失败: ${err.message}` })}\n\n`);
             }
         }
 

@@ -9,7 +9,7 @@ import { CustomIcon } from '@/app/components/dashboard/cards/shared/CustomIcon';
 import { AlertCircle, ArrowLeft, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/app/components/ui/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { CATEGORIES, DeviceCategoryType } from '@/utils/ha-discovery';
+import { DeviceCategoryType } from '@/utils/ha-discovery';
 import {
   Drawer,
   DrawerContent,
@@ -53,20 +53,9 @@ const DEVICE_TYPE_OPTIONS = [
   { value: 'sensor', label: '传感器', recommendedCategory: 'sensor' as DeviceCategoryType },
 ] as const;
 
-function getCategoryLabel(category?: string) {
-  const match = CATEGORIES.find(c => c.id === category);
-  return match?.name || '';
-}
-
 function getTypeLabel(type?: string) {
   const match = DEVICE_TYPE_OPTIONS.find(t => t.value === type);
   return match?.label || '';
-}
-
-function getEntityLabel(entityOptions: { entity_id: string; name: string }[], entityId?: string) {
-  const match = entityOptions.find(e => e.entity_id === entityId);
-  if (!match) return entityId || '';
-  return match.name || match.entity_id;
 }
 
 function inferTypeFromDomain(domain?: string, deviceClass?: string) {
@@ -99,7 +88,7 @@ function inferRecommendedCategory(device: Device): DeviceCategoryType {
   if (domain === 'light' || domain === 'switch') return 'lighting';
   if (domain === 'climate' || domain === 'fan' || domain === 'humidifier') return 'hvac';
   if (domain === 'cover') return 'curtain';
-  if (domain === 'camera' || domain === 'lock' || domain === 'alarm_control_panel') return 'security';
+  if (domain === 'lock' || domain === 'alarm_control_panel') return 'security';
   if (domain === 'sensor' || domain === 'binary_sensor') return 'sensor';
   return 'other';
 }
@@ -121,7 +110,6 @@ export const DeviceEditorForm: React.FC<DeviceEditorFormProps> = ({
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [openEntity, setOpenEntity] = useState(false);
   const [openRoom, setOpenRoom] = useState(false);
-  const [openCategory, setOpenCategory] = useState(false);
   const [openType, setOpenType] = useState(false);
   const recommendedCategoryForDisplay = inferRecommendedCategory({
     ...device,
@@ -131,7 +119,7 @@ export const DeviceEditorForm: React.FC<DeviceEditorFormProps> = ({
 
   useEffect(() => {
     if (device) {
-      const recommendedCategory = device.entity_id ? inferRecommendedCategory(device) : undefined;
+      const recommendedCategory = device.entity_id ? (inferRecommendedCategory(device) as any) : undefined;
       setFormData({ ...device, category: device.category ?? recommendedCategory });
       setErrors({});
       setTouched({});
@@ -228,38 +216,6 @@ export const DeviceEditorForm: React.FC<DeviceEditorFormProps> = ({
     </Command>
   );
 
-  const CategoryList = (
-    <Command>
-      <CommandInput placeholder="搜索分类..." />
-      <CommandList>
-        <CommandEmpty>未找到分类</CommandEmpty>
-        <CommandGroup>
-          {CATEGORIES.map((cat) => (
-            <CommandItem
-              key={`cat:${cat.id}`}
-              value={cat.name}
-              onSelect={() => {
-                handleChange('category', cat.id);
-                setTouched(prev => ({ ...prev, category: true }));
-                setOpenCategory(false);
-              }}
-            >
-              <Check
-                className={cn(
-                  "mr-2 h-4 w-4",
-                  formData.category === cat.id ? "opacity-100" : "opacity-0"
-                )}
-              />
-              <div className="flex flex-col">
-                <span>{cat.name}</span>
-                <span className="text-xs text-muted-foreground">{cat.description}</span>
-              </div>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      </CommandList>
-    </Command>
-  );
 
   const TypeList = (
     <Command>

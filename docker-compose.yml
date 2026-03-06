@@ -24,7 +24,7 @@ services:
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
 
-  trae-frontend:
+  haui-frontend:
     container_name: yinkun-ui
     image: node:20-alpine
     working_dir: /app

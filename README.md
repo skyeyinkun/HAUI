@@ -1,4 +1,4 @@
-# Trae Dashboard (Yinkun UI)
+# HAUI Dashboard
 
 [中文](#中文) | [English](#english)
 
@@ -44,7 +44,7 @@ A professional, AI-powered Home Assistant dashboard built with **React 18**, **V
 
 # 中文
 
-Trae Dashboard 是一个专业的、基于 AI 的 Home Assistant 仪表盘，采用 **React 18**、**Vite** 和 **Tailwind CSS** 构建。
+HAUI Dashboard 是一个专业的、基于 AI 的 Home Assistant 仪表盘，采用 **React 18**、**Vite** 和 **Tailwind CSS** 构建。
 
 ## 🚀 特性
 - **零配置开发**: 一键启动完整的 HA 开发环境。

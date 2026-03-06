@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.0.15] - 2026-03-06
+
+### 重构与优化
+- **项目品牌变更与全量清理**:
+  - 全面清除了项目中遗留的所有 `Trae` 关键字，彻底将其替换为正式名称 `HAUI Dashboard`。
+  - 为 Add-on 插件商店重新撰写了高质量的功能介绍（涉及 `addon/config.yaml` 及根目录 `README.md`），重点凸显了“AI 智能管家对话”、“全平台自适应界面”与“iOS 风格小部件排版”的极致家居控制体验。
+  - 更新了项目内部多处组件级说明（包含 `docker-compose.yml` 容器名、`manifest.json`）与 E2E 测例描述。
+
+### 新特性
+- **Dashboard 灵活自定排版引擎**:
+  - 全新重构了首页 StatisticsPanel 组件，引入底层基于 `@dnd-kit` 构建的、与 iOS 十分类似的“主屏幕部件管理”能力。
+  - **长按进入编辑模式**: 用长按仪表盘任意空白处的方式进入部件摆放交互状态，支持跨设备的触摸和键鼠支持。
+  - **自由增删面板**: 提供悬浮式“添加面板”功能。多达十几个传感器的家庭可以选择增加多个「室内环境」分类面板卡片；用户亦可随心所欲删除天气、能源使用、日志等无需观看的板块，构建完全属于自己的干净视图界面。
+  - **优雅动画效**: 新增类似原生系统的弹性果冻抖动（wiggle）反馈以及毛玻璃覆盖拖拽底层效果。
+  - **状态持久化**: 在任意设备端对控制中枢卡片的排序与删减都会通过 localStorage 进行本地保留，使得每次启动时都能呈现最佳的状态。
+
+### 修复与优化
+- **移除摄像头功能**: 
+  - 彻底删除了所有摄像头相关的组件（`CameraView`, `CameraConfigPanel`, `CameraConfigModal`, `StreamPlayer`）。
+  - 删除了摄像头相关的实用工具和类型定义（`camera-storage.ts`, `camera.ts`, `ezviz-api.ts`）。
+  - 从 `StatisticsPanel` 和 `SettingsModal` 中移除了摄像头的 UI 入口和管理板块。
+  - 清理了设备发现（`device-discovery.ts`）、实体清洗（`entity-cleaner.ts`）及 AI 上下文（`ai-context.ts`）中对摄像头域名的所有引用。
+  - 移除了未使用的摄像头流媒体依赖：`ezuikit-js`, `hls.js`, `mpegts.js`。
+  - 修复了因移除功能导致的若干 TypeScript 类型及 Lint 警告。
+
 ## [3.0.10] - 2026-03-06
 
 ### 修复与优化

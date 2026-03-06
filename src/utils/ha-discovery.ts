@@ -80,7 +80,7 @@ export const CATEGORIES: { id: DeviceCategoryType; name: string; description: st
   { id: 'hvac', name: '空调', description: '空调、地暖、新风、风扇' },
   { id: 'curtain', name: '窗帘', description: '窗帘、卷帘、车库门' },
   { id: 'sensor', name: '传感器', description: '温湿度、光照、存在感应' },
-  { id: 'security', name: '安防', description: '门锁、摄像头、报警器' },
+  { id: 'security', name: '安防', description: '门锁、报警器' },
   { id: 'person', name: '人员', description: '人员位置及状态' },
   { id: 'scene', name: '场景', description: '自动化、手动场景' },
   { id: 'other', name: '其他', description: '媒体、未分类设备' }
@@ -100,7 +100,6 @@ export function categorizeDevice(device: DiscoveredDevice): DeviceCategoryType {
   if (
     domain === 'lock' ||
     domain === 'alarm_control_panel' ||
-    domain === 'camera' ||
     (domain === 'binary_sensor' && device_class && securityClasses.includes(device_class))
   ) {
     return 'security';

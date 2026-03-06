@@ -11,7 +11,6 @@ const DOMAIN_LABELS: Record<string, string> = {
   lock: '门锁',
   sensor: '传感器',
   binary_sensor: '二元传感器',
-  camera: '摄像头',
   vacuum: '扫地机器人',
   humidifier: '加湿器',
   water_heater: '热水器',

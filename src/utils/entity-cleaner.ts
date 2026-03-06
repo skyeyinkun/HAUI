@@ -103,10 +103,6 @@ const DEVICE_TYPE_KEYWORDS: [string[], DeviceTypeInfo][] = [
     [['门锁', '智能锁', '指纹锁', '密码锁'],
     { type: 'lock', label: '门锁', icon: 'lock', category: 'security' }],
 
-    // 摄像头
-    [['摄像头', '摄像机', '监控'],
-    { type: 'camera', label: '摄像头', icon: 'cctv', category: 'security' }],
-
     // 门/窗传感器
     [['门磁', '窗磁', '门窗传感器'],
     { type: 'door_sensor', label: '门窗传感器', icon: 'door-closed', category: 'security' }],
@@ -157,7 +153,6 @@ const DOMAIN_ICON_MAP: Record<string, string> = {
     humidifier: 'air-humidifier',
     media_player: 'television',
     lock: 'lock',
-    camera: 'cctv',
     vacuum: 'robot-vacuum',
     alarm_control_panel: 'shield-home',
     remote: 'remote',
@@ -242,8 +237,6 @@ export function inferDeviceTypeFromName(
             return { type: 'media', label: '媒体播放', icon: 'television', category: 'other' };
         case 'lock':
             return { type: 'lock', label: '门锁', icon: 'lock', category: 'security' };
-        case 'camera':
-            return { type: 'camera', label: '摄像头', icon: 'cctv', category: 'security' };
         case 'vacuum':
             return { type: 'vacuum', label: '扫地机', icon: 'robot-vacuum', category: 'other' };
         case 'remote':

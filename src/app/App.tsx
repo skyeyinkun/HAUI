@@ -84,7 +84,7 @@ function App() {
   // UI State from Zustand Store
   const {
     settingsOpen, setSettingsOpen,
-    settingsDefaultTab, openSettingsAt,
+    settingsDefaultTab,
     climateModalOpen, setClimateModalOpen,
     logModalOpen, setLogModalOpen,
     apiLogOpen, setApiLogOpen,
@@ -804,10 +804,7 @@ function App() {
             logContainerRef={logContainerRef as React.RefObject<HTMLDivElement>}
             selectedRegion={selectedRegion}
             onRegionClick={() => setRegionModalOpen(true)}
-            haBaseUrl={restBaseUrl || '/ha-api'}
-            haToken={haConfig.token}
             onToggleLight={toggleDevice}
-            onOpenCameraSettings={openSettingsAt}
           />
 
           <RegionSelectorModal

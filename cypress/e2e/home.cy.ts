@@ -1,4 +1,4 @@
-describe('Trae Dashboard', () => {
+describe('HAUI Dashboard', () => {
   it('loads the application', () => {
     cy.visit('/')
     // Since we might not be authenticated, look for common elements

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Video, Cpu, Users } from 'lucide-react';
+import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Cpu, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { HAConfig } from '@/types/home-assistant';
 
@@ -10,7 +10,6 @@ import { RoomManagementTab } from './settings/RoomManagementTab';
 import { DeviceDiscoveryPanel } from './settings/DeviceDiscoveryPanel';
 import { Scene } from '@/types/dashboard';
 import { useSettingsWindowSize } from '@/hooks/useSettingsWindowSize';
-import CameraConfigPanel from '@/app/components/dashboard/CameraConfigPanel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,7 +31,7 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose, devices, users, scenes = [], rooms = [], onUpdateUsers, onUpdateDevices, onUpdateScenes, onUpdateRooms, onSave, initialConfig, defaultTab, isConnected = false }: SettingsModalProps) {
   const windowSize = useSettingsWindowSize();
-  const [activeTab, setActiveTab] = useState<'connection' | 'devices' | 'users' | 'rooms' | 'cameras'>('connection');
+  const [activeTab, setActiveTab] = useState<'connection' | 'devices' | 'users' | 'rooms'>('connection');
   const [config, setConfig] = useState<HAConfig>(initialConfig);
 
   const [showToken, setShowToken] = useState(false);
@@ -80,7 +79,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
   // defaultTab 切换
   useEffect(() => {
     if (isOpen && defaultTab) {
-      const validTabs = ['connection', 'devices', 'users', 'rooms', 'cameras'];
+      const validTabs = ['connection', 'devices', 'users', 'rooms'];
       if (validTabs.includes(defaultTab)) {
         setActiveTab(defaultTab as any);
       }
@@ -237,16 +236,6 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
             <Layout className="w-3.5 h-3.5" />
             房间管理
             {activeTab === 'rooms' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#040415]" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('cameras')}
-            className={`py-3 md:py-4 px-2 md:px-4 font-medium text-xs md:text-sm transition-colors relative whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'cameras' ? 'text-[#040415]' : 'text-gray-400'}`}
-          >
-            <Video className="w-3.5 h-3.5" />
-            摄像头管理
-            {activeTab === 'cameras' && (
               <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#040415]" />
             )}
           </button>
@@ -468,37 +457,18 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
             </div>
           )}
           {activeTab === 'rooms' && <RoomManagementTab rooms={localRooms} onUpdateRooms={setLocalRooms} />}
-          {activeTab === 'cameras' && (
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <div className="px-4 md:px-6 pt-4 pb-2 border-b border-gray-100 shrink-0">
-                <h3 className="text-sm font-semibold text-gray-900">摄像头管理</h3>
-                <p className="text-xs text-gray-500 mt-0.5">支持 RTSP · ONVIF · Home Assistant · 萤石云 · Aqara 绿米</p>
-              </div>
-              <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
-                <CameraConfigPanel onConfigChange={() => { }} />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
         <div className="p-6 border-t border-gray-100 bg-gray-50 flex-shrink-0">
-          {activeTab === 'cameras' ? (
-            /* 摄像头 tab：配置独立保存到 localStorage，无需点此按钮 */
-            <div className="flex items-center justify-center gap-2 py-2 text-sm text-gray-400">
-              <Video className="w-4 h-4 shrink-0" />
-              摄像头配置已独立保存，无需点击此处
-            </div>
-          ) : (
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`w-full text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed ${isSaved ? 'bg-green-500 hover:bg-green-600' : 'bg-[#040415] hover:opacity-90'}`}
-            >
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-              {isSaving ? '保存中...' : isSaved ? '保存成功' : '保存配置'}
-            </button>
-          )}
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className={`w-full text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed ${isSaved ? 'bg-green-500 hover:bg-green-600' : 'bg-[#040415] hover:opacity-90'}`}
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            {isSaving ? '保存中...' : isSaved ? '保存成功' : '保存配置'}
+          </button>
         </div>
       </div>
     </div>

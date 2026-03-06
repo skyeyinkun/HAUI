@@ -43,7 +43,7 @@ export function discoverDevicesFromStates(
 
         // Skip certain domains we don't want to auto-import by default
         const domain = entityId.split('.')[0];
-        const allowedDomains = ['light', 'switch', 'input_boolean', 'sensor', 'binary_sensor', 'cover', 'climate', 'humidifier', 'media_player', 'fan', 'lock', 'vacuum', 'alarm_control_panel', 'camera', 'person'];
+        const allowedDomains = ['light', 'switch', 'input_boolean', 'sensor', 'binary_sensor', 'cover', 'climate', 'humidifier', 'media_player', 'fan', 'lock', 'vacuum', 'alarm_control_panel', 'person'];
         if (!allowedDomains.includes(domain)) return;
 
         const friendlyName = entity.attributes.friendly_name || entityId;

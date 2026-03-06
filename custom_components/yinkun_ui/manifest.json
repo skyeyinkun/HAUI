@@ -1,8 +1,8 @@
 {
   "domain": "yinkun_ui",
-  "name": "Trae Dashboard",
+  "name": "HAUI Dashboard",
   "version": "1.0.0",
-  "documentation": "https://github.com/trae-ai/trae-dashboard",
+  "documentation": "https://github.com/skyeyinkun/HAUI",
   "dependencies": [],
   "codeowners": [],
   "requirements": [],

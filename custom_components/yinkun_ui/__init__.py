@@ -1,4 +1,4 @@
-"""The Trae Dashboard integration."""
+"""The HAUI Dashboard integration."""
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
@@ -6,9 +6,9 @@ from homeassistant.helpers.typing import ConfigType
 DOMAIN = "yinkun_ui"
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the Trae Dashboard component."""
+    """Set up the HAUI Dashboard component."""
     # Register the view to verify integration
-    hass.http.register_view(TraeDashboardView)
+    hass.http.register_view(HAUIDashboardView)
     from .card_config import CardConfigView
     hass.http.register_view(CardConfigView)
     
@@ -18,8 +18,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     
     return True
 
-class TraeDashboardView(HomeAssistantView):
-    """View to serve Trae Dashboard status."""
+class HAUIDashboardView(HomeAssistantView):
+    """View to serve HAUI Dashboard status."""
     url = "/api/yinkun_ui"
     name = "api:yinkun_ui"
     requires_auth = False

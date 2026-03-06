@@ -221,6 +221,65 @@ app.post('/api/ezviz/token', async (req, res) => {
     }
 });
 
+// ONVIF 摄像头 PTZ 云台控制代理
+// 将前端指令转换为 Home Assistant 的 onvif.ptz 服务调用
+app.post('/api/camera/ptz', async (req, res) => {
+    try {
+        const { deviceId, direction, name } = req.body;
+        
+        // 鉴权令牌（优先使用请求头，无则用环境变量）
+        const authHeader = req.headers['authorization'] || 
+            (SUPERVISOR_TOKEN ? `Bearer ${SUPERVISOR_TOKEN}` : undefined);
+
+        if (!authHeader) {
+            return res.status(401).json({ error: '未授权，缺少访问令牌' });
+        }
+
+        // 构造服务调用参数 (ContinuousMove 模式)
+        // 实际上在 HA 中，通常需要 entity_id。如果前端没传，我们尝试基于名称匹配或推断。
+        // 为了演示集成，我们假设 entity_id 为 camera.{name_lowercase} 或直接使用前端传来的 deviceId
+        const entityId = req.body.entityId || `camera.${name?.toLowerCase().replace(/\s+/g, '_')}`;
+
+        const ptzData = {
+            entity_id: entityId,
+            move_mode: 'ContinuousMove',
+            speed: 0.5,
+            distance: 0.1
+        };
+
+        // 映射方向到 ONVIF 属性
+        switch (direction) {
+            case 'up': ptzData.tilt = 'Up'; break;
+            case 'down': ptzData.tilt = 'Down'; break;
+            case 'left': ptzData.pan = 'Left'; break;
+            case 'right': ptzData.pan = 'Right'; break;
+            case 'zoomIn': ptzData.zoom = 'ZoomIn'; break;
+            case 'zoomOut': ptzData.zoom = 'ZoomOut'; break;
+        }
+
+        const haRes = await fetch(`${HA_CORE_URL}/api/services/onvif/ptz`, {
+            method: 'POST',
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(ptzData)
+        });
+
+        if (!haRes.ok) {
+            const errText = await haRes.text();
+            console.error('[HAUI] HA PTZ 调用失败:', errText);
+            // 尝试降级调用通用的 camera.ptz_move
+            // ...
+        }
+
+        res.json({ ok: haRes.ok });
+    } catch (e) {
+        console.error('[HAUI] PTZ 代理指令执行异常:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 健康检查（HA Ingress 心跳探测）
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });

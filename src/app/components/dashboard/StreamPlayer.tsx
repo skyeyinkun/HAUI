@@ -25,7 +25,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Hls from 'hls.js';
 import mpegts from 'mpegts.js';
-import { RefreshCw, Video, WifiOff, AlertTriangle } from 'lucide-react';
+import axios from 'axios';
+import { 
+    RefreshCw, Video, WifiOff, AlertTriangle, 
+    ChevronUp, ChevronDown, ChevronLeft, ChevronRight, 
+    ZoomIn, ZoomOut 
+} from 'lucide-react';
 import type { CameraConfig } from '@/types/camera';
 import { getEzvizAccessToken, clearEzvizTokenCache } from '@/services/ezviz-api';
 
@@ -622,6 +627,21 @@ export default function StreamPlayer({
         setStream(null);
     }, [forceReset]);
 
+    // ── PTZ 云台控制 ──────────────────────────────────────────────────────
+    const handlePtz = async (direction: string) => {
+        if (cam.sourceType !== 'onvif') return;
+        try {
+            await axios.post('/api/camera/ptz', {
+                deviceId: cam.id,
+                name: cam.name,
+                source: cam.onvif, // 将连接信息传给后端处理
+                direction
+            });
+        } catch (err) {
+            console.error('[PTZ] 控制指令发送失败:', err);
+        }
+    };
+
     // ── 错误/空闲 UI ─────────────────────────────────────────────────────────
     if (error) {
         const isConfigError = error.includes('请') || error.includes('配置') || error.includes('go2rtc') || error.includes('RTSP');
@@ -747,6 +767,64 @@ export default function StreamPlayer({
             {!loading && !error && stream && (
                 <div className="absolute bottom-1 right-1 z-10 opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-none">
                     <ProtocolBadge mode={stream.mode} />
+                </div>
+            )}
+
+            {/* ── ONVIF 云台控制面板 ─────────────────────────────────────── */}
+            {cam.sourceType === 'onvif' && !loading && !error && (
+                <div className="absolute bottom-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                    <div className="grid grid-cols-3 gap-1 p-1.5 bg-black/30 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl scale-90 origin-bottom-right">
+                        <div />
+                        <button
+                            onClick={() => handlePtz('up')}
+                            className="p-1.5 hover:bg-white/20 text-white rounded-lg transition-colors"
+                            title="向上"
+                        >
+                            <ChevronUp className="w-4 h-4" />
+                        </button>
+                        <div />
+
+                        <button
+                            onClick={() => handlePtz('left')}
+                            className="p-1.5 hover:bg-white/20 text-white rounded-lg transition-colors"
+                            title="向左"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <div className="flex flex-col items-center justify-center gap-1">
+                            <button
+                                onClick={() => handlePtz('zoomIn')}
+                                className="text-white/60 hover:text-white transition-colors"
+                                title="放大"
+                            >
+                                <ZoomIn className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                                onClick={() => handlePtz('zoomOut')}
+                                className="text-white/60 hover:text-white transition-colors"
+                                title="缩小"
+                            >
+                                <ZoomOut className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => handlePtz('right')}
+                            className="p-1.5 hover:bg-white/20 text-white rounded-lg transition-colors"
+                            title="向右"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+
+                        <div />
+                        <button
+                            onClick={() => handlePtz('down')}
+                            className="p-1.5 hover:bg-white/20 text-white rounded-lg transition-colors"
+                            title="向下"
+                        >
+                            <ChevronDown className="w-4 h-4" />
+                        </button>
+                        <div />
+                    </div>
                 </div>
             )}
         </div>

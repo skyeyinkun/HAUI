@@ -192,6 +192,35 @@ app.post('/api/ezviz/url', async (req, res) => {
     }
 });
 
+// 萤石云 Token 代理：只获取 AccessToken（供 ezuikit-js SDK 使用）
+// 隐藏 AppKey/AppSecret，避免前端直接暴露
+app.post('/api/ezviz/token', async (req, res) => {
+    try {
+        const { appKey, appSecret } = req.body;
+
+        if (!appKey || !appSecret) {
+            return res.status(400).json({ error: '缺少必要的萤石云参数（appKey / appSecret）' });
+        }
+
+        // 获取 accessToken
+        const tokenParams = new URLSearchParams({ appKey, appSecret });
+        const tokenResp = await fetch('https://open.ys7.com/api/lapp/token/get', {
+            method: 'POST',
+            body: tokenParams,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        const tokenData = await tokenResp.json();
+        if (tokenData.code !== '200') {
+            throw new Error(`萤石 Token 获取失败: ${tokenData.msg} (code: ${tokenData.code})`);
+        }
+
+        res.json({ ok: true, accessToken: tokenData.data.accessToken });
+    } catch (e) {
+        console.error('[HAUI] 萤石云 Token 代理异常:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 健康检查（HA Ingress 心跳探测）
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });

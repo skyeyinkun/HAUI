@@ -14,6 +14,7 @@ const WALL_STORAGE_KEY = 'camera_wall_layout';
 const SENSITIVE_FIELDS = [
     'rtsp.password',
     'onvif.password',
+    'ezviz.appKey',
     'ezviz.appSecret',
     'ezviz.validateCode',
     'aqara.appKey',

@@ -27,7 +27,7 @@ import Hls from 'hls.js';
 import mpegts from 'mpegts.js';
 import { RefreshCw, Video, WifiOff, AlertTriangle } from 'lucide-react';
 import type { CameraConfig } from '@/types/camera';
-import { getEzvizStreamUrl, clearEzvizTokenCache } from '@/services/ezviz-api';
+import { getEzvizAccessToken, clearEzvizTokenCache } from '@/services/ezviz-api';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +50,7 @@ type PlayerMode =
     | 'flv'       // mpegts.js 播放 HTTP-FLV
     | 'mjpeg'     // <img> MJPEG 图片流
     | 'snapshot'  // <img> 静态帧快照（轮询刷新）
+    | 'ezuikit'   // 萤石云 ezuikit-js SDK 播放器
     | 'idle';     // 空闲，等待输入
 
 interface StreamState {
@@ -160,6 +161,9 @@ export default function StreamPlayer({
     const videoRef = useRef<HTMLVideoElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    // ezuikit-js 播放器容器和实例
+    const ezuikitContainerRef = useRef<HTMLDivElement>(null);
+    const ezuikitPlayerRef = useRef<any>(null);
 
     // 播放器引擎实例
     const hlsRef = useRef<Hls | null>(null);
@@ -185,6 +189,16 @@ export default function StreamPlayer({
         if (rtcRef.current) {
             rtcRef.current.close();
             rtcRef.current = null;
+        }
+        // 销毁 ezuikit-js 播放器实例
+        if (ezuikitPlayerRef.current) {
+            try { ezuikitPlayerRef.current.stop(); } catch { /* 忽略 */ }
+            try { ezuikitPlayerRef.current.destroy(); } catch { /* 忽略 */ }
+            ezuikitPlayerRef.current = null;
+        }
+        // 清空 ezuikit 容器内部 DOM（SDK 会注入 canvas/video）
+        if (ezuikitContainerRef.current) {
+            ezuikitContainerRef.current.innerHTML = '';
         }
         // 清理 video srcObject，避免内存泄漏
         if (videoRef.current) {
@@ -244,25 +258,26 @@ export default function StreamPlayer({
                         break;
                     }
 
-                    // ── 萤石云 ─────────────────────────────────────────────────────
+                    // ── 萤石云（ezuikit-js SDK 播放）──────────────────────────────
                     case 'ezviz': {
                         const cfg = cam.ezviz;
                         if (!cfg?.appKey || !cfg?.appSecret || !cfg?.deviceSerial) {
                             throw new Error('请完善萤石云配置（AppKey / AppSecret / 序列号）');
                         }
-                        // 萨石云协议：默认 HLS(2)，FLV(3) 作为备选
-                        const protocol = cfg.protocol ?? 2;
-                        const url = await getEzvizStreamUrl(
+                        // 通过 AppKey+AppSecret 获取 AccessToken
+                        const accessToken = await getEzvizAccessToken(
                             cfg.appKey,
                             cfg.appSecret,
-                            cfg.deviceSerial,
-                            cfg.channelNo ?? 1,
-                            protocol,
-                            cfg.validateCode,
                         );
+                        // 构造 ezopen:// 协议地址供 ezuikit-js 使用
+                        const channelNo = cfg.channelNo ?? 1;
+                        const ezUrl = `ezopen://open.ys7.com/${cfg.deviceSerial}/${channelNo}.live`;
                         if (!cancelled) {
-                            // protocol=3 为 FLV，其余全部用 HLS 播放
-                            setStream({ mode: protocol === 3 ? 'flv' : 'hls', url });
+                            // url 格式：accessToken|ezUrl|deviceSerial
+                            setStream({
+                                mode: 'ezuikit',
+                                url: `${accessToken}|${ezUrl}|${cfg.deviceSerial}`,
+                            });
                         }
                         break;
                     }
@@ -528,6 +543,57 @@ export default function StreamPlayer({
             };
         }
 
+        // ── 萤石云 ezuikit-js SDK 播放器 ──────────────────────────────────
+        if (mode === 'ezuikit') {
+            const [accessToken, ezUrl, _serial] = url.split('|');
+            const container = ezuikitContainerRef.current;
+            if (!container) return;
+
+            // 给容器设置唯一 ID（ezuikit-js 需要 DOM id）
+            const containerId = `ezuikit-${cam.id}`;
+            container.id = containerId;
+
+            // 动态导入 ezuikit-js（避免 SSR 问题，按需加载）
+            let cancelled = false;
+            import('ezuikit-js').then((EZUIKit) => {
+                if (cancelled) return;
+                const EZUIKitPlayer = EZUIKit.default || EZUIKit;
+
+                try {
+                    const player = new EZUIKitPlayer({
+                        id: containerId,
+                        accessToken: accessToken,
+                        url: ezUrl,
+                        autoplay: true,
+                        width: container.clientWidth || 640,
+                        height: container.clientHeight || 360,
+                        // 启用音频（静音播放，避免自动播放策略拦截）
+                        audio: 0,
+                    });
+                    ezuikitPlayerRef.current = player;
+                    setLoading(false);
+                } catch (err: any) {
+                    console.error('[ezuikit-js] 初始化失败:', err);
+                    setError(`萤石播放器初始化失败: ${err.message || '未知错误'}`);
+                    setLoading(false);
+                }
+            }).catch((err) => {
+                console.error('[ezuikit-js] 动态加载失败:', err);
+                setError('萤石播放器组件加载失败，请刷新页面重试');
+                setLoading(false);
+            });
+
+            return () => {
+                cancelled = true;
+                if (ezuikitPlayerRef.current) {
+                    try { ezuikitPlayerRef.current.stop(); } catch { /* 忽略 */ }
+                    try { ezuikitPlayerRef.current.destroy(); } catch { /* 忽略 */ }
+                    ezuikitPlayerRef.current = null;
+                }
+                if (container) container.innerHTML = '';
+            };
+        }
+
         // ── MJPEG / snapshot 不需要 JS 播放引擎，由 <img> 原生处理 ─────────
         if (mode === 'mjpeg' || mode === 'snapshot') {
             setLoading(false);
@@ -592,6 +658,7 @@ export default function StreamPlayer({
     // ── 渲染 ─────────────────────────────────────────────────────────────────
     const isVideoMode = stream?.mode === 'webrtc' || stream?.mode === 'hls' || stream?.mode === 'flv';
     const isImgMode = stream?.mode === 'mjpeg' || stream?.mode === 'snapshot';
+    const isEzuikitMode = stream?.mode === 'ezuikit';
 
     return (
         <div
@@ -659,6 +726,15 @@ export default function StreamPlayer({
                 />
             )}
 
+            {/* ── 萤石云 ezuikit-js SDK 容器 ──────────────────────────────── */}
+            {isEzuikitMode && (
+                <div
+                    ref={ezuikitContainerRef}
+                    className="w-full h-full"
+                    style={{ minHeight: '200px' }}
+                />
+            )}
+
             {/* ── 空闲状态（还未解析到流）──────────────────────────────────── */}
             {!stream && !loading && !error && (
                 <div className="flex flex-col items-center opacity-20 gap-2">
@@ -686,6 +762,7 @@ function ProtocolBadge({ mode }: { mode: PlayerMode }) {
         flv: { label: 'FLV', color: '#f59e0b' },
         mjpeg: { label: 'MJPEG', color: '#8b5cf6' },
         snapshot: { label: 'SNAP', color: '#6b7280' },
+        ezuikit: { label: 'EZVIZ', color: '#f59e0b' },
         idle: { label: 'IDLE', color: '#6b7280' },
     };
     const cfg = configs[mode] || configs.idle;

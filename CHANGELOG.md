@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.0.8] - 2026-03-06
+
+### 修复与优化
+- **摄像头功能重构与修复**: 
+  - **接入主流萤石云 SDK**: 彻底放弃了旧有的「前端直连 API 获取 HLS 地址」方案（该方案常因 CORS/CSP 跨域限制导致播放失败）。通过集成萤石官方 `ezuikit-js` SDK，实现了基于 WebSocket 的稳定流媒体播放，避开了所有浏览器跨域瓶颈。
+  - **后端 Token 鉴权代理**: 在 HA Add-on 后端 (`server.js`) 新增了 `/api/ezviz/token` 代理接口。前端不再直接持有敏感的 AppSecret，而是通过后端中转获取 AccessToken，大幅提升了系统的安全性。
+  - **全面密钥隐藏与加密**: 将配置面板中所有的敏感字段（AppKey、AppSecret、验证码等）统一更换为密码输入框 (`PwdInput`)，支持明文/密文切换。同时，在本地浏览器存储 (`localStorage`) 环节，将 `ezviz.appKey` 纳入 AES 加密范畴，确保用户配置在本地物理层面的安全性。
+  - **类型系统增强**: 为 `ezuikit-js` 补充了缺失的 TypeScript 模块声明文件，并更新了 `CameraConfig` 类型定义，支持 AccessToken 的透明化管理。
+
+
 All notable changes to this project will be documented in this file.
 
 ## [3.0.7] - 2026-03-06

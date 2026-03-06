@@ -309,7 +309,7 @@ export default function CameraConfigModal({
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="text-[11px] text-muted-foreground mb-1 block">AppKey *</label>
-                                <TextInput
+                                <PwdInput
                                     value={editing.ezviz?.appKey || ''}
                                     onChange={(v) => updateField('ezviz', 'appKey', v)}
                                     placeholder="萤石开放平台 AppKey"

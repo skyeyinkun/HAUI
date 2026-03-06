@@ -627,7 +627,7 @@ export default function CameraConfigPanel({ onConfigChange }: CameraConfigPanelP
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <Label required>AppKey</Label>
-                                <Input
+                                <PwdInput
                                     value={editing.ezviz?.appKey || ''}
                                     onChange={(v) => updateField('ezviz', 'appKey', v)}
                                     placeholder="萤石开放平台 AppKey"

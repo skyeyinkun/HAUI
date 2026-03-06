@@ -1,7 +1,7 @@
 {
   "name": "@figma/my-make-file",
   "private": true,
-  "version": "3.0.7",
+  "version": "3.0.8",
   "type": "module",
   "scripts": {
     "build": "vite build",
@@ -55,6 +55,7 @@
     "crypto-js": "^4.2.0",
     "date-fns": "3.6.0",
     "embla-carousel-react": "8.6.0",
+    "ezuikit-js": "^8.2.6",
     "hls.js": "^1.6.15",
     "home-assistant-js-websocket": "^9.6.0",
     "input-otp": "1.4.2",

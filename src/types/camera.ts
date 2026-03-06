@@ -106,6 +106,11 @@ export interface EzvizConfig {
    * - 3: FLV（RTMP 转 HTTP-FLV）
    */
   protocol?: 1 | 2 | 3;
+  /**
+   * 缓存的 AccessToken（由 AppKey+AppSecret 换取）
+   * ezuikit-js SDK 播放时需要此 Token，不需要用户手动填写
+   */
+  accessToken?: string;
 }
 
 /**

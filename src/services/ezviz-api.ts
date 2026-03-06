@@ -203,3 +203,59 @@ export async function getEzvizStreamUrl(
 export function clearEzvizTokenCache(appKey: string) {
     tokenCache.delete(appKey);
 }
+
+/**
+ * 获取萤石云 AccessToken（供 ezuikit-js SDK 使用）
+ *
+ * 执行流程：
+ *   1. 优先通过后端代理获取（解决 CSP/CORS 问题）
+ *   2. 代理不通时降级到前端直连萤石 API
+ *
+ * @param appKey 萤石开放平台 AppKey
+ * @param appSecret 萤石开放平台 AppSecret
+ * @returns AccessToken 字符串
+ */
+export async function getEzvizAccessToken(
+    appKey: string,
+    appSecret: string,
+): Promise<string> {
+    const proxyUrl = getProxyUrl().replace('/api/ezviz/url', '/api/ezviz/token');
+
+    // 优先通过后端代理获取 Token
+    try {
+        const res = await fetchWithTimeout(
+            proxyUrl,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appKey, appSecret }),
+                credentials: 'include',
+            },
+            10000,
+        );
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data.ok && data.accessToken) {
+                console.debug('[HAUI Ezviz] 通过后端代理获取 AccessToken 成功');
+                return data.accessToken;
+            }
+            throw new Error(data.error || '代理返回了未知错误');
+        }
+
+        if (res.status === 500) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `萤石云代理异常: HTTP ${res.status}`);
+        }
+        console.debug('[HAUI Ezviz] Token 代理不可用 (HTTP', res.status, ')，降级到前端直连');
+    } catch (e: any) {
+        if (e?.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError') && !e.message.includes('net::ERR') && e?.name !== 'AbortError') {
+            throw e;
+        }
+        console.debug('[HAUI Ezviz] Token 代理网络不通，降级到前端直连:', e?.message);
+    }
+
+    // 降级：前端直连获取 Token
+    console.debug('[HAUI Ezviz] 使用前端直连模式获取 AccessToken');
+    return getAccessTokenDirect(appKey, appSecret);
+}

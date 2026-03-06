@@ -219,7 +219,17 @@ app.post('/api/ai/config', (req, res) => {
     }
 });
 
-// --- AI Chat 代理端点 (支持 MCP Tools & SSE) ---
+// --- AI Chat 代理端点 (支持 Tool Call 多轮回传 & SSE) ---
+
+// Tool Call 最大循环次数，防止 LLM 无限调用工具
+const MAX_TOOL_ROUNDS = 5;
+
+// 安全白名单：仅允许这些域的服务控制
+const ALLOWED_DOMAINS = new Set([
+    'light', 'switch', 'cover', 'fan', 'media_player',
+    'climate', 'lock', 'scene', 'input_boolean', 'script',
+    'automation', 'vacuum', 'humidifier', 'water_heater'
+]);
 
 // HA Tools Schema 定义
 const haTools = [
@@ -227,7 +237,7 @@ const haTools = [
         type: "function",
         function: {
             name: "call_ha_service",
-            description: "调用 Home Assistant 服务来控制设备，例如开灯、关窗帘、调节温度等。必须提供 domain 和 service。",
+            description: "调用 Home Assistant 服务来控制设备，例如开灯、关窗帘、调节温度等。必须提供 domain、service 和 service_data（至少包含 entity_id）。",
             parameters: {
                 type: "object",
                 properties: {
@@ -243,11 +253,11 @@ const haTools = [
         type: "function",
         function: {
             name: "get_entity_state",
-            description: "获取特定实体的当前状态和属性。",
+            description: "获取特定实体的当前状态和属性。用于查询设备实时状态。",
             parameters: {
                 type: "object",
                 properties: {
-                    entity_id: { type: "string", description: "要查询的 entity_id，例如 light.living_room" }
+                    entity_id: { type: "string", description: "要查询的 entity_id，例如 light.living_room, sensor.temperature" }
                 },
                 required: ["entity_id"]
             }
@@ -255,10 +265,110 @@ const haTools = [
     }
 ];
 
+// =====================================================================
+// 辅助函数：消费 SSE 流，返回内容块和工具调用信息
+// =====================================================================
+async function consumeStream(response, onContentChunk) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    const toolCallBuffers = {};
+    let buffer = ''; // 用于处理跨 chunk 的不完整行
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        // 最后一行可能不完整，留到下轮处理
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed === 'data: [DONE]') continue;
+            if (!trimmed.startsWith('data: ')) continue;
+
+            const dataStr = trimmed.slice(6);
+            try {
+                const parsed = JSON.parse(dataStr);
+                const choice = parsed.choices?.[0];
+                if (!choice) continue;
+
+                const delta = choice.delta;
+
+                // 收集 tool_call 增量数据
+                if (delta?.tool_calls) {
+                    for (const tc of delta.tool_calls) {
+                        const index = tc.index ?? 0;
+                        if (!toolCallBuffers[index]) {
+                            toolCallBuffers[index] = { id: '', name: '', arguments: '' };
+                        }
+                        if (tc.id) toolCallBuffers[index].id = tc.id;
+                        if (tc.function?.name) toolCallBuffers[index].name = tc.function.name;
+                        if (tc.function?.arguments) {
+                            toolCallBuffers[index].arguments += tc.function.arguments;
+                        }
+                    }
+                }
+
+                // 文本内容块推送给调用方
+                if (delta?.content && onContentChunk) {
+                    onContentChunk(delta.content);
+                }
+            } catch (e) {
+                // 解析失败的块静默跳过
+                console.warn('[AI Stream] 解析失败:', dataStr.slice(0, 80));
+            }
+        }
+    }
+
+    // 将收集到的 toolCallBuffers 转为数组
+    const toolCalls = Object.values(toolCallBuffers).filter(tc => tc.name);
+    return { toolCalls };
+}
+
+// =====================================================================
+// 辅助函数：执行单个 Tool Call 并返回结果
+// =====================================================================
+async function executeToolCall(toolCall, fetchHaApi) {
+    const { name, arguments: argsStr } = toolCall;
+    try {
+        const args = JSON.parse(argsStr);
+
+        if (name === 'call_ha_service') {
+            // 安全校验：域名白名单
+            if (!ALLOWED_DOMAINS.has(args.domain)) {
+                return { success: false, error: `域 ${args.domain} 不在允许范围内`, args };
+            }
+            const result = await fetchHaApi(
+                `/api/services/${args.domain}/${args.service}`, 'POST', args.service_data
+            );
+            return { success: true, result: `服务 ${args.domain}.${args.service} 已成功执行`, args };
+        }
+
+        if (name === 'get_entity_state') {
+            const state = await fetchHaApi(`/api/states/${args.entity_id}`);
+            // 精简返回数据，仅保留关键字段
+            const simplified = {
+                entity_id: state.entity_id,
+                state: state.state,
+                friendly_name: state.attributes?.friendly_name,
+                unit: state.attributes?.unit_of_measurement,
+                device_class: state.attributes?.device_class,
+                last_changed: state.last_changed,
+            };
+            return { success: true, result: JSON.stringify(simplified), args };
+        }
+
+        return { success: false, error: `未知工具: ${name}`, args: {} };
+    } catch (err) {
+        return { success: false, error: err.message, args: {} };
+    }
+}
+
 app.post('/api/ai/chat', async (req, res) => {
     try {
         const { messages, token } = req.body;
-        // token 是前端传过来的 HA access token，用于 HA-API 调用
 
         let aiConfig = readAiConfig();
 
@@ -281,40 +391,40 @@ app.post('/api/ai/chat', async (req, res) => {
 
         const authHeader = token ? `Bearer ${token}` : (SUPERVISOR_TOKEN ? `Bearer ${SUPERVISOR_TOKEN}` : undefined);
 
-        // 用于在内部处理 Tool Call 的辅助函数
+        // HA API 请求辅助函数
         async function fetchHaApi(path, method = 'GET', body = null) {
             const targetUrl = `${HA_CORE_URL}${path}`;
             const headers = { 'Content-Type': 'application/json' };
             if (authHeader) headers['Authorization'] = authHeader;
-
             const fetchOpts = { method, headers };
             if (body) fetchOpts.body = JSON.stringify(body);
-
             const response = await fetch(targetUrl, fetchOpts);
             if (!response.ok) throw new Error(`HA API Error: ${response.status}`);
             return response.json();
         }
 
-        const openaiPayload = {
-            model: aiConfig.modelName,
-            messages: messages,
-            tools: haTools,
-            tool_choice: "auto",
-            stream: true
-        };
-
-        const aiRes = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${aiConfig.apiKey}`
-            },
-            body: JSON.stringify(openaiPayload)
-        });
-
-        if (!aiRes.ok) {
-            const errBody = await aiRes.text();
-            throw new Error(`AI API 失败: ${aiRes.status} ${errBody}`);
+        // 向 LLM 发起请求的通用函数
+        async function callLLM(msgs, stream = true) {
+            const payload = {
+                model: aiConfig.modelName,
+                messages: msgs,
+                tools: haTools,
+                tool_choice: "auto",
+                stream
+            };
+            const llmRes = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${aiConfig.apiKey}`
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!llmRes.ok) {
+                const errBody = await llmRes.text();
+                throw new Error(`AI API 失败: ${llmRes.status} ${errBody}`);
+            }
+            return llmRes;
         }
 
         // 设置 SSE 响应头
@@ -322,81 +432,77 @@ app.post('/api/ai/chat', async (req, res) => {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        const reader = aiRes.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-
-        let toolCallBuffers = {}; // 用于拼接通过 stream 发送过来的多路 tool_call 信息
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-            for (const line of lines) {
-                if (line.includes('[DONE]')) {
-                    continue; // 过滤大模型的 END marker
-                }
-                if (line.startsWith('data: ')) {
-                    const dataStr = line.slice(6);
-                    if (dataStr === '[DONE]') continue;
-                    try {
-                        const parsed = JSON.parse(dataStr);
-                        const delta = parsed.choices[0]?.delta;
-
-                        if (delta?.tool_calls) {
-                            // 收集 tool_call 增量数据
-                            for (const tc of delta.tool_calls) {
-                                const index = tc.index;
-                                if (!toolCallBuffers[index]) {
-                                    toolCallBuffers[index] = { arguments: '' };
-                                }
-                                if (tc.id) toolCallBuffers[index].id = tc.id;
-                                if (tc.function?.name) toolCallBuffers[index].name = tc.function.name;
-                                if (tc.function?.arguments) {
-                                    toolCallBuffers[index].arguments += tc.function.arguments;
-                                }
-                            }
-                        } else if (delta?.content) {
-                            // 主动推送文本到前端
-                            res.write(`data: ${JSON.stringify({ type: 'content', content: delta.content })}\n\n`);
-                        }
-                    } catch (e) {
-                        console.warn('Failed to parse stream chunk:', dataStr, e);
-                    }
-                }
-            }
+        // 用于 SSE 推送的辅助函数
+        function sseWrite(event) {
+            try { res.write(`data: ${JSON.stringify(event)}\n\n`); } catch (_) { /* 连接已断开 */ }
         }
 
-        // 检查是否有拦截到的 toolCall 需要自己执行（支持并行调用）
-        for (const toolCallBuffer of Object.values(toolCallBuffers)) {
-            if (toolCallBuffer.name) {
-                try {
-                    const args = JSON.parse(toolCallBuffer.arguments);
-                    let toolResult = null;
+        // =====================================================================
+        // 核心循环：LLM 请求 → tool_call → 执行 → 结果回传 → LLM 总结
+        // =====================================================================
+        let conversationMessages = [...messages];
+        let round = 0;
 
-                    // 执行 HA API
-                    if (toolCallBuffer.name === 'call_ha_service') {
-                        // TODO: 在这里加入白名单进行安全性过滤
-                        const ALLOWED_DOMAINS = new Set(['light', 'switch', 'cover', 'fan', 'media_player', 'climate', 'lock', 'scene', 'input_boolean', 'script']);
-                        if (!ALLOWED_DOMAINS.has(args.domain)) {
-                            throw new Error(`Domain ${args.domain} is not in the whitelist.`);
-                        }
-                        toolResult = await fetchHaApi(`/api/services/${args.domain}/${args.service}`, 'POST', args.service_data);
+        while (round < MAX_TOOL_ROUNDS) {
+            round++;
 
-                        // 向前端发送控制成功日志
-                        res.write(`data: ${JSON.stringify({ type: 'tool_call', action: '执行成功', data: args })}\n\n`);
-                        res.write(`data: ${JSON.stringify({ type: 'content', content: `\n\n⚡️ **系统提示**: 已成功发送控制指令 ${args.domain}.${args.service}。` })}\n\n`);
-                    } else if (toolCallBuffer.name === 'get_entity_state') {
-                        toolResult = await fetchHaApi(`/api/states/${args.entity_id}`);
-                        res.write(`data: ${JSON.stringify({ type: 'content', content: `\n\n🔍 **状态查询结果**: ${JSON.stringify(toolResult)}。` })}\n\n`);
-                    }
+            const llmRes = await callLLM(conversationMessages);
 
-                } catch (err) {
-                    res.write(`data: ${JSON.stringify({ type: 'error', content: `\n\n⚠️ AI 工具 ${toolCallBuffer.name} 执行失败: ${err.message}` })}\n\n`);
-                }
+            // 消费流式响应，实时推送内容给前端
+            const { toolCalls } = await consumeStream(llmRes, (contentChunk) => {
+                sseWrite({ type: 'content', content: contentChunk });
+            });
+
+            // 没有工具调用，说明 LLM 已给出最终回复，结束循环
+            if (toolCalls.length === 0) {
+                break;
             }
+
+            // 有工具调用：构建 assistant 消息（含 tool_calls）
+            const assistantToolMessage = {
+                role: 'assistant',
+                content: null,
+                tool_calls: toolCalls.map(tc => ({
+                    id: tc.id,
+                    type: 'function',
+                    function: { name: tc.name, arguments: tc.arguments }
+                }))
+            };
+            conversationMessages.push(assistantToolMessage);
+
+            // 并行执行所有工具调用
+            const toolResults = await Promise.all(
+                toolCalls.map(tc => executeToolCall(tc, fetchHaApi))
+            );
+
+            // 将每个工具结果作为 tool 角色消息追加
+            for (let i = 0; i < toolCalls.length; i++) {
+                const tc = toolCalls[i];
+                const result = toolResults[i];
+
+                // 向前端推送工具执行状态
+                if (result.success) {
+                    sseWrite({ type: 'tool_call', action: '执行成功', data: result.args });
+                } else {
+                    sseWrite({ type: 'tool_call', action: '执行失败', data: { error: result.error, ...result.args } });
+                }
+
+                // 构建 tool 角色回传消息
+                conversationMessages.push({
+                    role: 'tool',
+                    tool_call_id: tc.id,
+                    content: result.success
+                        ? result.result
+                        : `工具执行失败: ${result.error}`
+                });
+            }
+
+            // 继续循环，让 LLM 根据工具结果生成自然语言总结
+        }
+
+        // 如果达到最大循环次数仍有工具调用，发出警告
+        if (round >= MAX_TOOL_ROUNDS) {
+            sseWrite({ type: 'content', content: '\n\n⚠️ 工具调用轮次已达上限，请简化您的请求。' });
         }
 
         res.write(`data: [DONE]\n\n`);
@@ -407,7 +513,7 @@ app.post('/api/ai/chat', async (req, res) => {
         if (!res.headersSent) {
             res.status(500).json({ error: e.message });
         } else {
-            res.write(`data: ${JSON.stringify({ type: 'error', content: `Server Error: ${e.message}` })}\n\n`);
+            sseWrite?.({ type: 'error', content: `Server Error: ${e.message}` });
             res.end();
         }
     }

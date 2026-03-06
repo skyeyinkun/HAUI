@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.7] - 2026-03-06
+
+### 修复与优化
+- **AI 智能管家功能重构**: 
+  - **Tool Call 多轮回传支持**: 重构了后端的 AI 工具调用逻辑（支持最多5轮多轮回传），改变了之前通过硬编码直接回复控制结果的简单方式。现在，AI 模型在执行后端的 Home Assistant 设备控制指令或查询实体状态指令后，能接收到执行结果（通过 `tool` 消息体），进而通过自然语言更加智能化地总结和反馈真实情况（例如：“已为您打开客厅灯，当前状态为 on”）。
+  - **组件架构优化与性能提升**: 将过度膨胀的 `AiChatWidget.tsx` (681 行) 彻底重构。抽象出底层状态钩子 `useAiChat`；在视图层按照关注点分离原则拆分出 `VoiceStatusIndicator` (语音状态指示器)、`ChatMessageList` (聊天消息列表)、`ChatInput` (输入区域) 等独立子组件，大幅度提升代码可维护性与渲染效能，并将代码体积精简近一半。
+  - **全平台语音输入与播放兼容性增强**: 对于 `useSpeechRecognition` 语音识别模块，在保持非 iOS 系统连续录音（`continuous=true`）的基础上，增设了由 `silenceTimeout` (静音超时检测) + `autoRestart` 驱动的自动重启机制，增强了识别稳定性；加入了特定网络错误导致掉线情况下的重试保障；对于 `useSpeechSynthesis` 文本转语音播报模块，针对 Chrome 浏览器默认 15 秒语音断流的顽疾，自主实现了长文本分段并发朗读队列。补充了适用于 iOS Safari 的环境重置唤醒（Workaround）。
+  - **设备上下文语义增强**: 在前端向 AI 大模型传递家庭实体现状信息（`getSmartHomeContext`）时，为纯英文及简写标识提供了中文对应解析字典（例如：将 `light` 映射给 AI 为 `灯光`）。同时加入了总体实体数目概要提示头，配合 `MAX_ENTITIES=100` 等容量截断策略，保证 LLM 的指令理解效果且降低 Token 超出限额风险。
+
 ## [3.0.6] - 2026-03-05
 
 ### 修复与优化

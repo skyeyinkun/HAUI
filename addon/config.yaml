@@ -1,5 +1,5 @@
 name: "HAUI - 智能家庭中枢"
-version: "3.0.16"
+version: "3.0.17"
 slug: "haui_dashboard"
 description: "专为 Home Assistant 打造的高性能现代化前端控制面板，汇集 AI 智能管家对话、全平台自适应界面与极致灵活的 iOS 风格小组件排版体系，带来前所未有的智能家居操纵体验。"
 # 替换为你的 GitHub 用户名/仓库名

@@ -31,8 +31,11 @@ export function SortableWidget({ widget, isEditing, onRemove, children, classNam
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`relative group ${isDragging ? 'opacity-70 scale-105 shadow-2xl' : ''} ${className} 
+      style={{
+        ...style,
+        animationDelay: isEditing ? `${(parseInt(widget.id.slice(-3), 16) % 10) * 0.02}s` : '0s'
+      }}
+      className={`relative group ${isDragging ? 'opacity-70 scale-105 shadow-2xl z-[100]' : ''} ${className} 
       ${isEditing && !isDragging ? 'animate-wiggle' : ''}`}
     >
       {isEditing && (

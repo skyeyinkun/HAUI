@@ -26,9 +26,10 @@ import { LogsWidget } from './widgets/LogsWidget';
 import { IndoorEnvironmentCard } from './cards/IndoorEnvironment/IndoorEnvironmentCard';
 import { SensorStatusCard } from './cards/SensorStatusCard';
 
-import { useDashboardLayout, WidgetType } from '@/hooks/useDashboardLayout';
+import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 import { SortableWidget } from './SortableWidget';
 import { useLongPress } from '@/hooks/useLongPress';
+import { getAvailableWidgets, getWidgetGridClasses } from './widgetRegistry';
 
 // 弹窗组件导入
 import {
@@ -103,13 +104,7 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
     }
   };
 
-  const availableWidgets: { type: WidgetType; label: string; desc: string }[] = [
-    { type: 'weather', label: '天气控件', desc: '实时天气与三日预报' },
-    { type: 'indoor', label: '室内环境', desc: '汇总全屋温湿度与空气质量' },
-    { type: 'energy', label: '能源看板', desc: '全屋能耗与功率统计' },
-    { type: 'sensor_status', label: '设备状态', desc: '门窗/人体/水浸等快速纵览' },
-    { type: 'logs', label: '实时日志', desc: '监控系统与设备流日志' },
-  ];
+  const availableWidgets = getAvailableWidgets();
 
   if (!isInitialized) {
     return (
@@ -141,14 +136,19 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   {availableWidgets.map(widget => (
                     <button
                       key={widget.type}
-                      className="w-full flex flex-col items-start px-3 py-2 hover:bg-accent rounded-lg transition-colors text-left"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent rounded-xl transition-all text-left group"
                       onClick={() => {
                         addWidget(widget.type, widget.label);
                         setAddPopoverOpen(false);
                       }}
                     >
-                      <span className="text-sm font-medium text-foreground">{widget.label}</span>
-                      <span className="text-xs text-muted-foreground mt-0.5">{widget.desc}</span>
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
+                         <widget.icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-semibold text-foreground truncate">{widget.label}</span>
+                        <span className="text-xs text-muted-foreground line-clamp-1">{widget.desc}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -171,13 +171,12 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
         <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 ${isEditing ? 'gap-y-4' : ''} auto-rows-[100px] grid-flow-row-dense items-stretch min-h-[300px] transition-all`}>
           <SortableContext items={layout.map(w => w.id)} strategy={rectSortingStrategy}>
             {layout.map((widget) => {
-              // 根据组件类型，分配不同尺寸的网格 (Span)
-              let className = '';
+              // 从注册表和自定义配置中获取网格类
+              const gridClassName = getWidgetGridClasses(widget.type, widget.w, widget.h);
               let renderContent = null;
 
               switch (widget.type) {
                 case 'weather':
-                  className = 'row-span-1 col-span-1';
                   renderContent = (
                     <WeatherWidget
                       weather={props.weather}
@@ -190,14 +189,12 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   );
                   break;
                 case 'energy':
-                  className = 'row-span-1 col-span-1';
                   renderContent = <EnergyWidget />;
                   break;
                 case 'indoor':
-                  className = 'row-span-4 col-span-1'; // Indoor Environment uses 4 rows
                   renderContent = (
                     <IndoorEnvironmentCard
-                      cardId={widget.id} // 传入唯一 ID
+                      cardId={widget.id}
                       haEntities={props.haEntities}
                       onRefresh={props.onRefreshSensors}
                       fetchStates={props.fetchStates}
@@ -208,11 +205,10 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   );
                   break;
                 case 'sensor_status':
-                  className = 'row-span-4 col-span-1'; // Sensor Status uses 4 rows
                   renderContent = (
                     <div className="h-full bg-card rounded-[16px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] border-0 overflow-hidden">
                        <SensorStatusCard
-                          cardId={widget.id} // 传入唯一 ID
+                          cardId={widget.id}
                           haEntities={props.haEntities}
                           lightsOn={props.lightsOn}
                           nowMs={props.nowMs}
@@ -226,7 +222,6 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   );
                   break;
                 case 'logs':
-                  className = 'row-span-4 col-span-1 md:col-span-2 lg:col-span-1';
                   renderContent = (
                     <LogsWidget
                       logs={props.logs}
@@ -237,8 +232,11 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   );
                   break;
                 default:
-                  className = 'row-span-1 col-span-1';
-                  renderContent = <div className="bg-muted w-full h-full rounded-[16px] flex items-center justify-center text-xs text-muted-foreground">未知组件</div>;
+                  renderContent = (
+                    <div className="bg-muted w-full h-full rounded-[16px] flex items-center justify-center text-xs text-muted-foreground">
+                      未知组件: {widget.type}
+                    </div>
+                  );
               }
 
               return (
@@ -247,7 +245,7 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   widget={widget}
                   isEditing={isEditing}
                   onRemove={removeWidget}
-                  className={`${className} p-0.5`}
+                  className={`${gridClassName} p-0.5`}
                 >
                   {renderContent}
                 </SortableWidget>

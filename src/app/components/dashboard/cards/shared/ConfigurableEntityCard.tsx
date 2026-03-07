@@ -155,7 +155,7 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
   })();
 
   return (
-    <div className="entity-card flex-1 bg-card rounded-[16px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] p-3 flex flex-col transition-colors duration-300 relative group overflow-hidden border-0 h-[288px] min-h-[288px]">
+    <div className="entity-card flex-1 bg-card rounded-[16px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] p-3 flex flex-col transition-colors duration-300 relative group overflow-hidden border-0 h-full">
       {/* ===== 卡片头部：图标（可点击更换）、标题（可点击编辑）、刷新按钮、设置按钮 ===== */}
       <div className="flex items-center justify-between shrink-0 mb-3">
         <div className="flex items-center gap-2 min-w-0">

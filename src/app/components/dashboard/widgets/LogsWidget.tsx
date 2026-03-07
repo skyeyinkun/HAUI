@@ -11,7 +11,7 @@ interface LogsWidgetProps {
 
 export function LogsWidget({ logs, setLogModalOpen, clearLogs, logContainerRef }: LogsWidgetProps) {
   return (
-    <div className="bg-card rounded-[16px] shadow-[0px_0px_16px_0px_rgba(0,0,0,0.06)] p-3 flex flex-col gap-2 transition-colors duration-300 relative group aspect-auto h-full max-h-[400px] overflow-hidden box-border">
+    <div className="bg-card rounded-[16px] shadow-[0px_0px_16px_0px_rgba(0,0,0,0.06)] p-3 flex flex-col gap-2 transition-colors duration-300 relative group aspect-auto h-full overflow-hidden box-border">
       {/* 头部：标题 */}
       <div className="flex items-center justify-between shrink-0 border-b border-border/50 pb-2">
         <div className="flex items-center gap-2">

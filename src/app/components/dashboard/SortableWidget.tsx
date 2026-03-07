@@ -40,7 +40,7 @@ export function SortableWidget({ widget, isEditing, onRemove, children, classNam
     >
       {isEditing && (
         <div 
-           className="absolute -top-2 -left-2 z-[60] bg-destructive text-destructive-foreground rounded-full p-1 cursor-pointer shadow-md hover:scale-110 active:scale-95 transition-transform"
+           className="absolute -top-2 -right-2 z-[60] bg-destructive text-destructive-foreground rounded-full p-1 cursor-pointer shadow-md hover:scale-110 active:scale-95 transition-transform"
            onClick={() => onRemove(widget.id)}
            onPointerDown={(e) => e.stopPropagation()} // Prevent dragging when clicking remove
         >

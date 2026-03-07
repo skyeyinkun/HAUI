@@ -9,6 +9,7 @@ interface UIState {
   regionModalOpen: boolean;
   selectedClimateDevice: any | null;
   selectedRemoteDevice: any | null;
+  dashboardEditing: boolean;
 
   // Actions
   setSettingsOpen: (open: boolean) => void;
@@ -18,6 +19,7 @@ interface UIState {
   setRegionModalOpen: (open: boolean) => void;
   setSelectedClimateDevice: (device: any | null) => void;
   setSelectedRemoteDevice: (device: any | null) => void;
+  setDashboardEditing: (editing: boolean) => void;
 
   // Helper to open specific modal with data
   openClimateModal: (device: any) => void;
@@ -35,6 +37,7 @@ export const useUIStore = create<UIState>((set) => ({
   regionModalOpen: false,
   selectedClimateDevice: null,
   selectedRemoteDevice: null,
+  dashboardEditing: false,
 
   setSettingsOpen: (open) => set({ settingsOpen: open, settingsDefaultTab: open ? null : null }),
   setClimateModalOpen: (open) => set({ climateModalOpen: open }),
@@ -43,6 +46,7 @@ export const useUIStore = create<UIState>((set) => ({
   setRegionModalOpen: (open) => set({ regionModalOpen: open }),
   setSelectedClimateDevice: (device) => set({ selectedClimateDevice: device }),
   setSelectedRemoteDevice: (device) => set({ selectedRemoteDevice: device }),
+  setDashboardEditing: (editing) => set({ dashboardEditing: editing }),
 
   openClimateModal: (device) => set({ selectedClimateDevice: device, climateModalOpen: true }),
   openRemoteModal: (device) => set({ selectedRemoteDevice: device }),

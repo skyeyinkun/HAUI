@@ -116,7 +116,7 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
   if (isSensor) {
     return (
       <div
-        className={`relative aspect-square rounded-[16px] p-3 pb-10 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:scale-105 cursor-pointer'
+        className={`relative aspect-square rounded-[16px] p-3 pb-10 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer'
           }`}
         style={{ backgroundColor: 'var(--card)' }}
         onClick={!isEditing ? onClick : undefined}
@@ -204,7 +204,7 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
 
   return (
     <div
-      className={`relative aspect-square rounded-[16px] p-3 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:scale-105 cursor-pointer'
+      className={`relative aspect-square rounded-[16px] p-3 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer'
         }`}
       style={{ backgroundColor: 'var(--card)' }}
       onClick={!isEditing ? onClick : undefined}

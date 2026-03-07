@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useUIStore } from '@/store/uiStore';
 
 export type WidgetType = 'weather' | 'indoor' | 'energy' | 'sensor_status' | 'logs';
 
@@ -20,7 +21,7 @@ const DEFAULT_LAYOUT: DashboardWidget[] = [
 
 export function useDashboardLayout() {
   const [layout, setLayout] = useState<DashboardWidget[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
+  const { dashboardEditing: isEditing, setDashboardEditing: setIsEditing } = useUIStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {

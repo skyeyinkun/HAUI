@@ -45,15 +45,15 @@ export function SortableWidget({ widget, isEditing, onRemove, children, classNam
         </div>
       )}
 
-      {/* When editing, show a drag handle overlay or make the whole card draggable */}
+      {/* When editing, the whole card is the drag handle */}
       {isEditing && (
         <div 
           {...attributes} 
           {...listeners}
-          className="absolute inset-0 z-40 bg-background/10 backdrop-blur-[2px] rounded-[16px] border-2 border-primary/50 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute inset-0 z-40 rounded-[16px] border-2 border-primary/30 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing hover:border-primary/60 transition-colors"
         >
-           <div className="bg-primary/80 backdrop-blur-md p-2 rounded-xl text-primary-foreground shadow-lg flex items-center justify-center pointer-events-none">
-              <GripHorizontal className="w-8 h-8 opacity-80" />
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary/20 backdrop-blur-sm p-1.5 rounded-full text-primary shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+              <GripHorizontal className="w-5 h-5 pointer-events-none" />
            </div>
         </div>
       )}

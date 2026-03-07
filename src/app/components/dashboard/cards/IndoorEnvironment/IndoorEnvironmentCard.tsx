@@ -17,6 +17,7 @@ const DEFAULT_CONFIG: CardConfig = {
 };
 
 interface IndoorEnvironmentCardProps {
+  cardId?: string; // 支持多实例配置
   haEntities: HassEntities;
   onRefresh?: () => Promise<void>;
   fetchStates: () => Promise<any[]>;
@@ -55,7 +56,7 @@ export function IndoorEnvironmentCard(props: IndoorEnvironmentCardProps) {
 
   return (
     <ConfigurableEntityCard
-      cardId="indoor_environment"
+      cardId={props.cardId || "indoor_environment"}
       defaultConfig={mergedConfig}
       haEntities={props.haEntities}
       onRefresh={props.onRefresh}

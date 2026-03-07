@@ -18,6 +18,7 @@ const DEFAULT_CONFIG = {
 };
 
 interface SensorStatusCardProps {
+  cardId?: string; // 支持多实例配置
   haEntities: HassEntities;
   lightsOn?: number;
   nowMs: number;
@@ -70,7 +71,7 @@ export function SensorStatusCard(props: SensorStatusCardProps) {
 
   return (
     <ConfigurableEntityCard
-      cardId="sensor_status"
+      cardId={props.cardId || "sensor_status"}
       defaultConfig={mergedConfig}
       haEntities={props.haEntities}
       onRefresh={props.onRefresh}

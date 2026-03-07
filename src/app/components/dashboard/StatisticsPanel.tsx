@@ -197,6 +197,7 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   className = 'row-span-4 col-span-1'; // Indoor Environment uses 4 rows
                   renderContent = (
                     <IndoorEnvironmentCard
+                      cardId={widget.id} // 传入唯一 ID
                       haEntities={props.haEntities}
                       onRefresh={props.onRefreshSensors}
                       fetchStates={props.fetchStates}
@@ -207,10 +208,11 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   );
                   break;
                 case 'sensor_status':
-                  className = 'row-span-4 col-span-1'; // Home Status uses 4 rows
+                  className = 'row-span-4 col-span-1'; // Sensor Status uses 4 rows
                   renderContent = (
                     <div className="h-full bg-card rounded-[16px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] border-0 overflow-hidden">
                        <SensorStatusCard
+                          cardId={widget.id} // 传入唯一 ID
                           haEntities={props.haEntities}
                           lightsOn={props.lightsOn}
                           nowMs={props.nowMs}
@@ -245,7 +247,7 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
                   widget={widget}
                   isEditing={isEditing}
                   onRemove={removeWidget}
-                  className={className}
+                  className={`${className} p-0.5`}
                 >
                   {renderContent}
                 </SortableWidget>
@@ -257,8 +259,20 @@ export function StatisticsPanel(props: StatisticsPanelProps) {
 
       {/* 当没有任何组件时的占位符 */}
       {layout.length === 0 && !isEditing && (
-        <div className="flex flex-col items-center justify-center h-[300px] border-2 border-dashed border-border/50 rounded-[24px] text-muted-foreground/60 w-full animate-in fade-in cursor-pointer" onClick={() => setIsEditing(true)}>
-           长按进入编辑模式添加组件
+        <div 
+          className="flex flex-col items-center justify-center h-[200px] border-2 border-dashed border-border/40 rounded-[28px] text-muted-foreground/50 w-full animate-in fade-in transition-colors hover:border-primary/30 hover:bg-accent/5 focus:outline-none" 
+          onClick={() => {
+            window.navigator?.vibrate?.(50);
+            setIsEditing(true);
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label="长按进入编辑模式添加小组件"
+        >
+           <div className="w-12 h-12 rounded-full bg-accent/30 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+              <Plus className="w-6 h-6" />
+           </div>
+           <p className="text-sm font-medium">长按或点击此处进入编辑模式添加小组件</p>
         </div>
       )}
     </div>

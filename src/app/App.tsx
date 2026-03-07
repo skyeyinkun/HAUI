@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLongPress } from '@/hooks/useLongPress';
 import { useUIStore } from '@/store/uiStore';
 import { useDataStore } from '@/store/dataStore';
 import { Home, Settings, Moon, Activity, Tv, Book, Users, Coffee, DoorOpen } from 'lucide-react';
@@ -90,8 +91,26 @@ function App() {
     apiLogOpen, setApiLogOpen,
     regionModalOpen, setRegionModalOpen,
     selectedClimateDevice, setSelectedClimateDevice,
-    selectedRemoteDevice, setSelectedRemoteDevice
+    selectedRemoteDevice, setSelectedRemoteDevice,
+    dashboardEditing, setDashboardEditing
   } = useUIStore();
+
+  const isEditingCommon = dashboardEditing;
+  const setIsEditingCommon = setDashboardEditing;
+
+  // 长按触发编辑模式
+  const { onDashboardLongPress } = (function() {
+    const props = useLongPress(() => {
+        if (!dashboardEditing) {
+            window.navigator?.vibrate?.(50);
+            setDashboardEditing(true);
+        }
+    }, undefined, { delay: 600 });
+    
+    return {
+        onDashboardLongPress: props
+    };
+  })();
 
   const {
     devices, setDevices,
@@ -113,7 +132,6 @@ function App() {
     return DEFAULT_REGION;
   });
 
-  const [isEditingCommon, setIsEditingCommon] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   // Real-time hooks
@@ -767,7 +785,7 @@ function App() {
       />
 
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto w-full">
+      <div className="flex-1 overflow-y-auto w-full" {...onDashboardLongPress}>
         {/* Main Content */}
         <div className="w-full max-w-[2400px] mx-auto px-4 md:px-6 lg:px-8 py-8">
           {/* Header */}

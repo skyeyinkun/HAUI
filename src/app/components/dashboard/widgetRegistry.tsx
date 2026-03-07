@@ -25,13 +25,14 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetMetadata> = {
     defaultW: 1,
     defaultH: 1,
   },
+  // 默认高度调整为 3 (约 300px)，这能完美容纳 3 行（6 个）实体参数
   indoor: {
     type: 'indoor',
     label: '室内环境',
     desc: '汇总全屋温湿度与空气质量',
     icon: Thermometer,
     defaultW: 1,
-    defaultH: 6,
+    defaultH: 3,
   },
   energy: {
     type: 'energy',
@@ -47,15 +48,15 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetMetadata> = {
     desc: '门窗/人体/水浸等快速纵览',
     icon: Activity,
     defaultW: 1,
-    defaultH: 6,
+    defaultH: 3,
   },
   logs: {
     type: 'logs',
     label: '实时日志',
     desc: '监控系统与设备流日志',
     icon: FileText,
-    defaultW: 1, // PC端可考虑默认跨2列或3列，取决于布局逻辑
-    defaultH: 6,
+    defaultW: 1,
+    defaultH: 3,
   },
 };
 
@@ -66,19 +67,30 @@ export const getAvailableWidgets = () => Object.values(WIDGET_REGISTRY);
 
 /**
  * 根据类型获取网格类名
- * @param type 组件类型
- * @param customW 自定义宽度
- * @param customH 自定义高度
  */
 export const getWidgetGridClasses = (type: WidgetType, customW?: number, customH?: number) => {
   const metadata = WIDGET_REGISTRY[type];
   const w = customW || metadata?.defaultW || 1;
   const h = customH || metadata?.defaultH || 1;
 
-  // 这里基于 tailwind 的 grid-cols-1 md:grid-cols-2 lg:grid-cols-3
-  // 确保宽度不会超过最大列数
-  const colSpan = `col-span-1 ${w >= 2 ? 'md:col-span-2' : ''} ${w >= 3 ? 'lg:col-span-3' : ''}`;
-  const rowSpan = `row-span-${h}`;
+  // 使用映射以支持 Tailwind JIT 静态扫描
+  const colSpans: Record<number, string> = {
+    1: 'col-span-1',
+    2: 'col-span-1 md:col-span-2',
+    3: 'col-span-1 md:col-span-2 lg:col-span-3'
+  };
+
+  const rowSpans: Record<number, string> = {
+    1: 'row-span-1',
+    2: 'row-span-2',
+    3: 'row-span-3',
+    4: 'row-span-4',
+    5: 'row-span-5',
+    6: 'row-span-6'
+  };
+
+  const colSpan = colSpans[w] || 'col-span-1';
+  const rowSpan = rowSpans[h] || 'row-span-1';
 
   return `${colSpan} ${rowSpan}`;
 };

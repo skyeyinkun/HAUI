@@ -17,10 +17,10 @@ export interface DashboardWidget {
 
 const DEFAULT_LAYOUT: DashboardWidget[] = [
   { id: 'widget-weather-1', type: 'weather', title: '天气', w: 1, h: 1 },
-  { id: 'widget-indoor-1', type: 'indoor', title: '室内环境', w: 1, h: 6 },
+  { id: 'widget-indoor-1', type: 'indoor', title: '室内环境', w: 1, h: 3 },
   { id: 'widget-energy-1', type: 'energy', title: '能源', w: 1, h: 1 },
-  { id: 'widget-sensor-1', type: 'sensor_status', title: '设备状态', w: 1, h: 6 },
-  { id: 'widget-logs-1', type: 'logs', title: '实时日志', w: 1, h: 6 },
+  { id: 'widget-sensor-1', type: 'sensor_status', title: '设备状态', w: 1, h: 3 },
+  { id: 'widget-logs-1', type: 'logs', title: '实时日志', w: 1, h: 3 },
 ];
 
 export function useDashboardLayout() {

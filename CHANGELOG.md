@@ -15,8 +15,12 @@ HAUI Dashboard 是一个纯前端架构的 Home Assistant Add-on 控制面板应
 
 ## [3.12.1] - 2026-03-12
 
-### 维护
-- **云端同步推送**: 完成 Git 历史清理后的首次增量同步，确保云端版本状态一致。
+### 修复
+- **构建失败修复**: 修复 GitHub Actions CI 构建失败问题
+  - 将 `ezuikit-js`（萤石云 SDK）从静态导入改为动态导入，并在 Vite 配置中标记为 external 可选依赖
+  - 安装缺失的 `react-grid-layout` 和 `hls.js` 依赖
+  - 适配 `react-grid-layout` v2 新 API（`useContainerWidth` 替代已移除的 `WidthProvider`）
+  - 修复 `CameraDashboard` 和 `HaHlsPlayer` 中的类型错误
 
 ## [3.12.0] - 2026-03-12
 

@@ -17,6 +17,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      // ezuikit-js 是萤石云可选 SDK，不打包进 bundle，运行时通过全局变量或 CDN 加载
+      external: ['ezuikit-js'],
+      output: {
+        globals: {
+          'ezuikit-js': 'EZUIKit',
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/ha-api': {
@@ -38,3 +49,4 @@ export default defineConfig({
     setupFiles: "./src/test/setup.ts",
   },
 })
+

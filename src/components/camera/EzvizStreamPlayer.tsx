@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import EZUIKit from 'ezuikit-js';
 
 interface EzvizStreamPlayerProps {
     cameraId: string;
@@ -13,8 +12,17 @@ export const EzvizStreamPlayer: React.FC<EzvizStreamPlayerProps> = ({ cameraId, 
     const playerInstanceRef = useRef<any>(null);
 
     useEffect(() => {
-        const initPlayer = () => {
+        const initPlayer = async () => {
             try {
+                // 动态导入 ezuikit-js，避免构建时缺包报错
+                let EZUIKit: any = null;
+                try {
+                    EZUIKit = (await import('ezuikit-js')).default;
+                } catch {
+                    // 模块未安装时，回退到全局挂载
+                    console.warn('ezuikit-js 模块未安装，尝试使用全局 EZUIKit');
+                }
+
                 // 兼容有些环境挂在 window 上或是 npm 模块导入
                 const PlayerClass = (window as any).EZUIKit?.EZUIKitPlayer || EZUIKit?.EZUIKitPlayer || EZUIKit;
                 if (!PlayerClass) {

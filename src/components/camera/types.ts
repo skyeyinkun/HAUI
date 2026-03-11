@@ -1,4 +1,11 @@
-import { Layout } from 'react-grid-layout';
+// 摄像头布局项接口
+export interface CameraLayoutItem {
+    i: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
 
 export interface CameraConfig {
     id: string; // Camera Entity ID 或者是 设备的序列号
@@ -9,6 +16,6 @@ export interface CameraConfig {
 }
 
 export interface CameraDashboardState {
-    layouts: Layout[];
+    layouts: CameraLayoutItem[];
     activeCameras: CameraConfig[];
 }

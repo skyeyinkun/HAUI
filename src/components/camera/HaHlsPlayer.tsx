@@ -43,7 +43,7 @@ export const HaHlsPlayer: React.FC<HaHlsPlayerProps> = ({ url }) => {
                 });
                 
                 // 处理网络中断或者视频错误自动重连机制
-                hls.on(Hls.Events.ERROR, function (event, data) {
+                hls.on(Hls.Events.ERROR, function (_event, data) {
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:

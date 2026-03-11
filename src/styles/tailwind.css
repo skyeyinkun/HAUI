@@ -1,0 +1,13 @@
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,ts,jsx,tsx}';
+
+@import 'tw-animate-css';
+
+@theme {
+  --animate-wiggle: wiggle 0.3s ease-in-out infinite;
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-0.5deg); }
+    50% { transform: rotate(0.5deg); }
+  }
+}

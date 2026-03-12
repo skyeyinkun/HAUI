@@ -1,0 +1,144 @@
+name: 构建并发布加载项
+
+on:
+  push:
+    branches:
+      - main
+    # 只有以下路径有变更时才触发，避免无意义的构建
+    paths:
+      - "addon/**"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "vite.config.ts"
+      - ".github/workflows/**"
+  # 允许手动触发
+  workflow_dispatch:
+
+# 需要写入权限来推送镜像到 ghcr.io 和提交版本号
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-publish:
+    name: 构建并发布
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出代码
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          # 需要完整 git 历史来计算版本号
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. 安装 Node.js 并构建前端
+      - name: 安装 Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          # 不使用 npm 缓存，避免 Windows 生成的 lockfile 缓存污染 Linux 构建
+
+      - name: 安装依赖
+        # 删除 Windows 生成的 package-lock.json，让 Linux 重新生成
+        run: |
+          rm -f package-lock.json
+          npm install --legacy-peer-deps --ignore-scripts
+
+      - name: 构建前端
+        run: npm run build
+
+      # 3. 将构建产物复制到 addon/dist
+      - name: 复制构建产物到 addon/dist
+        run: |
+          rm -rf addon/dist
+          cp -r dist addon/dist
+
+      # 4. 读取指定的新版本号（从 package.json 获取，保证一致性且可控）
+      - name: 读取新版本号
+        id: version
+        run: |
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "新版本号为: ${NEW_VERSION}"
+
+      # 5. 更新 addon/config.yaml 中的版本号
+      - name: 更新 addon/config.yaml 版本号
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          # 使用 sed 替换版本号行
+          sed -i "s/^version: .*/version: \"${NEW_VERSION}\"/" addon/config.yaml
+          echo "已更新版本号为: ${NEW_VERSION}"
+          cat addon/config.yaml | grep version
+
+      # 6. 设置 QEMU（用于多架构构建）
+      - name: 设置 QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 7. 设置 Docker Buildx（多架构构建器）
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 8. 登录到 GitHub Container Registry
+      - name: 登录到 ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 9. 多架构构建并推送镜像（构建所有 HA 支持的架构）
+      - name: 构建并推送 amd64 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: ./addon
+          platforms: linux/amd64
+          push: true
+          # 镜像名称对应 config.yaml 中的 image 字段（amd64 架构）
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/haui-amd64:${{ steps.version.outputs.new_version }}
+            ghcr.io/${{ github.repository_owner }}/haui-amd64:latest
+
+      - name: 构建并推送 aarch64 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: ./addon
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/haui-aarch64:${{ steps.version.outputs.new_version }}
+            ghcr.io/${{ github.repository_owner }}/haui-aarch64:latest
+
+      - name: 构建并推送 armv7 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: ./addon
+          platforms: linux/arm/v7
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/haui-armv7:${{ steps.version.outputs.new_version }}
+            ghcr.io/${{ github.repository_owner }}/haui-armv7:latest
+
+      # 10. 创建 git tag 并将更新后的 config.yaml 提交回仓库
+      - name: 提交版本号更新并打 Tag
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # 添加所有更改（包括 Linux 重新生成的 package-lock.json 等）
+          git add -A
+          # 只有存在被加入暂存区的修改时才提交
+          git diff --staged --quiet || git commit -m "chore: 自动更新版本号及锁定文件至 v${NEW_VERSION} [skip ci]"
+
+          # 打版本 tag（强制创建覆盖）
+          git tag -f "v${NEW_VERSION}"
+
+          # 推送提交和 tag
+          git push origin main
+          git push origin "v${NEW_VERSION}" -f
+
+          echo "✅ 已发布版本 v${NEW_VERSION}"

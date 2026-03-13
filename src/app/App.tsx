@@ -312,6 +312,15 @@ function App() {
     if (isConnected && !hasScannedRef.current) {
       hasScannedRef.current = true;
       handleAutoScan();
+      
+      // 3.12.0 修复: 开启实时配置同步心跳
+      import('@/utils/sync').then(({ syncFromServer, initAutoSync }) => {
+        // 先触发一次全量对齐（强制）
+        syncFromServer(true);
+        // 启动心跳（30s）与聚焦触发
+        const cleanup = initAutoSync();
+        return cleanup;
+      });
     }
   }, [isConnected, handleAutoScan]);
 

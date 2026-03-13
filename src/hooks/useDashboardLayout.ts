@@ -17,6 +17,7 @@ export interface DashboardWidget {
 
 const DEFAULT_LAYOUT: DashboardWidget[] = [
   { id: 'widget-weather-1', type: 'weather', title: '天气', w: 1, h: 1 },
+  { id: 'widget-camera-1', type: 'camera', title: '监控', w: 2, h: 3 }, // 3.12.0 新增默认监控位
   { id: 'widget-indoor-1', type: 'indoor', title: '室内环境', w: 1, h: 3 },
   { id: 'widget-energy-1', type: 'energy', title: '能源', w: 1, h: 1 },
   { id: 'widget-sensor-1', type: 'sensor_status', title: '设备状态', w: 1, h: 3 },
@@ -27,23 +28,49 @@ export function useDashboardLayout() {
   const [layout, setLayout] = useState<DashboardWidget[]>([]);
   const { dashboardEditing: isEditing, setDashboardEditing: setIsEditing } = useUIStore();
   const [isInitialized, setIsInitialized] = useState(false);
-
   useEffect(() => {
-    const saved = localStorage.getItem('ha_dashboard_layout');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setLayout(parsed);
-          setIsInitialized(true);
-          return;
+    const initLayout = async () => {
+      // 1. 尝试从服务端同步最新数据
+      const { syncFromServer } = await import('@/utils/sync');
+      await syncFromServer();
+
+      // 2. 读取本地（可能是刚同步下来的）数据并加载
+      loadLocalLayout();
+    };
+
+    const loadLocalLayout = () => {
+      const saved = localStorage.getItem('ha_dashboard_layout');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setLayout(parsed);
+            setIsInitialized(true);
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to parse dashboard layout', e);
         }
-      } catch (e) {
-        console.error('Failed to parse dashboard layout', e);
       }
-    }
-    setLayout(DEFAULT_LAYOUT);
-    setIsInitialized(true);
+      
+      // 3. 兜底默认布局
+      setLayout(DEFAULT_LAYOUT);
+      setIsInitialized(true);
+    };
+
+    // 初始化加载
+    initLayout();
+
+    // 4. 监听全局同步完成事件，实现无刷新对齐
+    const handleSyncComplete = () => {
+      console.debug('[HAUI Layout] 检测到云端布局更新，正在重载...');
+      loadLocalLayout();
+    };
+    window.addEventListener('haui-sync-complete', handleSyncComplete);
+
+    return () => {
+      window.removeEventListener('haui-sync-complete', handleSyncComplete);
+    };
   }, []);
 
   const saveLayout = (newLayout: DashboardWidget[]) => {

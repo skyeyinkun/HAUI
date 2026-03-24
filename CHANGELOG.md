@@ -13,6 +13,11 @@ HAUI Dashboard 是一个纯前端架构的 Home Assistant Add-on 控制面板应
 
 # CHANGELOG
 
+## [3.24.0] - 2026-03-24
+
+### 代码优化
+- **移除死代码**: 清理 useNowMs hook 中未使用的 useMemo 导入，消除 TypeScript 警告 (ts6133)
+
 ## [3.12.23] - 2026-03-24
 
 ### 性能优化

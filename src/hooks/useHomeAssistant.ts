@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   connectToHA, 
   subscribeToEntities, 
@@ -13,12 +13,19 @@ import {
   HAEntityRegistryEntry
 } from '@/utils/ha-connection';
 import { Connection, HassEntities } from 'home-assistant-js-websocket';
+import { StateRefreshCoordinator } from '@/utils/request-coordinator';
 
 interface HAConfig {
   localUrl?: string;
   publicUrl?: string;
   token?: string;
 }
+
+// 创建全局请求协调器实例（模块级单例）
+const globalCoordinator = new StateRefreshCoordinator({
+  minInterval: 5000, // 5 秒内不重复请求
+  timeout: 30000
+});
 
 export function useHomeAssistant(config?: HAConfig) {
   const [connection, setConnection] = useState<Connection | null>(null);
@@ -32,7 +39,6 @@ export function useHomeAssistant(config?: HAConfig) {
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [latency, setLatency] = useState<number | null>(null);
-  const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
   // Heartbeat / Latency check
   useEffect(() => {
@@ -140,6 +146,8 @@ export function useHomeAssistant(config?: HAConfig) {
         conn.addEventListener('disconnected', () => {
             console.log('Connection lost. Re-evaluating network...');
             setIsConnected(false);
+            // 重置请求协调器状态
+            globalCoordinator.reset();
             if (isMounted) {
                 setTimeout(() => {
                     if (isMounted) initConnection();
@@ -153,8 +161,26 @@ export function useHomeAssistant(config?: HAConfig) {
         });
 
         // Subscribe to state_changed events
-        unsubscribeEvents = await conn.subscribeEvents((event) => {
+        // 事件日志去重：同一实体 2 秒内只记录一次
+        const eventThrottleMap = new Map<string, number>();
+        const EVENT_THROTTLE_MS = 2000; // 2 秒节流
+        
+        unsubscribeEvents = await conn.subscribeEvents((event: { event_type: string; data: Record<string, unknown> }) => {
             if (isMounted) {
+                // 获取实体 ID 进行节流检查
+                const entityId = event.data?.entity_id as string | undefined;
+                const now = Date.now();
+                
+                // 如果是状态变化事件，检查是否需要节流
+                if (entityId && event.event_type === 'state_changed') {
+                    const lastEventTime = eventThrottleMap.get(entityId) ?? 0;
+                    if (now - lastEventTime < EVENT_THROTTLE_MS) {
+                        // 跳过频繁事件
+                        return;
+                    }
+                    eventThrottleMap.set(entityId, now);
+                }
+                
                 setEvents(prev => [{
                     time: new Date().toLocaleTimeString(),
                     type: event.event_type,
@@ -226,25 +252,16 @@ export function useHomeAssistant(config?: HAConfig) {
     if (!connection) {
       throw new Error('未连接到 Home Assistant');
     }
-    if (refreshInFlightRef.current) {
-      return refreshInFlightRef.current;
+    
+    // 使用全局请求协调器，防止短时间内重复请求
+    try {
+      const entities = await globalCoordinator.refresh(connection);
+      setEntities(entities);
+      return entities;
+    } catch (error) {
+      console.error('Failed to refresh entities:', error);
+      throw error;
     }
-    const p = (async () => {
-      const states = await connection.sendMessagePromise({ type: 'get_states' });
-      const next: HassEntities = {};
-      if (Array.isArray(states)) {
-        for (const st of states as any[]) {
-          if (st && typeof st.entity_id === 'string') {
-            next[st.entity_id] = st;
-          }
-        }
-      }
-      setEntities(next);
-    })().finally(() => {
-      refreshInFlightRef.current = null;
-    });
-    refreshInFlightRef.current = p;
-    return p;
   }, [connection]);
 
   const fetchEntityStateRest = useCallback(async (entityId: string) => {

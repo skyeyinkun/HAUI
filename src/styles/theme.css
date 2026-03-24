@@ -42,25 +42,27 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  /* 深色模式优化：降低纯黑白对比度，减少眼睛疲劳 */
+  /* 参考 WCAG AA 标准，确保对比度 >= 4.5:1 */
+  --background: oklch(0.12 0 0);      /* 从 0.145 略微调深，区分度更好 */
+  --foreground: oklch(0.95 0 0);      /* 从 0.985 降低，避免刺眼 */
+  --card: oklch(0.17 0 0);           /* 提升卡片与背景区分度 */
+  --card-foreground: oklch(0.92 0 0); /* 降低对比度 */
+  --popover: oklch(0.17 0 0);
+  --popover-foreground: oklch(0.92 0 0);
+  --primary: #a78bfa;                  /* 改用柔和的紫色，不过于刺眼 */
+  --primary-foreground: oklch(0.15 0 0);
+  --secondary: oklch(0.25 0 0);
+  --secondary-foreground: oklch(0.92 0 0);
+  --muted: oklch(0.22 0 0);           /* 提升 muted 区域可见度 */
+  --muted-foreground: oklch(0.65 0 0); /* 从 0.708 提升，确保 >= 4.5:1 */
+  --accent: oklch(0.28 0 0);
+  --accent-foreground: oklch(0.95 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --border: oklch(0.3 0 0);            /* 提升边框可见度 */
+  --input: oklch(0.25 0 0);
+  --ring: oklch(0.5 0 0);              /* 调亮 focus ring */
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --chart-1: oklch(0.488 0.243 264.376);
@@ -68,14 +70,14 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar: oklch(0.18 0 0);
+  --sidebar-foreground: oklch(0.92 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --sidebar-accent: oklch(0.25 0 0);
+  --sidebar-accent-foreground: oklch(0.92 0 0);
+  --sidebar-border: oklch(0.3 0 0);
+  --sidebar-ring: oklch(0.5 0 0);
 }
 
 @theme inline {

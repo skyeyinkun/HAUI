@@ -265,28 +265,37 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
 }
 
 export const DeviceCard = React.memo(DeviceCardInternal, (prevProps, nextProps) => {
-  // 1. Check critical props that always require re-render
+  // 性能优化：使用精确的属性比较来避免不必要的重新渲染
+  // 返回 false = 需要渲染，返回 true = 跳过渲染
+
+  // 1. 关键属性变化必须重新渲染
   if (
-    prevProps.device !== nextProps.device ||
+    prevProps.device?.id !== nextProps.device?.id ||
+    prevProps.device?.isOn !== nextProps.device?.isOn ||
+    prevProps.device?.brightness !== nextProps.device?.brightness ||
+    prevProps.device?.temperature !== nextProps.device?.temperature ||
+    prevProps.device?.position !== nextProps.device?.position ||
+    prevProps.device?.count !== nextProps.device?.count ||
     prevProps.isEditing !== nextProps.isEditing ||
     prevProps.isCommon !== nextProps.isCommon
   ) {
-    return false;
+    return false; // 属性变化，需要渲染
   }
 
-  // 2. Check if device is a sensor (needs time updates)
+  // 2. 检查是否为传感器设备（需要时间更新）
   const device = nextProps.device;
   const sensorTypes = ['sensor', 'binary_sensor', 'temp_sensor', 'humidity_sensor', 'light_sensor', 'pm25_sensor', 'co2_sensor', 'power_sensor', 'energy_sensor', 'battery_sensor', 'motion_sensor', 'door_sensor', 'window_sensor', 'smoke_sensor', 'water_leak'];
   const isSensor =
-    sensorTypes.includes(device.type) ||
-    Boolean(device.deviceClass) ||
-    ['motion', 'water', 'door', 'smoke'].includes(device.icon);
+    sensorTypes.includes(device?.type) ||
+    Boolean(device?.deviceClass) ||
+    ['motion', 'water', 'door', 'smoke'].includes(device?.icon);
 
   if (isSensor) {
-    // Sensors display relative time, so they need nowMs
+    // 传感器设备：由于 useNowMs 现在默认 10 秒间隔，只有间隔变化时才渲染
+    // 每 10 秒才可能触发一次渲染，大幅减少刷新频率
     return prevProps.nowMs === nextProps.nowMs;
   }
 
-  // 3. For other devices, ignore nowMs changes to prevent 1Hz re-renders
+  // 3. 非传感器设备忽略 nowMs 变化，避免每秒重新渲染
   return true;
 });

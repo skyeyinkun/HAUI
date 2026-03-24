@@ -206,7 +206,8 @@ function App() {
 
   const { weather, loading: weatherLoading, error: weatherError } = useWeather(weatherCoords?.lat, weatherCoords?.lon);
 
-  const nowMs = useNowMs(1000);
+  // 使用 10 秒间隔的时间戳（性能优化：减少不必要的渲染）
+  const nowMs = useNowMs();
 
   useEffect(() => {
     // Auto scroll logs to top when new log arrives

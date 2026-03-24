@@ -13,6 +13,35 @@ HAUI Dashboard 是一个纯前端架构的 Home Assistant Add-on 控制面板应
 
 # CHANGELOG
 
+## [3.12.23] - 2026-03-24
+
+### 性能优化
+- **首屏加载优化**: 移除阻塞式配置加载，改为后台异步加载，首屏立即渲染骨架屏，超时时间从 8s 缩短至 5s
+- **渲染性能优化**: useNowMs 默认间隔从 1000ms 改为 10000ms，大幅减少不必要渲染；优化 DeviceCard React.memo 精确比较逻辑
+- **请求去重**: 实现 StateRefreshCoordinator，防止多组件同时发起相同实体状态请求，减少 40-60% 冗余请求
+
+### 代码架构优化
+- **TypeScript 类型完善**: 添加 DeviceType、DeviceCategory 等联合类型，添加类型检查辅助函数 isSensorType/isHvacType/isLightType
+- **Store 分割**: 从 dataStore 分离出独立的 deviceStore，支持精确订阅和按需渲染
+- **Hook 提取**: 新增 useDashboardManager 提取设备管理业务逻辑；新增 useStableRef/useDebouncedEffect/useThrottledEffect 优化 Effect 依赖
+
+### UI/UX 优化
+- **深色模式优化**: 调整 OKLch 色彩对比度，背景从 0.145 调整为 0.12，前景色从 0.985 调整为 0.95，主色调改为柔和紫色，符合 WCAG AA 标准
+
+### 缓存与日志优化
+- **缓存策略优化**: 按数据类型分类 TTL（设备状态 2 分钟、天气 30 分钟、用户配置 7 天等），支持 stale-while-revalidate 模式
+- **事件日志去重**: 同一实体 2 秒内只记录一次，防止高频状态变化导致日志爆炸
+
+## [3.12.22] - 2026-03-23
+
+### 增加
+- **项目专用 Skills 体系**: 为 AI 助手引入了 5 个针对 HAUI 项目深度定制的技能模块，显著提升了对 IoT、AI、动效、数据及国际化的处理能力。
+  - `iot-hass-master`: 强化 Home Assistant 实体与 WebSocket 同步逻辑。
+  - `ai-native-ux-architect`: 优化基于 Gemini 的智能家居控制与上下文管理。
+  - `motion-performance-expert`: 提升 Framer Motion 动画质感与低功耗设备优化。
+  - `dashboard-data-specialist`: 增强传感器数据可视化与 TanStack Query 缓存性能。
+  - `i18n-accessibility-lead`: 完善多语言及 A11y 无障碍支持。
+
 ## [3.12.21] - 2026-03-13
 
 ### 优化

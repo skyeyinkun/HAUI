@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   connectToHA, 
   subscribeToEntities, 
   callService as haCallService, 
   determineBestConnection,
-  disconnectHA,
   fetchAreaRegistry,
   fetchDeviceRegistry,
   fetchEntityRegistry,

@@ -809,7 +809,7 @@ function App() {
             isConnected={isConnected}
             connectionType={connectionType}
             onRefresh={() => {
-              refreshEntities?.().catch(() => { });
+              void refreshEntities?.().catch(() => { });
             }}
             latency={latency}
           />
@@ -825,7 +825,7 @@ function App() {
             haEntities={entities}
             logs={logs}
             nowMs={nowMs}
-            onRefreshSensors={refreshEntities}
+            onRefreshSensors={async () => { await refreshEntities?.(); }}
             fetchStates={fetchStatesRest}
             persistence={haConfig.token ? { baseUrl: restBaseUrl || '/ha-api', token: haConfig.token } : undefined}
             setLogModalOpen={setLogModalOpen}

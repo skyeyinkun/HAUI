@@ -1,7 +1,7 @@
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { createRoot } from "react-dom/client";
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect } from 'react';
 
 import "./styles/index.css";
 import { ErrorBoundary } from "./app/components/ErrorBoundary";
@@ -87,7 +87,6 @@ const AppSkeleton = () => (
 
 // 主应用包装器 - 先渲染骨架，后台加载配置
 function AppLoader() {
-  const [configLoaded, setConfigLoaded] = useState(false);
   const [AppComponent, setAppComponent] = useState<React.ComponentType | null>(null);
 
   useEffect(() => {
@@ -97,13 +96,11 @@ function AppLoader() {
       import("./app/App.tsx")
     ]).then(([_, appModule]) => {
       setAppComponent(() => appModule.default);
-      setConfigLoaded(true);
     }).catch((err) => {
       console.error('Failed to load app:', err);
       // 即使失败也尝试加载 App
       import("./app/App.tsx").then((appModule) => {
         setAppComponent(() => appModule.default);
-        setConfigLoaded(true);
       });
     });
   }, []);

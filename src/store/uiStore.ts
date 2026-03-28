@@ -10,6 +10,8 @@ interface UIState {
   selectedClimateDevice: any | null;
   selectedRemoteDevice: any | null;
   dashboardEditing: boolean;
+  /** 减少动画效果 - null 表示使用系统偏好 */
+  reduceMotion: boolean | null;
 
   // Actions
   setSettingsOpen: (open: boolean) => void;
@@ -20,6 +22,8 @@ interface UIState {
   setSelectedClimateDevice: (device: any | null) => void;
   setSelectedRemoteDevice: (device: any | null) => void;
   setDashboardEditing: (editing: boolean) => void;
+  /** 设置减少动画 - null 表示恢复系统偏好 */
+  setReduceMotion: (value: boolean | null) => void;
 
   // Helper to open specific modal with data
   openClimateModal: (device: any) => void;
@@ -38,6 +42,7 @@ export const useUIStore = create<UIState>((set) => ({
   selectedClimateDevice: null,
   selectedRemoteDevice: null,
   dashboardEditing: false,
+  reduceMotion: null, // null 表示使用系统偏好
 
   setSettingsOpen: (open) => set({ settingsOpen: open, settingsDefaultTab: open ? null : null }),
   setClimateModalOpen: (open) => set({ climateModalOpen: open }),
@@ -47,6 +52,7 @@ export const useUIStore = create<UIState>((set) => ({
   setSelectedClimateDevice: (device) => set({ selectedClimateDevice: device }),
   setSelectedRemoteDevice: (device) => set({ selectedRemoteDevice: device }),
   setDashboardEditing: (editing) => set({ dashboardEditing: editing }),
+  setReduceMotion: (value) => set({ reduceMotion: value }),
 
   openClimateModal: (device) => set({ selectedClimateDevice: device, climateModalOpen: true }),
   openRemoteModal: (device) => set({ selectedRemoteDevice: device }),

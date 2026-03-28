@@ -142,16 +142,41 @@ export function useHomeAssistant(config?: HAConfig) {
           setRestBaseUrl(normalized);
         }
 
+        // 指数退避重连机制
+        let reconnectAttempts = 0;
+        const maxReconnectDelay = 30000; // 最大延迟 30 秒
+        const baseReconnectDelay = 1000; // 基础延迟 1 秒
+        
+        const scheduleReconnect = () => {
+            if (!isMounted) return;
+            
+            // 计算指数退避延迟: 1s, 2s, 4s, 8s... 最大 30s
+            const delay = Math.min(
+                baseReconnectDelay * Math.pow(2, reconnectAttempts),
+                maxReconnectDelay
+            );
+            
+            console.log(`Scheduling reconnect in ${delay}ms (attempt ${reconnectAttempts + 1})`);
+            
+            setTimeout(() => {
+                if (isMounted) {
+                    reconnectAttempts++;
+                    initConnection();
+                }
+            }, delay);
+        };
+
         conn.addEventListener('disconnected', () => {
             console.log('Connection lost. Re-evaluating network...');
             setIsConnected(false);
             // 重置请求协调器状态
             globalCoordinator.reset();
-            if (isMounted) {
-                setTimeout(() => {
-                    if (isMounted) initConnection();
-                }, 5000);
-            }
+            scheduleReconnect();
+        });
+        
+        // 连接成功后重置重连计数
+        conn.addEventListener('ready', () => {
+            reconnectAttempts = 0;
         });
 
         // Subscribe to entities

@@ -1,83 +1,255 @@
 # HAUI Dashboard
 
-[中文](#中文) | [English](#english)
+<p align="center">
+  <img src="./addon/icon.png" alt="HAUI Logo" width="120">
+</p>
 
-A professional, AI-powered Home Assistant dashboard with **iOS-style sleekness**. Built with **React 18**, **Vite**, and **Tailwind CSS**, featuring full-duplex voice interaction and ultra-responsive layouts.
+<p align="center">
+  <strong>专为 Home Assistant 打造的高性能现代化前端控制面板</strong>
+</p>
 
-## 🚀 Features
-- **AI Assistant**: Natural language control via advanced LLMs with Function Calling.
-- **iOS Aesthetic**: Smooth animations, glassmorphism, and drag-and-drop customization.
-- **All-in-One Monitoring**: Multi-window camera streaming (HLS/Ezviz).
-- **Cloud Sync**: Cross-device configuration persistence.
+<p align="center">
+  <a href="#中文">中文</a> | <a href="#english">English</a>
+</p>
 
-## 🛠️ Quick Start
-
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 20+
-
-### Development
-1. **Start the Environment**:
-   ```bash
-   docker compose up -d
-   ```
-   This launches:
-   - **Home Assistant** (http://localhost:8123)
-   - **Mosquitto** (Port 1883)
-   - **Frontend** (http://localhost:5173 - Hot Reload)
-
-2. **Access Dashboard**:
-   Open `http://localhost:5173`. It connects to the local HA instance automatically.
-
-### Testing
-- **E2E**: `npm run test:e2e` (Cypress)
-- **Unit**: `npm run test:unit` (Vitest)
-- **Component**: `pytest tests`
-
-### Performance Tuning (MDI Icon Picker)
-- Icon search runs in a Web Worker to keep the main thread responsive.
-- The grid uses virtualization to avoid rendering thousands of nodes.
-- MDI icons render via CSS mask against `/public/mdi/*.svg` to avoid per-icon SVG text parsing.
-- To enable verbose debug logs for icon loading, set `localStorage.debug-icons = "1"` in DevTools.
+<p align="center">
+  <img src="https://img.shields.io/badge/version-3.29.0-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/React-18-61DAFB.svg?logo=react" alt="React 18">
+  <img src="https://img.shields.io/badge/Vite-6-646CFF.svg?logo=vite" alt="Vite">
+  <img src="https://img.shields.io/badge/Tailwind-4-06B6D4.svg?logo=tailwindcss" alt="Tailwind CSS">
+  <img src="https://img.shields.io/badge/Home%20Assistant-2025+-41BDF5.svg?logo=homeassistant" alt="Home Assistant">
+</p>
 
 ---
 
-# 中文
+## 项目目标
 
-HAUI Dashboard 是一个专业的、基于 AI 的 Home Assistant 仪表板。它融合了 **iOS 视觉美学** 与 **React 18** 的高性能架构，提供极速响应的智能家居管控体验。
+HAUI Dashboard 致力于成为 **Home Assistant 生态中最优雅、最智能的前端控制面板**：
 
-## 🚀 特性
-- **AI 智能管家**: 基于全双工语音交互与 Function Calling 的自然语言控制。
-- **iOS 级交互设计**: 丝滑的动画、极致的毛玻璃质感与自由度极高的组件排版。
-- **全能监控大屏**: 多路并发视频监控（支持 HLS、萤石等原生协议）。
-- **配置云端同步**: 跨设备零感知配置同步。
+- 🎨 **极致视觉体验**: 融合 iOS 设计美学，打造丝滑的交互体验
+- 🤖 **AI 原生集成**: 内置大语言模型支持，实现自然语言设备控制
+- 📱 **全平台适配**: 从手机到平板，从桌面到电视，完美适配各种屏幕
+- 🔒 **企业级安全**: 公网访问安全策略，PIN 码二次确认机制
+- ⚡ **高性能架构**: WebSocket 实时同步，按需加载，防抖节流优化
 
-## 🛠️ 快速开始
+---
+
+## 架构说明
+
+### 技术栈
+
+| 层级 | 技术选型 | 说明 |
+|------|----------|------|
+| **前端框架** | React 18 + TypeScript | 函数式组件 + Hooks 架构 |
+| **构建工具** | Vite 6.3.5 | 极速冷启动，按需编译 |
+| **样式方案** | Tailwind CSS 4 + Framer Motion | 原子化 CSS + 流畅动画 |
+| **状态管理** | Zustand | 轻量级状态管理 |
+| **UI 组件** | Radix UI + shadcn/ui | 无障碍组件库 |
+| **图标系统** | MDI + Lucide | 矢量图标方案 |
+| **AI 集成** | Google Generative AI | Gemini/DeepSeek 支持 |
+| **视频流** | hls.js + Ezviz SDK | 多协议视频监控 |
+
+### 核心架构特性
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        应用层 (App Layer)                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Dashboard   │  │  AI Chat     │  │  Settings    │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+├─────────────────────────────────────────────────────────────┤
+│                        业务逻辑层 (Business Layer)           │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  useHASync   │  │  useDebounce │  │  Security    │      │
+│  │  Manager     │  │  Callback    │  │  Confirm     │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+├─────────────────────────────────────────────────────────────┤
+│                        数据层 (Data Layer)                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  uiStore     │  │  deviceStore │  │  dataStore   │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+├─────────────────────────────────────────────────────────────┤
+│                        服务层 (Service Layer)                │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  HA WebSocket│  │  AI Service  │  │  Weather API │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 性能优化策略
+
+- **代码分割**: React.lazy + Suspense 实现按需加载
+- **防抖节流**: 窗帘、灯光控制使用防抖优化
+- **乐观更新**: UI 先更新，失败自动回滚
+- **减少动画**: 支持 `prefers-reduced-motion` 媒体查询
+- **Web Worker**: MDI 图标搜索在 Worker 中执行
+
+---
+
+## 功能特性
+
+### 1. 智能设备控制
+
+| 功能 | 描述 | 状态 |
+|------|------|------|
+| 开关控制 | 一键开关，实时状态同步 | ✅ |
+| 亮度调节 | 0-100% 滑动调节，防抖优化 | ✅ |
+| 色温调节 | 2700K-6500K 冷暖调节 | ✅ |
+| 窗帘控制 | 开合度百分比精确控制 | ✅ |
+| 场景模式 | 一键激活多设备联动 | ✅ |
+| 批量控制 | 多设备同时控制，减少请求 | ✅ |
+
+### 2. AI 智能管家
+
+| 功能 | 描述 | 状态 |
+|------|------|------|
+| 语音交互 | 全双工语音对话 | ✅ |
+| 自然语言控制 | "打开客厅灯"等口语化指令 | ✅ |
+| 设备状态查询 | "卧室温度多少" | ✅ |
+| 智能推荐 | 基于使用习惯的推荐 | 🚧 |
+| 异常提醒 | 设备异常状态主动提醒 | 🚧 |
+
+### 3. 环境监控
+
+| 功能 | 描述 | 状态 |
+|------|------|------|
+| 传感器数据 | 温湿度、光照实时显示 | ✅ |
+| 能耗统计 | 用电量统计与趋势 | ✅ |
+| 天气信息 | 实时天气与预报 | ✅ |
+| 视频监控 | 多路并发视频流 | ✅ |
+
+### 4. 安全功能
+
+| 功能 | 描述 | 状态 |
+|------|------|------|
+| PIN 码保护 | 公网高危操作二次确认 | ✅ |
+| 本地加密 | Token 和 PIN 码本地加密存储 | ✅ |
+| CSP 策略 | 内容安全策略防 XSS | ✅ |
+| 断线重连 | 指数退避自动重连 | ✅ |
+
+---
+
+## 快速开始
 
 ### 前置要求
-- Docker & Docker Compose
-- Node.js 20+
 
-### 开发指南
-1. **启动环境**:
-   ```bash
-   docker compose up -d
-   ```
-   该命令将启动：
-   - **Home Assistant** (http://localhost:8123)
-   - **Mosquitto** (Port 1883)
-   - **前端开发服务** (http://localhost:5173 - 支持热重载)
+- Docker & Docker Compose（推荐）
+- Node.js 20+（独立部署）
+- Home Assistant 2025.1+
 
-2. **访问仪表盘**:
-   打开 `http://localhost:5173`。它会自动连接到本地的 HA 实例。
+### 安装方式
 
-### 测试
-- **端到端测试**: `npm run test:e2e`
-- **单元测试**: `npm run test:unit`
-- **组件测试**: `pytest tests`
+#### 方式一：Home Assistant Add-on（推荐）
 
-### 性能调优（MDI 图标更换）
-- 图标搜索在 Web Worker 中执行，避免阻塞主线程导致输入卡顿/卡死。
-- 图标网格采用虚拟列表渲染，避免一次性挂载大量 DOM。
-- MDI 图标使用 CSS mask 直接加载 `/public/mdi/*.svg`，避免大量 SVG 文本解析带来的抖动。
-- 如需打开图标加载的详细调试日志，可在 DevTools 中设置 `localStorage.debug-icons = "1"`。
+1. 在 Home Assistant 中，进入 **设置** → **加载项** → **加载项商店**
+2. 添加仓库地址：`https://github.com/skyeyinkun/HAUI`
+3. 搜索并安装 **"HAUI - 智能家庭中枢"**
+4. 启动加载项，点击 **打开 Web UI**
+
+#### 方式二：独立部署
+
+```bash
+# 克隆仓库
+git clone https://github.com/skyeyinkun/HAUI.git
+cd HAUI
+
+# 安装依赖
+npm install
+
+# 开发模式
+npm run dev
+
+# 生产构建
+npm run build
+```
+
+### 首次配置
+
+1. 打开 HAUI Dashboard 界面
+2. 点击右下角 **设置** 按钮
+3. 配置 Home Assistant 连接信息
+4. 完成！
+
+---
+
+## 文档
+
+- [使用说明书](./docs/USER_MANUAL.md) - 详细的功能使用指南
+- [更新日志](./CHANGELOG.md) - 版本更新记录
+- [API 文档](./docs/API.md) - 开发者 API 参考
+
+---
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开 Pull Request
+
+---
+
+## 许可证
+
+本项目采用 MIT 许可证 - 详见 [LICENSE](./LICENSE) 文件
+
+---
+
+## 致谢
+
+- [Home Assistant](https://www.home-assistant.io/) - 开源智能家居平台
+- [React](https://react.dev/) - 前端框架
+- [Tailwind CSS](https://tailwindcss.com/) - 样式框架
+- [shadcn/ui](https://ui.shadcn.com/) - UI 组件库
+
+---
+
+<p align="center">
+  <strong>Made with ❤️ for Smart Home Enthusiasts</strong>
+</p>
+
+---
+
+# English
+
+## Overview
+
+HAUI Dashboard is a professional, AI-powered Home Assistant frontend built with **React 18**, **Vite**, and **Tailwind CSS**. It combines **iOS-style aesthetics** with enterprise-grade performance.
+
+## Features
+
+- **AI Assistant**: Natural language control via LLMs with Function Calling
+- **iOS Design**: Smooth animations, glassmorphism effects
+- **All-Platform**: Responsive design for mobile, tablet, desktop
+- **Security**: PIN confirmation for high-risk operations over public network
+- **Performance**: WebSocket sync, code splitting, debounced controls
+
+## Quick Start
+
+### Home Assistant Add-on
+
+1. Go to **Settings** → **Add-ons** → **Add-on Store**
+2. Add repository: `https://github.com/skyeyinkun/HAUI`
+3. Install **"HAUI - Smart Home Hub"**
+4. Start the add-on and click **Open Web UI**
+
+### Standalone Deployment
+
+```bash
+git clone https://github.com/skyeyinkun/HAUI.git
+cd HAUI
+npm install
+npm run dev
+```
+
+## Documentation
+
+- [User Manual](./docs/USER_MANUAL.md)
+- [Changelog](./CHANGELOG.md)
+
+## License
+
+MIT License - see [LICENSE](./LICENSE) file

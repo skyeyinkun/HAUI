@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useUIStore } from '@/store/uiStore';
 import { useDataStore } from '@/store/dataStore';
 import { Home, Settings, Moon, Activity, Tv, Book, Users, Coffee, DoorOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Toaster } from '@/app/components/ui/sonner';
+import { toast } from 'sonner';
 
-import SettingsModal from './components/SettingsModal';
 import { useWeather } from '@/hooks/useWeather';
 import { encryptToken, decryptToken } from '@/utils/security';
 
@@ -17,24 +17,39 @@ import { StatisticsPanel } from '@/app/components/dashboard/StatisticsPanel';
 import AiChatWidget from './components/AiChatWidget';
 import { HAConfig } from '@/types/home-assistant';
 import { useHomeAssistant } from '@/hooks/useHomeAssistant';
-import ClimateControlModal from './components/ClimateControlModal';
-import RemoteControlModal from './components/remote/RemoteControlModal';
-import LogHistoryModal from './components/LogHistoryModal';
-import ApiLogModal from './components/ApiLogModal';
 import { useTime } from '@/hooks/useTime';
-import { cleanLogMessage } from '@/utils/log-helper';
-import { syncDevicesWithEntities } from '@/utils/device-sync';
-import { discoverDevicesFromStates } from '@/utils/device-discovery';
 import { useNowMs } from '@/hooks/useNowMs';
 import { emitIrTelemetry } from '@/utils/ir-telemetry';
 import { HassEntities } from 'home-assistant-js-websocket';
-
 import { HashRouter as Router } from 'react-router-dom';
-
-
 import { RegionSelectorModal } from '@/app/components/dashboard/RegionSelectorModal';
 import { DEFAULT_REGION, Region } from '@/utils/regions';
 import { getCityCoords } from '@/services/city-coords';
+// 工具函数已迁移到 useHASyncManager
+
+// 引入新的自定义 Hooks
+import { useHASyncManager } from '@/hooks/useHASyncManager';
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { CardErrorBoundary } from '@/app/components/ui/CardErrorBoundary';
+import { SecureActionConfirm } from '@/app/components/ui/SecureActionConfirm';
+
+// 按需加载重型组件
+const SettingsModal = React.lazy(() => import('./components/SettingsModal'));
+const ClimateControlModal = React.lazy(() => import('./components/ClimateControlModal'));
+const RemoteControlModal = React.lazy(() => import('./components/remote/RemoteControlModal'));
+const LogHistoryModal = React.lazy(() => import('./components/LogHistoryModal'));
+const ApiLogModal = React.lazy(() => import('./components/ApiLogModal'));
+
+// 加载占位符组件
+const ModalSkeleton = () => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-card rounded-lg p-8 animate-pulse">
+      <div className="w-64 h-4 bg-muted rounded mb-4" />
+      <div className="w-48 h-4 bg-muted rounded" />
+    </div>
+  </div>
+);
 
 export default function AppWrapper() {
   const search = typeof window !== 'undefined' ? window.location.search : '';
@@ -83,6 +98,20 @@ function RemoteAuditScreen() {
 function App() {
   const [selectedRoom, setSelectedRoom] = useState<string>('常用');
   const [sceneCooldown, setSceneCooldown] = useState(false);
+
+  // 安全确认对话框状态
+  const [secureConfirmOpen, setSecureConfirmOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [secureConfirmConfig, setSecureConfirmConfig] = useState<{
+    title: string;
+    description: string;
+    severity: 'high' | 'medium' | 'low';
+  }>({
+    title: '安全验证',
+    description: '此操作涉及安全敏感功能，请输入 PIN 码继续',
+    severity: 'high',
+  });
+
   // UI State from Zustand Store
   const {
     settingsOpen, setSettingsOpen,
@@ -267,63 +296,64 @@ function App() {
 
   // Use Home Assistant Hook
   const { entities, callService, isConnected, connectionType, events, refreshEntities, latency, fetchStatesRest, restBaseUrl } = useHomeAssistant(haConfig);
-  const hasScannedRef = useRef(false);
 
-  const handleAutoScan = useCallback(async (retryCount = 0) => {
-    if (!isConnected) return;
-    try {
-      const states = await fetchStatesRest();
-      const entitiesObj: HassEntities = {};
-      if (Array.isArray(states)) {
-        states.forEach((s: any) => { entitiesObj[s.entity_id] = s; });
-      } else {
-        Object.assign(entitiesObj, states);
-      }
+  // 使用 HA 同步管理器 Hook - 替代原有的同步逻辑
+  useHASyncManager({
+    isConnected,
+    entities,
+    events,
+    haConfig,
+    devices,
+    users,
+    setDevices,
+    setUsers,
+    addLog,
+    saveConfig,
+    fetchStatesRest,
+  });
 
-      // Use functional state update to ensure we have the latest devices
-      setDevices(currentDevices => {
-        // Note: We only use discovery here to potentially notify or sync, 
-        // BUT we do NOT automatically add devices to the persistent list anymore based on user request.
-        // "In Device Management, all entity ID devices should default to unbound"
-        // So we just log the count or notify, but don't merge them into currentDevices.
-        // However, we might want to sync *states* of existing bound devices if discovery provides new metadata.
-        // The `syncDevicesWithEntities` effect already handles state sync.
-        // So we can just skip auto-adding here.
+  // 使用减少动画检测
+  const { reduceMotion } = useReducedMotion();
 
-        const { newCount } = discoverDevicesFromStates(entitiesObj, currentDevices, haConfig.deviceMappings);
+  /**
+   * 检查操作是否需要安全确认
+   * 在公网访问时，对高危操作（开锁、解除安防等）需要二次确认
+   */
+  const requiresSecurityConfirm = useCallback((device: any): boolean => {
+    // 仅在公网访问时需要确认
+    if (connectionType !== 'Public') return false;
+    
+    // 高危操作列表
+    const highRiskKeywords = ['lock', 'door', 'security', 'alarm', 'gate'];
+    const deviceName = (device.name || '').toLowerCase();
+    const deviceType = (device.type || '').toLowerCase();
+    const deviceIcon = (device.icon || '').toLowerCase();
+    
+    // 检查设备名称、类型或图标是否包含高危关键词
+    const isHighRisk = highRiskKeywords.some(keyword => 
+      deviceName.includes(keyword) || 
+      deviceType.includes(keyword) || 
+      deviceIcon.includes(keyword)
+    );
+    
+    // 特定设备类型也属于高危
+    const highRiskTypes = ['lock', 'cover', 'garage'];
+    const isHighRiskType = highRiskTypes.includes(deviceType);
+    
+    return isHighRisk || isHighRiskType;
+  }, [connectionType]);
 
-        if (newCount > 0) {
-          // Optionally notify user that new devices are available in Settings -> Device Management
-          // toast.info(`发现 ${newCount} 个新设备，请在“设备管理”中查看`);
-        }
-        return currentDevices;
-      });
-    } catch (e) {
-      console.error('Auto scan failed', e);
-      if (retryCount < 1) {
-        setTimeout(() => handleAutoScan(retryCount + 1), 3000);
-      } else {
-        // Silent fail for auto-scan to avoid annoying user, or show log
-        console.error('Auto scan failed after retry');
-      }
-    }
-  }, [isConnected, haConfig, fetchStatesRest, saveConfig]);
-
-  useEffect(() => {
-    if (isConnected && !hasScannedRef.current) {
-      hasScannedRef.current = true;
-      handleAutoScan();
-      
-      // 3.12.0 修复: 开启实时配置同步心跳
-      import('@/utils/sync').then(({ syncFromServer, initAutoSync }) => {
-        // 先触发一次全量对齐（强制）
-        syncFromServer(true);
-        // 启动心跳（30s）与聚焦触发
-        const cleanup = initAutoSync();
-        return cleanup;
-      });
-    }
-  }, [isConnected, handleAutoScan]);
+  /**
+   * 执行需要安全确认的操作
+   */
+  const executeWithSecurityConfirm = useCallback((
+    action: () => void,
+    config: { title: string; description: string; severity: 'high' | 'medium' | 'low' }
+  ) => {
+    setPendingAction(() => action);
+    setSecureConfirmConfig(config);
+    setSecureConfirmOpen(true);
+  }, []);
 
   // Show setup guide notification if not configured (only once per session)
   useEffect(() => {
@@ -337,135 +367,33 @@ function App() {
     }
   }, [isConnected, haConfig.token]);
 
-  // Sync HA Events to Dashboard Logs
-  useEffect(() => {
-    if (events.length > 0) {
-      const latestEvent = events[0];
-      if (latestEvent.type === 'state_changed') {
-        const { entity_id, new_state } = latestEvent.data;
-        if (new_state) {
-          // Try to find a friendly name from our devices list first, then entity attributes
-          const deviceId = Object.keys(haConfig.deviceMappings).find(key => haConfig.deviceMappings[key as any] === entity_id);
-          let name = entity_id;
 
-          if (deviceId) {
-            const device = devices.find(d => d.id === parseInt(deviceId));
-            if (device) name = device.name;
-          } else if (new_state.attributes.friendly_name) {
-            name = new_state.attributes.friendly_name;
-          }
-
-          const rawState = new_state.state;
-          // Pre-translate state if it's a simple match
-          const state = rawState === 'on' ? '打开' : rawState === 'off' ? '关闭' : rawState;
-          const timeString = new Date().toLocaleTimeString();
-
-          const rawMessage = `${name} 状态变更为 ${state}`;
-          const cleanedMessage = cleanLogMessage(rawMessage);
-
-          addLog({
-            time: timeString,
-            message: cleanedMessage
+  // 使用防抖优化窗帘位置控制
+  const debouncedPositionChange = useDebouncedCallback(
+    (id: number, val: number, entityId: string | undefined) => {
+      if (entityId && entityId.startsWith('cover.')) {
+        callService('cover', 'set_cover_position', {
+          entity_id: entityId,
+          position: val
+        }).catch((err) => {
+          console.error(`Failed to set position for ${entityId}`, err);
+          toast.error(`${entityId} 开度调整失败`, {
+            description: '网络连接异常或 HA 服务不可用',
           });
-        }
-      }
-    }
-  }, [events, haConfig.deviceMappings, devices]); // Depend on events update and devices
-
-
-
-
-
-
-
-
-
-  // Sync devices with HA entities
-  useEffect(() => {
-    if (!isConnected || Object.keys(entities).length === 0) return;
-
-    setDevices(prevDevices => syncDevicesWithEntities(prevDevices, entities, haConfig.deviceMappings));
-  }, [entities, haConfig.deviceMappings, isConnected]);
-
-  // Sync users with HA person entities
-  useEffect(() => {
-    if (!isConnected || Object.keys(entities).length === 0) return;
-
-    setUsers(prevUsers => {
-      const personEntities = Object.values(entities).filter(e => e.entity_id.startsWith('person.'));
-
-      // 1. Initial auto-discovery if empty
-      if (prevUsers.length === 0 && personEntities.length > 0) {
-        const newUsers = personEntities.map(e => {
-          const avatar = e.attributes.entity_picture || '';
-          return {
-            name: e.attributes.friendly_name || e.entity_id.split('.')[1],
-            avatar: avatar.startsWith('/api/') ? `/ha-api${avatar}` : avatar,
-            online: e.state === 'home'
-          };
         });
-
-        // Update mappings asynchronously to avoid state update during render
-        const newMappings = { ...haConfig.personMappings };
-        newUsers.forEach(u => {
-          const entity = personEntities.find(pe => (pe.attributes.friendly_name || pe.entity_id.split('.')[1]) === u.name);
-          if (entity) newMappings[u.name] = entity.entity_id;
-        });
-
-        setTimeout(() => {
-          saveConfig({ ...haConfig, personMappings: newMappings });
-        }, 0);
-
-        return newUsers;
       }
-
-      // 2. Regular sync for status and avatar
-      let changed = false;
-      const syncedUsers = prevUsers.map(u => {
-        const entityId = haConfig.personMappings[u.name];
-        // Find by mapping or by friendly name fallback
-        const entity = entityId ? entities[entityId] : personEntities.find(e => (e.attributes.friendly_name === u.name));
-
-        if (entity) {
-          // Note: online logic - in HA 'home' is definitely online, others might be offline or just 'away'
-          // Header.tsx uses user.online to set a green ring.
-          // Usually 'home' means present.
-          const currentOnline = entity.state === 'home';
-          let avatar = entity.attributes.entity_picture || '';
-          if (avatar.startsWith('/api/')) avatar = `/ha-api${avatar}`;
-
-          if (u.online !== currentOnline || (!u.isLocalAvatar && avatar && u.avatar !== avatar)) {
-            changed = true;
-            return {
-              ...u,
-              online: currentOnline,
-              avatar: u.isLocalAvatar ? u.avatar : (avatar || u.avatar)
-            };
-          }
-        }
-        return u;
-      });
-
-      return changed ? syncedUsers : prevUsers;
-    });
-  }, [entities, isConnected, haConfig.personMappings, saveConfig]);
-
+    },
+    300 // 300ms 防抖延迟
+  );
 
   const handlePositionChange = useCallback((id: number, newValue: number | number[]) => {
     const val = Array.isArray(newValue) ? newValue[0] : newValue;
-
-    // HA Integration
     const entityId = haConfig.deviceMappings[id];
-    if (entityId && entityId.startsWith('cover.')) {
-      callService('cover', 'set_cover_position', {
-        entity_id: entityId,
-        position: val
-      }).catch(console.error);
-    }
 
+    // 立即更新 UI（乐观更新）
     setDevices(prev => prev.map(device => {
       if (device.id === id && device.type === 'curtain') {
-        const newPosition = val; // Direct value setting
+        const newPosition = val;
         const isOn = newPosition > 0;
 
         // Log only if not connected (optimistic)
@@ -484,57 +412,22 @@ function App() {
       }
       return device;
     }));
-  }, [haConfig.deviceMappings, callService, isConnected]);
+
+    // 防抖调用 HA 服务
+    debouncedPositionChange(id, val, entityId);
+  }, [haConfig.deviceMappings, debouncedPositionChange, isConnected]);
 
   const toggleDevice = useCallback((id: number) => {
+    // 保存当前状态用于回滚
+    const currentDevice = devices.find(d => d.id === id);
+    if (!currentDevice) return;
+    
+    const previousState = currentDevice.isOn;
+    const newState = !previousState;
+
+    // 乐观更新 UI
     setDevices(prev => prev.map(device => {
       if (device.id === id) {
-        const newState = !device.isOn;
-
-        // HA Integration
-        const entityId = haConfig.deviceMappings[id];
-        if (entityId) {
-          const domain = entityId.split('.')[0];
-          let service = 'toggle';
-          const serviceData: any = { entity_id: entityId };
-
-          if (domain === 'cover') {
-            if (newState) {
-              service = 'open_cover';
-            } else {
-              service = 'close_cover';
-            }
-          } else if (domain === 'light' || domain === 'switch') {
-            service = newState ? 'turn_on' : 'turn_off';
-          }
-
-          callService(domain, service, serviceData).catch(err => {
-            console.error(`Failed to toggle ${entityId}`, err);
-          });
-        }
-
-        // Generate Log Message based on device type
-        let message = '';
-        if (device.type === 'light') {
-          message = `${device.name} ${newState ? '打开了' : '关闭了'}`;
-        } else if (device.icon === 'motion' || device.name.includes('人体')) {
-          message = `${device.name} ${newState ? '触发了' : '恢复正常'}`;
-        } else if (device.icon === 'door' || device.name.includes('门')) {
-          message = `${device.name} ${newState ? '打开了' : '关闭了'}`;
-        } else if (device.type === 'curtain') {
-          message = `${device.name} ${newState ? '打开了' : '关闭了'}`;
-        } else {
-          message = `${device.name} ${newState ? '开启' : '关闭'}`;
-        }
-
-        // Add log
-        const now = new Date();
-        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-        addLog({
-          time: timeString,
-          message: message
-        }); // Keep last 50 logs
-
         // For curtains, sync position with toggle
         if (device.type === 'curtain') {
           return { ...device, isOn: newState, position: newState ? 100 : 0 };
@@ -548,7 +441,60 @@ function App() {
       }
       return device;
     }));
-  }, [haConfig.deviceMappings, callService]);
+
+    // HA Integration
+    const entityId = haConfig.deviceMappings[id];
+    if (entityId) {
+      const domain = entityId.split('.')[0];
+      let service = 'toggle';
+      const serviceData: any = { entity_id: entityId };
+
+      if (domain === 'cover') {
+        service = newState ? 'open_cover' : 'close_cover';
+      } else if (domain === 'light' || domain === 'switch') {
+        service = newState ? 'turn_on' : 'turn_off';
+      }
+
+      callService(domain, service, serviceData).catch(err => {
+        console.error(`Failed to toggle ${entityId}`, err);
+        
+        // 失败回滚：恢复到之前的状态
+        setDevices(prev => prev.map(device => {
+          if (device.id === id) {
+            return { ...device, isOn: previousState };
+          }
+          return device;
+        }));
+        
+        // 提示用户控制失败
+        toast.error(`${currentDevice.name} 控制失败`, {
+          description: '网络连接异常或 HA 服务不可用，已恢复原始状态',
+        });
+      });
+    }
+
+    // Generate Log Message based on device type
+    let message = '';
+    if (currentDevice.type === 'light') {
+      message = `${currentDevice.name} ${newState ? '打开了' : '关闭了'}`;
+    } else if (currentDevice.icon === 'motion' || currentDevice.name.includes('人体')) {
+      message = `${currentDevice.name} ${newState ? '触发了' : '恢复正常'}`;
+    } else if (currentDevice.icon === 'door' || currentDevice.name.includes('门')) {
+      message = `${currentDevice.name} ${newState ? '打开了' : '关闭了'}`;
+    } else if (currentDevice.type === 'curtain') {
+      message = `${currentDevice.name} ${newState ? '打开了' : '关闭了'}`;
+    } else {
+      message = `${currentDevice.name} ${newState ? '开启' : '关闭'}`;
+    }
+
+    // Add log
+    const now = new Date();
+    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    addLog({
+      time: timeString,
+      message: message
+    });
+  }, [haConfig.deviceMappings, callService, devices]);
 
 
 
@@ -584,34 +530,58 @@ function App() {
     });
   }, [haConfig.deviceMappings, callService]);
 
+  // 使用防抖优化灯光亮度控制
+  const debouncedBrightnessUpdate = useDebouncedCallback(
+    (entityId: string, brightness: number) => {
+      callService('light', 'turn_on', {
+        entity_id: entityId,
+        brightness: Math.max(0, Math.min(255, Math.round(brightness)))
+      }).catch((err) => {
+        console.error(`Failed to set brightness for ${entityId}`, err);
+        toast.error('亮度调节失败', {
+          description: '网络连接异常或 HA 服务不可用',
+        });
+      });
+    },
+    200 // 200ms 防抖延迟
+  );
+
   const handleLightUpdate = useCallback((deviceId: number, updates: any) => {
+    // 立即更新本地状态（乐观更新）
+    setDevices(prev => prev.map(device =>
+      device.id === deviceId ? { ...device, ...updates } : device
+    ));
+
     // HA Integration
     const entityId = haConfig.deviceMappings[deviceId];
     if (entityId) {
       if (updates.brightness !== undefined) {
-        const brightness = Math.max(0, Math.min(255, Math.round(updates.brightness)));
-        callService('light', 'turn_on', {
-          entity_id: entityId,
-          brightness: brightness
-        }).catch(console.error);
+        // 使用防抖调用亮度调节
+        debouncedBrightnessUpdate(entityId, updates.brightness);
       }
       if (updates.color_temp !== undefined) {
         callService('light', 'turn_on', {
           entity_id: entityId,
           color_temp: updates.color_temp
-        }).catch(console.error);
+        }).catch((err) => {
+          console.error(`Failed to set color temp for ${entityId}`, err);
+          toast.error('色温调节失败', {
+            description: '网络连接异常或 HA 服务不可用',
+          });
+        });
       }
       if (updates.isOn !== undefined) {
         callService('light', updates.isOn ? 'turn_on' : 'turn_off', {
           entity_id: entityId
-        }).catch(console.error);
+        }).catch((err) => {
+          console.error(`Failed to toggle ${entityId}`, err);
+          toast.error('开关控制失败', {
+            description: '网络连接异常或 HA 服务不可用',
+          });
+        });
       }
     }
-
-    setDevices(prev => prev.map(device =>
-      device.id === deviceId ? { ...device, ...updates } : device
-    ));
-  }, [haConfig.deviceMappings, callService]);
+  }, [haConfig.deviceMappings, debouncedBrightnessUpdate]);
 
   const handleDeviceClick = useCallback((device: any) => {
     if (device.type === 'ac' || device.type === 'climate' || device.type === 'heater' || device.type === 'fan') {
@@ -623,9 +593,20 @@ function App() {
       // Do nothing for curtain click
       return;
     } else {
-      toggleDevice(device.id);
+      // 检查是否需要安全确认（公网访问的高危操作）
+      if (requiresSecurityConfirm(device)) {
+        const action = () => toggleDevice(device.id);
+        const actionName = device.isOn ? '关闭' : '开启';
+        executeWithSecurityConfirm(action, {
+          title: '安全确认',
+          description: `您正在公网环境下尝试${actionName}「${device.name}」，此操作涉及安全敏感功能，请输入 PIN 码确认`,
+          severity: 'high',
+        });
+      } else {
+        toggleDevice(device.id);
+      }
     }
-  }, [toggleDevice]);
+  }, [toggleDevice, requiresSecurityConfirm, executeWithSecurityConfirm]);
 
   const handleClimateUpdate = useCallback((deviceId: number, updates: any) => {
     // HA Integration
@@ -683,7 +664,7 @@ function App() {
     ));
 
     // HA Integration for Scenes
-    // Use configured mapping if available, otherwise try friendly name match
+    // 使用原生的 scene.turn_on 服务（已优化）
     const sceneName = scenes.find(s => s.id === id)?.name;
     let entityIdToCall: string | undefined;
 
@@ -701,9 +682,17 @@ function App() {
 
     if (entityIdToCall) {
       callService('scene', 'turn_on', { entity_id: entityIdToCall as string })
-        .catch(console.error);
+        .catch((err) => {
+          console.error('Failed to activate scene:', err);
+          toast.error('场景激活失败', {
+            description: '网络连接异常或 HA 服务不可用',
+          });
+        });
     } else {
       console.warn('No matching scene entity found for', scenes.find(s => s.id === id)?.name);
+      toast.warning('未找到匹配的场景实体', {
+        description: `场景 "${sceneName}" 未在 Home Assistant 中配置`,
+      });
     }
 
     setSceneCooldown(true);
@@ -716,6 +705,77 @@ function App() {
       setSceneCooldown(false);
     }, 3000);
   }, [sceneCooldown, scenes, haConfig.sceneMappings, entities, callService]);
+
+  /**
+   * 批量控制设备 - 使用 homeassistant.turn_on/off 服务减少 WebSocket 开销
+   * 适用于同时控制多个设备的场景
+   */
+  const batchControlDevices = useCallback((deviceIds: number[], turnOn: boolean) => {
+    if (!isConnected) {
+      toast.error('未连接到 Home Assistant');
+      return;
+    }
+
+    // 收集所有需要控制的 entity_id
+    const entityIds: string[] = [];
+    deviceIds.forEach(id => {
+      const entityId = haConfig.deviceMappings[id];
+      if (entityId) {
+        entityIds.push(entityId);
+      }
+    });
+
+    if (entityIds.length === 0) {
+      toast.warning('没有可控制的设备');
+      return;
+    }
+
+    // 乐观更新 UI
+    setDevices(prev => prev.map(device => {
+      if (deviceIds.includes(device.id)) {
+        return { ...device, isOn: turnOn };
+      }
+      return device;
+    }));
+
+    // 使用 homeassistant.turn_on/off 进行批量控制
+    const service = turnOn ? 'turn_on' : 'turn_off';
+    
+    // 分批处理，每批最多 50 个实体（HA 的限制）
+    const batchSize = 50;
+    const batches: string[][] = [];
+    for (let i = 0; i < entityIds.length; i += batchSize) {
+      batches.push(entityIds.slice(i, i + batchSize));
+    }
+
+    // 并行执行所有批次
+    Promise.all(
+      batches.map(batch => 
+        callService('homeassistant', service, { entity_id: batch })
+          .catch((err) => {
+            console.error(`批量控制失败 (${batch.length} 个设备):`, err);
+            throw err;
+          })
+      )
+    )
+    .then(() => {
+      toast.success(`已${turnOn ? '开启' : '关闭'} ${entityIds.length} 个设备`);
+    })
+    .catch((err) => {
+      console.error('批量控制失败:', err);
+      toast.error('批量控制失败', {
+        description: '部分设备可能未响应，请检查网络连接',
+      });
+      
+      // 失败时回滚状态
+      setDevices(prev => prev.map(device => {
+        if (deviceIds.includes(device.id)) {
+          return { ...device, isOn: !turnOn };
+        }
+        return device;
+      }));
+    });
+  }, [isConnected, haConfig.deviceMappings, callService]);
 
   const handleUpdateScenes = useCallback((updatedScenes: { id: number; name: string; }[]) => {
     setScenes(prev => {
@@ -746,54 +806,74 @@ function App() {
 
   return (
     <div data-testid="dashboard-container" className="h-screen bg-background text-foreground relative transition-colors duration-300 flex flex-col overflow-hidden">
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        devices={devices}
-        users={users}
-        rooms={rooms}
-        onUpdateUsers={setUsers}
-        onUpdateDevices={setDevices}
-        onUpdateScenes={handleUpdateScenes}
-        onUpdateRooms={setRooms}
-        scenes={scenes}
-        onSave={saveConfig}
-        initialConfig={haConfig}
-        defaultTab={settingsDefaultTab}
-        isConnected={isConnected}
-      />
+      {/* 全局断线状态提示 */}
+      {!isConnected && haConfig.token && (
+        <div className="absolute top-0 left-0 right-0 z-50 bg-red-500/90 text-white px-4 py-2 text-center text-sm font-medium backdrop-blur-sm animate-in slide-in-from-top">
+          <span className="flex items-center justify-center gap-2">
+            <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+            与 Home Assistant 连接已断开，部分功能不可用
+          </span>
+        </div>
+      )}
+      {/* 使用 Suspense 包裹懒加载的 Modal 组件 */}
+      <Suspense fallback={<ModalSkeleton />}>
+        <SettingsModal
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          devices={devices}
+          users={users}
+          rooms={rooms}
+          onUpdateUsers={setUsers}
+          onUpdateDevices={setDevices}
+          onUpdateScenes={handleUpdateScenes}
+          onUpdateRooms={setRooms}
+          scenes={scenes}
+          onSave={saveConfig}
+          initialConfig={haConfig}
+          defaultTab={settingsDefaultTab}
+          isConnected={isConnected}
+        />
+      </Suspense>
 
-      <ApiLogModal
-        isOpen={apiLogOpen}
-        onClose={() => setApiLogOpen(false)}
-        logs={events}
-      />
+      <Suspense fallback={<ModalSkeleton />}>
+        <ApiLogModal
+          isOpen={apiLogOpen}
+          onClose={() => setApiLogOpen(false)}
+          logs={events}
+        />
+      </Suspense>
 
       {selectedClimateDevice && (
-        <ClimateControlModal
-          isOpen={climateModalOpen}
-          onClose={() => setClimateModalOpen(false)}
-          device={selectedClimateDevice}
-          onUpdate={handleClimateUpdate}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <ClimateControlModal
+            isOpen={climateModalOpen}
+            onClose={() => setClimateModalOpen(false)}
+            device={selectedClimateDevice}
+            onUpdate={handleClimateUpdate}
+          />
+        </Suspense>
       )}
 
       {selectedRemoteDevice && (
-        <RemoteControlModal
-          isOpen={!!selectedRemoteDevice}
-          onClose={() => setSelectedRemoteDevice(null)}
-          device={selectedRemoteDevice}
-          callService={callService}
-          entities={entities}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <RemoteControlModal
+            isOpen={!!selectedRemoteDevice}
+            onClose={() => setSelectedRemoteDevice(null)}
+            device={selectedRemoteDevice}
+            callService={callService}
+            entities={entities}
+          />
+        </Suspense>
       )}
 
-      <LogHistoryModal
-        isOpen={logModalOpen}
-        onClose={() => setLogModalOpen(false)}
-        logs={logs}
-        onClear={clearLogs}
-      />
+      <Suspense fallback={<ModalSkeleton />}>
+        <LogHistoryModal
+          isOpen={logModalOpen}
+          onClose={() => setLogModalOpen(false)}
+          logs={logs}
+          onClear={clearLogs}
+        />
+      </Suspense>
 
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto w-full" {...onDashboardLongPress}>
@@ -936,22 +1016,23 @@ function App() {
           {/* Devices Grid - Optimized for larger cards (125% size) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 pb-24">
             {filteredDevices.map((device) => (
-              <DeviceCard
-                key={device.id}
-                device={device}
-                nowMs={nowMs}
-                onToggle={(e) => {
-                  e.stopPropagation();
-                  toggleDevice(device.id);
-                }}
-                onClick={() => handleDeviceClick(device)}
-                isEditing={isEditingCommon}
-                isCommon={device.isCommon}
-                onToggleCommon={(e) => toggleCommon(e, device.id)}
-                onPositionChange={handlePositionChange}
-                onUpdate={handleLightUpdate}
-                onSendIR={sendIR}
-              />
+              <CardErrorBoundary key={device.id}>
+                <DeviceCard
+                  device={device}
+                  nowMs={nowMs}
+                  onToggle={(e) => {
+                    e.stopPropagation();
+                    toggleDevice(device.id);
+                  }}
+                  onClick={() => handleDeviceClick(device)}
+                  isEditing={isEditingCommon}
+                  isCommon={device.isCommon}
+                  onToggleCommon={(e) => toggleCommon(e, device.id)}
+                  onPositionChange={handlePositionChange}
+                  onUpdate={handleLightUpdate}
+                  onSendIR={sendIR}
+                />
+              </CardErrorBoundary>
             ))}
           </div>
         </div>
@@ -977,77 +1058,107 @@ function App() {
           className="hidden" // Placeholder
         />
 
-        {/* Settings Button (Direct Access) */}
-        <motion.button
-          onClick={() => setSettingsOpen(true)}
-          aria-label="打开系统设置"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer"
-        >
-          {/* 1. 外围泛光扩散层 */}
-          <motion.div 
-            className="absolute inset-[-4px] rounded-full opacity-40 blur-[15px] pointer-events-none"
-            animate={{ 
-                backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                scale: [1, 1.1, 1]
-            }}
-            transition={{ duration: 6, ease: "easeInOut", repeat: Infinity }}
-            style={{
-                backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
-                backgroundSize: "200% 100%"
-            }}
-          />
-          
-          {/* 2. 实体流光边框 */}
-          <motion.div 
-            className="absolute inset-[0px] rounded-full opacity-100 pointer-events-none p-[1.5px] overflow-hidden"
+        {/* Settings Button (Direct Access) - 支持减少动画模式 */}
+        {reduceMotion ? (
+          // 减少动画模式：使用简单 CSS
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="打开系统设置"
+            className="w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer bg-[#0F172A]/90 text-white/90 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
           >
+            <Settings className="w-5 h-5 text-indigo-300 group-hover:text-indigo-200 transition-colors" />
+          </button>
+        ) : (
+          // 完整动画模式
+          <motion.button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="打开系统设置"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer"
+          >
+            {/* 1. 外围泛光扩散层 */}
             <motion.div 
-                className="w-full h-full rounded-full"
-                animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
-                transition={{ duration: 4, ease: "linear", repeat: Infinity }}
-                style={{
-                    backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
-                    backgroundSize: "200% 100%"
-                }}
-            />
-          </motion.div>
-          
-          {/* 3. 多重水波纹效果 */}
-          {[0, 1].map((index) => (
-            <motion.div 
-              key={index}
-              className="absolute inset-0 rounded-full border border-indigo-400/30 pointer-events-none"
-              initial={{ scale: 1, opacity: 0.5 }}
-              animate={{ scale: 2.5, opacity: 0 }}
-              transition={{ 
-                  duration: 3, 
-                  repeat: Infinity, 
-                  ease: "easeOut",
-                  delay: index * 1.5
+              className="absolute inset-[-4px] rounded-full opacity-40 blur-[15px] pointer-events-none"
+              animate={{ 
+                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                  scale: [1, 1.1, 1]
+              }}
+              transition={{ duration: 6, ease: "easeInOut", repeat: Infinity }}
+              style={{
+                  backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
+                  backgroundSize: "200% 100%"
               }}
             />
-          ))}
-
-          {/* 4. 按钮主体 */}
-          <div className="relative z-10 w-[calc(100%-3px)] h-[calc(100%-3px)] rounded-full flex items-center justify-center transition-all duration-500 !bg-[#0F172A]/90 backdrop-blur-2xl text-white/90 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden">
-            <Settings className="w-5 h-5 text-indigo-300 drop-shadow-[0_0_8px_rgba(165,180,252,0.8)] group-hover:scale-110 transition-transform duration-300" />
             
-            {/* 内部微光扫过 */}
+            {/* 2. 实体流光边框 */}
             <motion.div 
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full"
-                animate={{ translateX: ["100%", "-100%"] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear", delay: 1 }}
-            />
-          </div>
-        </motion.button>
+              className="absolute inset-[0px] rounded-full opacity-100 pointer-events-none p-[1.5px] overflow-hidden"
+            >
+              <motion.div 
+                  className="w-full h-full rounded-full"
+                  animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
+                  transition={{ duration: 4, ease: "linear", repeat: Infinity }}
+                  style={{
+                      backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
+                      backgroundSize: "200% 100%"
+                  }}
+              />
+            </motion.div>
+            
+            {/* 3. 多重水波纹效果 */}
+            {[0, 1].map((index) => (
+              <motion.div 
+                key={index}
+                className="absolute inset-0 rounded-full border border-indigo-400/30 pointer-events-none"
+                initial={{ scale: 1, opacity: 0.5 }}
+                animate={{ scale: 2.5, opacity: 0 }}
+                transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeOut",
+                    delay: index * 1.5
+                }}
+              />
+            ))}
+
+            {/* 4. 按钮主体 */}
+            <div className="relative z-10 w-[calc(100%-3px)] h-[calc(100%-3px)] rounded-full flex items-center justify-center transition-all duration-500 !bg-[#0F172A]/90 backdrop-blur-2xl text-white/90 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden">
+              <Settings className="w-5 h-5 text-indigo-300 drop-shadow-[0_0_8px_rgba(165,180,252,0.8)] group-hover:scale-110 transition-transform duration-300" />
+              
+              {/* 内部微光扫过 */}
+              <motion.div 
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full"
+                  animate={{ translateX: ["100%", "-100%"] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear", delay: 1 }}
+              />
+            </div>
+          </motion.button>
+        )}
       </div>
 
       <AiChatWidget entities={entities} />
       <Toaster />
+
+      {/* 安全确认对话框 - 用于公网访问的高危操作二次确认 */}
+      <SecureActionConfirm
+        isOpen={secureConfirmOpen}
+        onClose={() => {
+          setSecureConfirmOpen(false);
+          setPendingAction(null);
+        }}
+        onConfirm={() => {
+          if (pendingAction) {
+            pendingAction();
+          }
+          setPendingAction(null);
+        }}
+        title={secureConfirmConfig.title}
+        description={secureConfirmConfig.description}
+        severity={secureConfirmConfig.severity}
+      />
     </div>
   );
 }

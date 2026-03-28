@@ -12,6 +12,7 @@ interface LightControlProps {
     isCommon?: boolean;
     onToggleCommon?: (e: React.MouseEvent) => void;
     onUpdate?: (id: number, updates: any) => void;
+    nowMs?: number; // 用于时间戳显示的时间基准
 }
 
 export function LightControl({
@@ -21,7 +22,8 @@ export function LightControl({
     isEditing,
     isCommon,
     onToggleCommon,
-    onUpdate
+    onUpdate,
+    nowMs
 }: LightControlProps) {
     const [localBrightness, setLocalBrightness] = useState(device.brightness || 0);
     const [localColorTemp, setLocalColorTemp] = useState(device.color_temp || 153);
@@ -164,7 +166,7 @@ export function LightControl({
             isCommon={isCommon}
             onToggleCommon={onToggleCommon}
         >
-            <DeviceCardHeader device={device} onToggle={handleToggleWrapper} />
+            <DeviceCardHeader device={device} onToggle={handleToggleWrapper} nowMs={nowMs} />
             
             {/* Controls Area - Flex 1 to push to bottom */}
             <div className="flex-1 flex flex-col justify-end gap-3 pb-0.5">

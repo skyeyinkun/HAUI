@@ -136,7 +136,10 @@ export async function chatStream(
                             };
                         }
                         if (tc.id) toolCallsMap[index].id = tc.id;
-                        if (tc.function?.name) toolCallsMap[index].function.name += tc.function.name;
+                        // 仅在 name 为空时赋值，避免兼容模型每个 chunk 都带完整 name 导致重复拼接
+                        if (tc.function?.name && !toolCallsMap[index].function.name) {
+                            toolCallsMap[index].function.name = tc.function.name;
+                        }
                         if (tc.function?.arguments) toolCallsMap[index].function.arguments += tc.function.arguments;
                     }
                 }

@@ -4,6 +4,7 @@ import svgPaths from "@/imports/svg-vz3fosb0v5";
 import imgToggleSwitch from "@/assets/toggle_switch.png";
 import { Device } from '@/types/device';
 import { CustomIcon } from './shared/CustomIcon';
+import { SensorTimestamp } from '@/app/components/dashboard/SensorTimestamp';
 
 // ----------------------------------------------------------------------
 // Shared Types
@@ -23,6 +24,7 @@ export interface DeviceCardHeaderProps {
   device: Device;
   onToggle: (e: React.MouseEvent) => void;
   value?: number;
+  nowMs?: number; // 用于时间戳显示的时间基准
 }
 
 // ----------------------------------------------------------------------
@@ -230,21 +232,40 @@ export function DeviceCardWrapper({ children, className, onClick, isEditing, isC
 }
 
 // 2. Unified Header
-export function DeviceCardHeader({ device, onToggle, value }: DeviceCardHeaderProps) {
+export function DeviceCardHeader({ device, onToggle, value, nowMs }: DeviceCardHeaderProps) {
+  // 获取最后状态变更时间：优先使用 lastChanged，其次使用 lastUpdated
+  const lastChangedTime = device.lastChanged || device.lastUpdated;
+
   return (
-    <div className="flex items-center justify-between min-h-[32px]">
-      <div className="flex items-center gap-2 overflow-hidden flex-1">
-        <DeviceIcon icon={device.icon} isOn={device.isOn} type={device.type} value={value} />
-        <span className="font-['SF_Pro_Display',sans-serif] text-[14px] font-medium truncate leading-tight mt-[1px] text-foreground">
-          {device.name}
-        </span>
+    <div className="flex flex-col gap-1">
+      {/* 第一行：图标、名称、开关 */}
+      <div className="flex items-center justify-between min-h-[32px]">
+        <div className="flex items-center gap-2 overflow-hidden flex-1">
+          <DeviceIcon icon={device.icon} isOn={device.isOn} type={device.type} value={value} />
+          <span className="font-['SF_Pro_Display',sans-serif] text-[14px] font-medium truncate leading-tight mt-[1px] text-foreground">
+            {device.name}
+          </span>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(e); }}
+          className="shrink-0 ml-1"
+        >
+          <SquareToggle isOn={device.isOn} size="small" />
+        </button>
       </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle(e); }}
-        className="shrink-0 ml-1"
-      >
-        <SquareToggle isOn={device.isOn} size="small" />
-      </button>
+
+      {/* 第二行：状态变更时间戳 */}
+      {nowMs !== undefined && (
+        <div className="flex items-center pl-[40px]"> {/* 40px = 图标宽度32px + gap 8px，与名称对齐 */}
+          <SensorTimestamp
+            lastChanged={lastChangedTime}
+            available={device.haAvailable !== false}
+            nowMs={nowMs}
+            variant="compact"
+            className="text-[9px]"
+          />
+        </div>
+      )}
     </div>
   );
 }

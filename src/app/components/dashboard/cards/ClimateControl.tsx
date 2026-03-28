@@ -11,6 +11,7 @@ interface ClimateControlProps {
     isCommon?: boolean;
     onToggleCommon?: (e: React.MouseEvent) => void;
     onUpdate?: (id: number, updates: any) => void;
+    nowMs?: number; // 用于时间戳显示的时间基准
 }
 
 // HVAC 模式完整配置
@@ -44,7 +45,8 @@ export function ClimateControl({
     isEditing,
     isCommon,
     onToggleCommon,
-    onUpdate
+    onUpdate,
+    nowMs
 }: ClimateControlProps) {
     const minTemp = device.min_temp ?? 16;
     const maxTemp = device.max_temp ?? 30;
@@ -171,7 +173,7 @@ export function ClimateControl({
             isCommon={isCommon}
             onToggleCommon={onToggleCommon}
         >
-            <DeviceCardHeader device={device} onToggle={handleToggleWrapper} />
+            <DeviceCardHeader device={device} onToggle={handleToggleWrapper} nowMs={nowMs} />
 
             <div className="flex-1 flex flex-col justify-end gap-1 pb-0 relative">
                 <div className="flex-1 flex flex-col justify-between pb-0 mt-0 relative min-h-0">

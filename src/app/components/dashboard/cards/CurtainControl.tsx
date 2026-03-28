@@ -11,6 +11,7 @@ interface CurtainControlProps {
     isCommon?: boolean;
     onToggleCommon?: (e: React.MouseEvent) => void;
     onPositionChange?: (id: number, val: number | number[]) => void;
+    nowMs?: number; // 用于时间戳显示的时间基准
 }
 
 export function CurtainControl({
@@ -20,7 +21,8 @@ export function CurtainControl({
     isEditing,
     isCommon,
     onToggleCommon,
-    onPositionChange
+    onPositionChange,
+    nowMs
 }: CurtainControlProps) {
     const [localPosition, setLocalPosition] = useState(device.position || 0);
     const [isDragging, setIsDragging] = useState(false);
@@ -169,7 +171,7 @@ export function CurtainControl({
             isCommon={isCommon}
             onToggleCommon={onToggleCommon}
         >
-            <DeviceCardHeader device={device} onToggle={handleToggleWrapper} value={localPosition} />
+            <DeviceCardHeader device={device} onToggle={handleToggleWrapper} value={localPosition} nowMs={nowMs} />
             
             {/* Controls Area - Flex 1 to push to bottom */}
             <div className="flex-1 flex flex-col justify-end gap-3 pb-0.5">

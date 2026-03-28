@@ -81,6 +81,7 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
         isCommon={isCommon}
         onToggleCommon={onToggleCommon}
         onUpdate={onUpdate}
+        nowMs={nowMs}
       />
     );
   }
@@ -95,6 +96,7 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
         isCommon={isCommon}
         onToggleCommon={onToggleCommon}
         onPositionChange={onPositionChange}
+        nowMs={nowMs}
       />
     );
   }
@@ -109,6 +111,7 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
         isCommon={isCommon}
         onToggleCommon={onToggleCommon}
         onUpdate={onUpdate}
+        nowMs={nowMs}
       />
     );
   }

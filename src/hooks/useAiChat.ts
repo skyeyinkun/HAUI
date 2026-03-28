@@ -5,6 +5,7 @@ import { HassEntities, Connection } from 'home-assistant-js-websocket';
 import { connectToHA } from '@/utils/ha-connection';
 import { executeHaTools } from '@/services/ai-tools-executor';
 import { getApiUrl } from '@/utils/sync';
+import { getDeviceSummary } from '@/utils/ai-context';
 
 // 消息类型定义
 export interface Message {
@@ -51,6 +52,17 @@ const WELCOME_MESSAGE: Message = {
     timestamp: Date.now()
 };
 
+/** 消息上下文窗口大小（约 10 轮对话） */
+const MAX_CONTEXT_MESSAGES = 20;
+/** 持久化保存的最大消息数 */
+const MAX_PERSIST_MESSAGES = 50;
+/** 多轮工具调用的最大轮次，防止死循环 */
+const MAX_TOOL_ROUNDS = 3;
+/** 持久化存储 key */
+const CHAT_HISTORY_KEY = 'ai_chat_history';
+/** 持久化节流间隔（毫秒） */
+const PERSIST_THROTTLE_MS = 2000;
+
 /**
  * AI 对话核心 Hook — 封装消息管理、配置加载/保存、消息发送逻辑
  */
@@ -61,7 +73,19 @@ export function useAiChat({
     onStatusChange,
     onError,
 }: UseAiChatOptions): UseAiChatReturn {
-    const [messages, setMessages] = useState<Message[]>([{ ...WELCOME_MESSAGE, timestamp: Date.now() }]);
+    // 从 localStorage 恢复对话历史，无则使用欢迎消息
+    const [messages, setMessages] = useState<Message[]>(() => {
+        try {
+            const saved = localStorage.getItem(CHAT_HISTORY_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed;
+                }
+            }
+        } catch { /* 忽略解析错误 */ }
+        return [{ ...WELCOME_MESSAGE, timestamp: Date.now() }];
+    });
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [config, setConfig] = useState<AiConfig>(DEFAULT_CONFIG);
@@ -75,6 +99,22 @@ export function useAiChat({
     isVoiceModeRef.current = isVoiceMode;
 
     const abortControllerRef = useRef<AbortController | null>(null);
+    const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // 节流持久化消息到 localStorage
+    useEffect(() => {
+        if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = setTimeout(() => {
+            try {
+                // 只保存最近 N 条消息
+                const toSave = messages.slice(-MAX_PERSIST_MESSAGES);
+                localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(toSave));
+            } catch { /* 写入失败时静默忽略 */ }
+        }, PERSIST_THROTTLE_MS);
+        return () => {
+            if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+        };
+    }, [messages]);
 
     // 初始化：从 localStorage 和后端加载配置
     useEffect(() => {
@@ -151,13 +191,15 @@ export function useAiChat({
         const activeController = new AbortController();
         abortControllerRef.current = activeController;
 
-        // 构建系统提示，不再塞入全量的实体状态
+        // 构建设备摘要注入系统提示词
+        const deviceSummary = getDeviceSummary(entitiesRef.current);
+        const systemPrompt = `你是一个专业的家庭自动化管家。根据用户的指令，你可以通过 call_ha_service 工具操纵家庭设备。如果需要当前设备状态，必须先通过 get_entity_state 工具查询然后再回答用户。回答要简练、亲切！语音对话时尽量缩减篇幅。当无法查到设备或者调用报错时如实告知用户。\n\n${deviceSummary}`;
+
+        // 使用滑动窗口截取最近的消息，避免 token 超限
+        const recentMessages = newMessages.slice(1).slice(-MAX_CONTEXT_MESSAGES);
         const baseChatMessages: AiChatMessage[] = [
-            {
-                role: 'system',
-                content: '你是一个专业的家庭自动化管家。根据用户的指令，你可以通过 call_ha_service 工具操纵家庭设备。如果需要当前设备状态，必须先通过 get_entity_state 工具查询然后再回答用户。回答要简练、亲切！语音对话时尽量缩减篇幅。当无法查到设备或者调用报错时如实告知用户。'
-            },
-            ...newMessages.slice(1).map(m => {
+            { role: 'system', content: systemPrompt },
+            ...recentMessages.map(m => {
                 const apiMsg: AiChatMessage = { role: m.role === 'ai' ? 'assistant' : m.role, content: m.content || null };
                 if (m.tool_calls) apiMsg.tool_calls = m.tool_calls;
                 if (m.tool_call_id) apiMsg.tool_call_id = m.tool_call_id;
@@ -200,36 +242,51 @@ export function useAiChat({
         };
 
         try {
-            // == 第一轮请求：可能直接返回对话，或抛出工具请求 ==
-            const aiMsgId = (Date.now() + 1).toString();
-            const { currentContent, interceptedToolCalls } = await doChatStream(baseChatMessages, aiMsgId);
+            // 多轮工具调用循环
+            let currentChatMessages = [...baseChatMessages];
+            let toolRound = 0;
+            let finalContent = '';
 
-            if (interceptedToolCalls.length > 0) {
+            while (toolRound <= MAX_TOOL_ROUNDS) {
+                if (activeController.signal.aborted) break;
+
+                const msgId = (Date.now() + toolRound * 2 + 1).toString();
+                const { currentContent, interceptedToolCalls } = await doChatStream(currentChatMessages, msgId);
+
+                // 无工具调用 → 直接完成回复
+                if (interceptedToolCalls.length === 0) {
+                    finalContent = currentContent;
+                    break;
+                }
+
+                // 达到工具调用轮次上限，强制结束
+                if (toolRound >= MAX_TOOL_ROUNDS) {
+                    finalContent = currentContent || '操作完成，但部分工具调用被跳过（已达最大轮次）。';
+                    break;
+                }
+
                 onStatusChange?.('检索信息或操作设备中...');
-                
-                // 1. 将 assistant 包含 tool_calls 的消息保存并追加到上下文
+
+                // 将 assistant 包含 tool_calls 的消息保存并追加到上下文
                 const assistantToolMsg: Message = {
-                    id: aiMsgId,
+                    id: msgId,
                     role: 'ai',
                     content: currentContent || null,
                     tool_calls: interceptedToolCalls,
                     timestamp: Date.now()
                 };
-                
-                // 将前面添加的占位空消息替换为实际包含工具调用的消息
-                setMessages(prev => prev.map(m => m.id === aiMsgId ? assistantToolMsg : m));
-                
-                const nextChatMessages = [...baseChatMessages, {
+                setMessages(prev => prev.map(m => m.id === msgId ? assistantToolMsg : m));
+
+                currentChatMessages.push({
                     role: 'assistant',
                     content: currentContent || null,
                     tool_calls: interceptedToolCalls
-                } as AiChatMessage];
+                } as AiChatMessage);
 
-                // 2. 统一执行工具：根据工具类型进行“本地环境提取”或“真实服务调用”
+                // 执行工具
                 let conn: Connection | null = null;
-                // 如果包含 call_ha_service 工具，则提前建立连接
                 if (interceptedToolCalls.some(tc => tc.function?.name === 'call_ha_service')) {
-                    try { conn = await connectToHA(); } catch (e) { console.error('HA Connection Failed', e); }
+                    try { conn = await connectToHA(); } catch (e) { console.error('HA 连接失败', e); }
                 }
 
                 const toolResults = await executeHaTools(conn, entitiesRef.current, interceptedToolCalls);
@@ -244,39 +301,31 @@ export function useAiChat({
                 }));
                 setMessages(prev => [...prev, ...newToolMessages]);
 
-                // 追加进对话历史进入下一轮
+                // 追加工具结果到对话上下文
                 for (const res of toolResults) {
-                    nextChatMessages.push({
+                    currentChatMessages.push({
                         role: 'tool',
                         tool_call_id: res.tool_call_id,
                         content: res.content
                     });
                 }
 
-                if (!activeController.signal.aborted) {
-                    // 3. 将工具执行结果提交回大模型进行最终答复
-                    onStatusChange?.('生成回复中...');
-                    const secondMsgId = (Date.now() + 2).toString();
-                    const { currentContent: finalContent } = await doChatStream(nextChatMessages, secondMsgId);
-                    
-                    if (finalContent && onAiReplyDone) {
-                        onAiReplyDone(finalContent);
-                    }
-                }
-            } else {
-                // 没有发生工具调用，直接完成了回复
-                if (currentContent && onAiReplyDone) {
-                    onAiReplyDone(currentContent);
-                }
+                onStatusChange?.('生成回复中...');
+                toolRound++;
+            }
+
+            // 通知 AI 回复完成（用于 TTS 等后续处理）
+            if (finalContent && onAiReplyDone) {
+                onAiReplyDone(finalContent);
             }
         } catch (error: any) {
             if (error.name === 'AbortError' || activeController.signal.aborted) {
-                console.log('Stream request aborted.');
+                console.log('流式请求已中断');
             } else {
                 const errorMsg: Message = {
                     id: (Date.now() + 5).toString(),
                     role: 'ai',
-                    content: `❌ 出错了: ${error.message || '请检查网络或后端配置'}`,
+                    content: `出错了: ${error.message || '请检查网络或后端配置'}`,
                     timestamp: Date.now()
                 };
                 setMessages(prev => [...prev, errorMsg]);
@@ -299,6 +348,8 @@ export function useAiChat({
                 ...WELCOME_MESSAGE,
                 timestamp: Date.now()
             }]);
+            // 同步清除 localStorage 中的持久化记录
+            localStorage.removeItem(CHAT_HISTORY_KEY);
         }
     }, [abortChat]);
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Maximize2, X, AlertTriangle } from 'lucide-react';
 import { EzvizStreamPlayer } from './EzvizStreamPlayer';
 import { HaHlsPlayer } from './HaHlsPlayer';
+import { Go2RtcPlayer } from './Go2RtcPlayer';
 import { CameraConfig } from './types';
 
 interface CameraPlayerProps {
@@ -73,9 +74,14 @@ export const CameraPlayer: React.FC<CameraPlayerProps> = ({ config, onRemove }) 
                 {config.type === 'ha-hls' && config.url && (
                     <HaHlsPlayer url={config.url} />
                 )}
+
+                {/* RTSP 流通过 go2rtc 代理播放（WebRTC 优先，HLS 回退） */}
+                {config.type === 'rtsp' && config.go2rtcUrl && config.streamName && (
+                    <Go2RtcPlayer go2rtcUrl={config.go2rtcUrl} streamName={config.streamName} />
+                )}
                 
                 {/* 各种无参数错误状态呈现 */}
-                {(!config.url) && (
+                {(!config.url && config.type !== 'rtsp') && (
                     <div className="flex flex-col items-center justify-center w-full h-full text-red-500 text-sm bg-black absolute top-0 left-0">
                         <AlertTriangle size={32} className="opacity-70 mb-2" />
                         <span className="opacity-80">当前设备的串流基础参数或 URL 丢失/错误</span>

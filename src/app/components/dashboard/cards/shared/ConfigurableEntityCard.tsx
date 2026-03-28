@@ -51,6 +51,66 @@ function formatState(entityId: string, rawState: any) {
   return s;
 }
 
+/** 实体视觉状态类型 */
+type EntityVisualStatus = 'triggered' | 'normal' | 'active' | 'default';
+
+/** 根据实体 ID 和 HA 状态计算视觉状态 */
+function getEntityVisualStatus(entityId: string, state: string | undefined): EntityVisualStatus {
+  const isBinary = entityId.startsWith('binary_sensor.');
+  if (isBinary && state === 'on') return 'triggered';
+  if (isBinary && state === 'off') return 'normal';
+  if (!isBinary && state === 'on') return 'active';
+  return 'default';
+}
+
+/** 视觉状态 → 容器样式映射 */
+const STATUS_CONTAINER_STYLES: Record<EntityVisualStatus, string> = {
+  triggered: 'bg-red-500/10 border-red-500/20 dark:bg-red-500/15',
+  normal: 'bg-emerald-500/8 border-emerald-500/15 dark:bg-emerald-500/10',
+  active: 'bg-amber-500/8 border-amber-500/15',
+  default: 'bg-accent/5 border-border/5',
+};
+
+/** 视觉状态 → 数值文字颜色映射 */
+const STATUS_VALUE_STYLES: Record<EntityVisualStatus, string> = {
+  triggered: 'text-red-600 dark:text-red-400',
+  normal: 'text-emerald-600 dark:text-emerald-400',
+  active: 'text-amber-600 dark:text-amber-400',
+  default: 'text-foreground',
+};
+
+/** 视觉状态 → CustomIcon state 映射 */
+const STATUS_ICON_STATE: Record<EntityVisualStatus, 'default' | 'active' | 'alarm'> = {
+  triggered: 'alarm',
+  normal: 'default',
+  active: 'active',
+  default: 'default',
+};
+
+/** 根据 device_class 和触发状态返回动态图标名称 */
+function getStatusIcon(deviceClass: string | undefined, isTriggered: boolean, fallbackIcon: string): string {
+  if (!deviceClass) return fallbackIcon;
+  switch (deviceClass) {
+    case 'door':
+    case 'window':
+    case 'opening':
+    case 'garage_door':
+      return isTriggered ? 'DoorOpen' : 'DoorClosed';
+    case 'motion':
+    case 'occupancy':
+    case 'presence':
+      return isTriggered ? 'UserCheck' : 'UserRound';
+    case 'smoke':
+    case 'gas':
+    case 'carbon_monoxide':
+      return isTriggered ? 'ShieldAlert' : fallbackIcon;
+    case 'moisture':
+      return isTriggered ? 'Droplets' : fallbackIcon;
+    default:
+      return fallbackIcon;
+  }
+}
+
 export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
@@ -127,8 +187,8 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
     if (props.onHeightChange) {
       // 每两列一行
       const rows = Math.ceil(entitiesToShow.length / 2);
-      // 卡片头部约占用 40px，每个项目约占用 108px（100px 内容 + 8px 间距）
-      const contentHeight = 40 + (rows * 108);
+      // 卡片头部约占用 40px，每个项目约占用 96px（92px 内容 + 4px 间距，紧凑布局）
+      const contentHeight = 40 + (rows * 96);
       // Grid 的 auto-rows 是 100px，加上 gap-3(12px)。 h 行总高度 = h * 100 + (h-1)*12 = h * 112 - 12。
       // 反推需要的行跨度 h：
       const targetH = Math.max(1, Math.min(Math.ceil((contentHeight + 12) / 112), 4));
@@ -252,31 +312,42 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
             const available = st ? st.state !== 'unavailable' : true;
             const iconName = e.icon || 'Activity';
 
+            // 计算视觉状态：触发/正常/活跃/默认
+            const visualStatus = getEntityVisualStatus(e.entity_id, st?.state);
+            const isTriggered = visualStatus === 'triggered';
+            const containerStyle = STATUS_CONTAINER_STYLES[visualStatus];
+            const valueStyle = STATUS_VALUE_STYLES[visualStatus];
+            const iconState = STATUS_ICON_STATE[visualStatus];
+
+            // 根据 device_class 和触发状态动态选择图标
+            const deviceClass = st?.attributes?.device_class;
+            const dynamicIcon = e.entity_id.startsWith('binary_sensor.')
+              ? getStatusIcon(deviceClass, isTriggered, iconName)
+              : iconName;
+
             return (
-              <div key={e.entity_id} className="relative flex flex-col justify-between p-3.5 rounded-[20px] bg-accent/5 transition-all duration-300 min-h-[104px] group/item border border-border/5 hover:bg-accent/15 hover:shadow-sm">
+              <div key={e.entity_id} className={`relative flex flex-col justify-between p-3 rounded-[16px] transition-all duration-300 min-h-[92px] group/item border hover:shadow-sm ${containerStyle} ${isTriggered ? 'animate-sensor-pulse' : ''}`}>
                 {/* 顶部容器：左方为圆角图标，右方为加亮大字体数值 */}
-                <div className="flex items-start justify-between w-full gap-2">
-                  <div className="w-9 h-9 text-muted-foreground/70 bg-accent/50 rounded-[10px] flex items-center justify-center shrink-0 transition-colors group-hover/item:bg-accent group-hover/item:text-foreground/80">
-                    <CustomIcon name={iconName} className="entity-card__icon w-5 h-5 transition-all duration-300" />
+                <div className="flex items-center justify-between w-full gap-2">
+                  <div className={`w-8 h-8 bg-accent/50 rounded-[10px] flex items-center justify-center shrink-0 transition-colors group-hover/item:bg-accent ${isTriggered ? '!bg-red-500/20' : ''}`}>
+                    <CustomIcon name={dynamicIcon} state={iconState} className="entity-card__icon w-4 h-4 transition-all duration-300" />
                   </div>
-                  <div className="flex flex-col items-end min-w-0 flex-1 mt-0.5">
-                    <div className="flex items-baseline justify-end flex-wrap w-full gap-0.5">
-                       <span className="font-bold text-[18px] text-foreground tracking-tight leading-none text-right line-clamp-1 break-all">
-                         {value}
-                       </span>
-                       {unit && (
-                         <span className="text-[13px] font-semibold text-foreground/80 leading-none shrink-0 align-baseline">
-                           {unit}
-                         </span>
-                       )}
-                    </div>
+                  <div className="flex items-baseline justify-end flex-1 min-w-0 gap-0.5">
+                    <span className={`font-bold ${value.length > 6 ? 'text-[13px]' : 'text-[16px]'} ${valueStyle} tracking-tight leading-none text-right truncate break-all`}>
+                      {value}
+                    </span>
+                    {unit && (
+                      <span className="text-[11px] font-medium text-foreground/70 leading-none shrink-0">
+                        {unit}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* 底部容器：实体名称 与 时间标识 */}
-                <div className="flex flex-col min-w-0 w-full mt-3">
-                  <span className="font-semibold text-[13px] text-foreground/90 truncate mb-0.5 tracking-wide">{displayName}</span>
-                  <div className="flex items-center text-[11px] text-muted-foreground/80 overflow-hidden">
+                <div className="flex flex-col min-w-0 w-full mt-2">
+                  <span className="font-medium text-[12px] text-foreground/90 truncate tracking-wide">{displayName}</span>
+                  <div className="flex items-center text-[10px] text-muted-foreground/70 overflow-hidden mt-0.5">
                     <SensorTimestamp lastChanged={st?.last_changed} available={available} nowMs={props.nowMs} variant="compact" className="truncate flex-1 min-w-0 w-full" />
                   </div>
                 </div>

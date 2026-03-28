@@ -5,9 +5,16 @@
 
 @theme {
   --animate-wiggle: wiggle 0.3s ease-in-out infinite;
+  --animate-sensor-pulse: sensor-pulse 2s ease-in-out infinite;
 
   @keyframes wiggle {
     0%, 100% { transform: rotate(-0.5deg); }
     50% { transform: rotate(0.5deg); }
+  }
+
+  /* 传感器触发状态呼吸灯效果 */
+  @keyframes sensor-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 }

@@ -24,7 +24,8 @@ export function SortableWidget({ widget, isEditing, onRemove, children, classNam
   } = useSortable({ id: widget.id, disabled: !isEditing || isOverlay });
 
   const style = {
-    transform: isOverlay ? undefined : CSS.Transform.toString(transform),
+    // 使用 Translate 替代 Transform，忽略 scale 分量，防止跨列拖拽时尺寸变形
+    transform: isOverlay ? undefined : CSS.Translate.toString(transform),
     transition: transition || undefined,
     zIndex: isDragging ? 0 : 'auto', // 原始节点降低层级，镜像层级设在 Overlay
     opacity: isDragging ? 0.3 : 1,   // 原始节点在拖拽时变为占位符

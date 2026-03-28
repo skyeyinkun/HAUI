@@ -87,6 +87,7 @@ export function CameraManagementTab({ cameras, onUpdateCameras }: CameraManageme
                         >
                           <option value="ha-hls">HA (HLS)</option>
                           <option value="ezviz">萤石 (Ezviz)</option>
+                          <option value="rtsp">RTSP (go2rtc)</option>
                         </select>
                       </div>
                     </div>
@@ -94,33 +95,67 @@ export function CameraManagementTab({ cameras, onUpdateCameras }: CameraManageme
 
                   {/* Config Inputs */}
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Globe className="w-3 h-3" />
-                        流媒体地址 (URL)
-                      </label>
-                      <input
-                        type="text"
-                        value={camera.url || ''}
-                        onChange={(e) => handleUpdateCamera(camera.id, { url: e.target.value })}
-                        className="w-full text-[13px] bg-gray-50 border border-transparent focus:bg-white focus:border-blue-100 focus:ring-4 focus:ring-blue-50/50 rounded-xl px-3 py-2 outline-none transition-all font-mono"
-                        placeholder={camera.type === 'ezviz' ? 'ezopen://open.ys7.com/...' : '/api/hls/camera_entity.m3u8'}
-                      />
-                    </div>
-                    {camera.type === 'ezviz' && (
-                      <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
-                        <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <ShieldCheck className="w-3 h-3" />
-                          访问令牌 (Token)
-                        </label>
-                        <input
-                          type="password"
-                          value={camera.accessToken || ''}
-                          onChange={(e) => handleUpdateCamera(camera.id, { accessToken: e.target.value })}
-                          className="w-full text-[13px] bg-gray-50 border border-transparent focus:bg-white focus:border-blue-100 focus:ring-4 focus:ring-blue-50/50 rounded-xl px-3 py-2 outline-none transition-all font-mono"
-                          placeholder="Ezviz Access Token"
-                        />
-                      </div>
+                    {/* RTSP 模式：显示 go2rtc 服务地址和流名称 */}
+                    {camera.type === 'rtsp' ? (
+                      <>
+                        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                          <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Globe className="w-3 h-3" />
+                            go2rtc 服务地址
+                          </label>
+                          <input
+                            type="text"
+                            value={camera.go2rtcUrl || ''}
+                            onChange={(e) => handleUpdateCamera(camera.id, { go2rtcUrl: e.target.value })}
+                            className="w-full text-[13px] bg-gray-50 border border-transparent focus:bg-white focus:border-blue-100 focus:ring-4 focus:ring-blue-50/50 rounded-xl px-3 py-2 outline-none transition-all font-mono"
+                            placeholder="http://192.168.1.100:1984"
+                          />
+                        </div>
+                        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                          <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Settings2 className="w-3 h-3" />
+                            流名称 (Stream Name)
+                          </label>
+                          <input
+                            type="text"
+                            value={camera.streamName || ''}
+                            onChange={(e) => handleUpdateCamera(camera.id, { streamName: e.target.value })}
+                            className="w-full text-[13px] bg-gray-50 border border-transparent focus:bg-white focus:border-blue-100 focus:ring-4 focus:ring-blue-50/50 rounded-xl px-3 py-2 outline-none transition-all font-mono"
+                            placeholder="front_door"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Globe className="w-3 h-3" />
+                            流媒体地址 (URL)
+                          </label>
+                          <input
+                            type="text"
+                            value={camera.url || ''}
+                            onChange={(e) => handleUpdateCamera(camera.id, { url: e.target.value })}
+                            className="w-full text-[13px] bg-gray-50 border border-transparent focus:bg-white focus:border-blue-100 focus:ring-4 focus:ring-blue-50/50 rounded-xl px-3 py-2 outline-none transition-all font-mono"
+                            placeholder={camera.type === 'ezviz' ? 'ezopen://open.ys7.com/...' : '/api/hls/camera_entity.m3u8'}
+                          />
+                        </div>
+                        {camera.type === 'ezviz' && (
+                          <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                            <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <ShieldCheck className="w-3 h-3" />
+                              访问令牌 (Token)
+                            </label>
+                            <input
+                              type="password"
+                              value={camera.accessToken || ''}
+                              onChange={(e) => handleUpdateCamera(camera.id, { accessToken: e.target.value })}
+                              className="w-full text-[13px] bg-gray-50 border border-transparent focus:bg-white focus:border-blue-100 focus:ring-4 focus:ring-blue-50/50 rounded-xl px-3 py-2 outline-none transition-all font-mono"
+                              placeholder="Ezviz Access Token"
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -178,6 +213,7 @@ export function CameraManagementTab({ cameras, onUpdateCameras }: CameraManageme
           <ul className="mt-3 space-y-2 text-[12px] text-blue-700/80 leading-relaxed">
             <li>• <b>HA (HLS):</b> 请输入由 HA 代理下发的摄像头流地址，通常以 <code className="bg-white/60 px-1 rounded">/api/hls/</code> 开头。</li>
             <li>• <b>萤石 (Ezviz):</b> 请使用 <code className="bg-white/60 px-1 rounded">ezopen://</code> 协议地址，并确保输入有效的 Access Token。</li>
+            <li>• <b>RTSP (go2rtc):</b> 填入 go2rtc 服务地址和流名称，系统将优先使用 WebRTC 低延迟连接，失败时自动回退到 HLS。</li>
             <li>• 配置完成后，您可以在首页添加“摄像头组件”并选择此处配置的监控画面。</li>
           </ul>
         </div>

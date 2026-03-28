@@ -89,3 +89,35 @@ export function getSmartHomeContext(entities: HassEntities): string {
 
   return `${summaryLine}${truncateNote}\n${JSON.stringify(simplifiedEntities)}`;
 }
+
+/**
+ * 获取精简的设备数量摘要（仅一行文本，不包含实体列表）
+ * 用于注入系统提示词，避免 token 浪费
+ */
+export function getDeviceSummary(entities: HassEntities): string {
+  // 过滤出有效实体
+  const filtered = Object.values(entities).filter(entity => {
+    const domain = entity.entity_id.split('.')[0];
+    if (IGNORED_DOMAINS.includes(domain)) return false;
+    if (IGNORED_PREFIXES.some(prefix => domain.startsWith(prefix))) return false;
+    if (entity.state === 'unavailable' || entity.state === 'unknown') return false;
+    return true;
+  });
+
+  if (filtered.length === 0) return '当前无可用设备。';
+
+  // 按域名分组统计
+  const domainCounts: Record<string, number> = {};
+  for (const entity of filtered) {
+    const domain = entity.entity_id.split('.')[0];
+    domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+  }
+
+  // 构建摘要
+  const parts = Object.entries(domainCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([domain, count]) => `${DOMAIN_LABELS[domain] || domain}(${count})`)
+    .join('、');
+
+  return `当前共${filtered.length}个设备：${parts}`;
+}

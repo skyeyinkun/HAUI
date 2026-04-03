@@ -1104,7 +1104,7 @@ function App() {
       {/* 版本号显示 - 底部居中，提高 z-index 确保显示 */}
       <div className="fixed bottom-1 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
         <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide select-none">
-          HAUI v{import.meta.env.VITE_APP_VERSION || '4.3.1'}
+          HAUI v{import.meta.env.VITE_APP_VERSION || '4.3.2'}
         </span>
       </div>
 

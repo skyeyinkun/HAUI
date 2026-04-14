@@ -19,6 +19,12 @@ function classNames(...classes: (string | undefined | null | false)[]) {
     return classes.filter(Boolean).join(' ');
 }
 
+/**
+ * 语音录制上滑取消的距离阈值（单位：像素）
+ * 用户在按住说话时向上滑动超过此距离即视为取消发送
+ */
+const VOICE_CANCEL_SWIPE_THRESHOLD = 50;
+
 // =====================================================================
 // 子组件：语音模式状态指示器
 // =====================================================================
@@ -240,9 +246,9 @@ function ChatInput({
     
     const handlePointerMove = (e: React.PointerEvent) => {
         if (!isRecording) return;
-        // 如果手指向上滑动超过一段距离（如 50px），视为取消
+        // 上滑超过阈值视为取消录制
         const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        if (targetRect.top - e.clientY > 50) {
+        if (targetRect.top - e.clientY > VOICE_CANCEL_SWIPE_THRESHOLD) {
             setIsCanceling(true);
         } else {
             setIsCanceling(false);

@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import React from 'react';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as matchers from '@testing-library/jest-dom/matchers';
@@ -16,6 +15,8 @@ describe('StatisticsPanel indoor environment refresh', () => {
     lightsOn: 0,
     logs: [],
     nowMs: Date.now(),
+    haEntities: {},
+    fetchStates: vi.fn().mockResolvedValue([]),
     setLogModalOpen: vi.fn(),
     clearLogs: vi.fn(),
     logContainerRef: { current: null } as any

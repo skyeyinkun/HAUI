@@ -1,6 +1,6 @@
 
 // @vitest-environment jsdom
-import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as matchers from '@testing-library/jest-dom/matchers';
 import { DeviceCard } from '../DeviceCard';
@@ -51,7 +51,6 @@ describe('DeviceCard Curtain Control', () => {
   const mockOnToggle = vi.fn();
   const mockOnClick = vi.fn();
   const mockOnPositionChange = vi.fn();
-  const mockOnUpdate = vi.fn();
 
   const curtainDevice: Device = {
     id: 1,
@@ -59,6 +58,9 @@ describe('DeviceCard Curtain Control', () => {
     name: 'Living Room Curtain',
     type: 'curtain',
     icon: 'curtain',
+    count: '',
+    power: '',
+    room: '客厅',
     isOn: true,
     position: 50,
     haState: 'open',
@@ -193,7 +195,7 @@ describe('DeviceCard Curtain Control', () => {
   });
 
   it('reverts to backend state after timeout if no confirmation', () => {
-    const { rerender } = render(
+    const { rerender: _rerender } = render(
       <DeviceCard
         device={curtainDevice}
         onToggle={mockOnToggle}

@@ -3,7 +3,7 @@ import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertTriangle, ArrowLeft, GripVertical, Plus, RefreshCw, Search, Trash2, X, Check } from 'lucide-react';
+import { AlertTriangle, GripVertical, Plus, RefreshCw, Search, Trash2, X, Check } from 'lucide-react';
 import type { CardConfig } from '@/types/card-config';
 import { isValidCardTitle, sanitizeCardTitle } from './cardSettings.validation';
 import { CustomIcon } from './CustomIcon';

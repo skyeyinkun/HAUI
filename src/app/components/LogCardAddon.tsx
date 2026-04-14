@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Bell, AlertTriangle, X, Download, Plus, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Bell, AlertTriangle, X, Trash2 } from 'lucide-react';
 import { Log } from '@/types/dashboard';
 
 // --- Types ---
@@ -27,7 +27,7 @@ interface LogCardAddonProps {
 // --- Mock API ---
 const MOCK_API_DELAY = 200;
 
-const mockSaveRule = async (rule: Omit<AlertRule, 'id'>): Promise<string> => {
+const mockSaveRule = async (_rule: Omit<AlertRule, 'id'>): Promise<string> => {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve(`rule_${Date.now()}`);
@@ -57,7 +57,7 @@ const LevelBadge = ({ level }: { level: AlertLevel }) => {
 
 // --- Main Component ---
 
-export default function LogCardAddon({ logs, onExport, onClose, originalHeader }: LogCardAddonProps) {
+export default function LogCardAddon({ logs, onExport: _onExport, onClose, originalHeader }: LogCardAddonProps) {
   // View State
   const [viewMode, setViewMode] = useState<'normal' | 'alert'>('normal');
   const [showConfig, setShowConfig] = useState(false);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { LocationService } from '@/services/LocationService'
 
 const mockResults = {
@@ -17,7 +17,7 @@ describe('LocationService', () => {
       const u = new URL(url)
       const q = u.searchParams.get('name') || ''
       const key = decodeURIComponent(q)
-      const res = mockResults[key] || []
+      const res = (mockResults as Record<string, any[]>)[key] || []
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ results: res }),

@@ -1,4 +1,3 @@
-import React from 'react';
 import { CardEntityConfig } from '@/types/card-config';
 import { CustomIcon } from './CustomIcon';
 import { Settings } from 'lucide-react';

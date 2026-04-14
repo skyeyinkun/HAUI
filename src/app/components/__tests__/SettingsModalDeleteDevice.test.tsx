@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import SettingsModal from '../SettingsModal';
 import { Device } from '@/types/device';
 import { HAConfig } from '@/types/home-assistant';
+import { Room } from '@/types/room';
 import * as matchers from '@testing-library/jest-dom/matchers';
 
 expect.extend(matchers);
@@ -71,13 +72,12 @@ describe('SettingsModal delete device', () => {
         devices={devices}
         users={[]}
         scenes={[]}
-        rooms={['卫生间']}
+        rooms={[{ id: 'bathroom', name: '卫生间', type: 'bathroom' } as Room]}
         onUpdateUsers={vi.fn()}
         onUpdateDevices={vi.fn()}
         onUpdateScenes={vi.fn()}
         onSave={onSave}
         initialConfig={initialConfig}
-        entities={{}}
       />
     );
 

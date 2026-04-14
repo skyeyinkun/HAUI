@@ -389,7 +389,7 @@ function App() {
       });
       sessionStorage.setItem('setup_notified', 'true');
     }
-  }, [isConnected, haConfig.token]);
+  }, [isConnected, haConfig.token, addLog]);
 
   // 监听 Token 损坏事件，显示重新配置提示
   useEffect(() => {
@@ -411,7 +411,7 @@ function App() {
     return () => {
       window.removeEventListener('haui-token-corrupted', handleTokenCorrupted as EventListener);
     };
-  }, []);
+  }, [addLog, setSettingsOpen]);
 
 
   // 使用防抖优化窗帘位置控制
@@ -641,7 +641,7 @@ function App() {
         toggleDevice(device.id);
       }
     }
-  }, [toggleDevice, requiresSecurityConfirm, executeWithSecurityConfirm]);
+  }, [toggleDevice, connectionType, executeWithSecurityConfirm]);
 
   const handleClimateUpdate = useCallback((deviceId: number, updates: Partial<Device>) => {
     // HA Integration
@@ -999,24 +999,6 @@ function App() {
 
       {/* Bottom Floating Controls */}
       <div className="fixed bottom-8 right-8 z-50 flex items-center gap-4">
-        {/* AI Chat Button */}
-        <button
-          onClick={() => {
-            // We need a way to open the AI Chat Widget from here.
-            // Since AiChatWidget controls its own state, we can lift the state up or use a global event.
-            // For simplicity in this refactor, we will modify AiChatWidget to expose a trigger or move the button here.
-            // Actually, let's keep the AiChatWidget's internal state but move its button logic here.
-            // Wait, AiChatWidget renders its own button. We should modify AiChatWidget to accept a custom trigger or style.
-            // But the user asked to move AI icon "next to it".
-            // Let's hide the button inside AiChatWidget and control it via props, OR just position them together.
-
-            // To achieve "move AI icon next to it", we'll rely on CSS positioning in AiChatWidget 
-            // and App.tsx to align them.
-            // Let's first update the Settings button logic as requested.
-          }}
-          className="hidden" // Placeholder
-        />
-
         {/* Settings Button (Direct Access) - 支持减少动画模式 */}
         {reduceMotion ? (
           // 减少动画模式：使用简单 CSS

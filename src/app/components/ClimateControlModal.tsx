@@ -128,8 +128,18 @@ export default function ClimateControlModal({ isOpen, onClose, device, onUpdate 
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
-    const clientX = 'touches' in e ? (e as any).touches[0].clientX : (e as MouseEvent).clientX;
-    const clientY = 'touches' in e ? (e as any).touches[0].clientY : (e as MouseEvent).clientY;
+    // 安全获取触摸/鼠标坐标，防止 touches 为空时崩溃
+    let clientX: number;
+    let clientY: number;
+    if ('touches' in e) {
+      const touch = (e as TouchEvent).touches[0] ?? (e as TouchEvent).changedTouches[0];
+      if (!touch) return; // 触摸列表为空，跳过
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else {
+      clientX = (e as MouseEvent).clientX;
+      clientY = (e as MouseEvent).clientY;
+    }
 
     const deltaX = clientX - centerX;
     const deltaY = clientY - centerY;

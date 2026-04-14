@@ -298,7 +298,6 @@ export const DeviceCard = React.memo(DeviceCardInternal, (prevProps, nextProps) 
 
   // 2. 统一时间戳刷新策略：所有设备类型使用相同的 nowMs 比较逻辑
   // 确保相同类型的设备具有统一的刷新频率
-  const device = nextProps.device;
   
   // 检查是否为需要时间显示的设备（所有设备都可能显示时间戳）
   const hasTimestamp = prevProps.nowMs !== undefined && nextProps.nowMs !== undefined;

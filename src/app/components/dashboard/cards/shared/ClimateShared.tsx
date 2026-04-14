@@ -5,7 +5,7 @@
 import React from 'react';
 import { 
   Wind, Snowflake, Sun, Droplet, Zap, ThermometerSun, 
-  VolumeX, Fan, Gauge
+  VolumeX
 } from 'lucide-react';
 
 // ==================== HVAC 模式配置 ====================
@@ -106,7 +106,7 @@ interface FanIconProps {
  * - silent: 使用 VolumeX（静音图标）
  * - 其他: 使用 FanLevelIcon（阶梯竖线）
  */
-export function FanModeIcon({ fanId, isActive, size = 13, className = '' }: FanIconProps) {
+export function FanModeIcon({ fanId, isActive: _isActive, size = 13, className = '' }: FanIconProps) {
   const isAuto = fanId === 'auto';
   const isSilent = fanId === 'silent';
   const config = FAN_MODE_CONFIG[fanId];

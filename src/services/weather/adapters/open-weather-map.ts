@@ -1,13 +1,10 @@
-import { WeatherAdapter, WeatherData, ForecastData } from '../types';
+import { WeatherAdapter, WeatherData } from '../types';
 
 export class OpenWeatherMapAdapter implements WeatherAdapter {
-  private apiKey: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(_apiKey: string = 'DEMO_KEY') {}
 
-  constructor(apiKey: string = 'DEMO_KEY') {
-    this.apiKey = apiKey;
-  }
-
-  async fetchWeather(lat: number, lon: number): Promise<WeatherData> {
+  async fetchWeather(_lat: number, _lon: number): Promise<WeatherData> {
     // Note: OpenWeatherMap requires an API key. This is a mock implementation 
     // structure that would work with a real key. 
     // For free tier 2.5/weather endpoint:

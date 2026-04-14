@@ -206,7 +206,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
               "flex items-center gap-2 overflow-hidden group outline-none min-w-0 flex-1",
               isEditing ? 'cursor-default' : 'cursor-pointer'
             )}
-            onClick={(e) => {
+            onClick={(_e) => {
               if (isEditing) return;
               // 根据当前profile发送对应的电源指令
               sendIR(`${activeProfile}_power`);

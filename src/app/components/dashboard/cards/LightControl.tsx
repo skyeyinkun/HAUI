@@ -5,6 +5,13 @@ import { Device } from '@/types/device';
 import { DeviceCardWrapper, DeviceCardHeader, DeviceCardCenterTimestamp } from './shared';
 import { ICON_PROPS } from '@/styles/icon-constants';
 
+/**
+ * 乐观更新同步容差值（单位：亮度/色温步进值）
+ * HA 设备实际响应值可能与请求值存在微小偏差（如 brightness 255→253）
+ * 容差 5 步 ≈ 亮度 2%，可覆盖常见的硬件精度误差
+ */
+const SYNC_TOLERANCE = 5;
+
 interface LightControlProps {
     device: Device;
     onToggle: (e: React.MouseEvent) => void;
@@ -44,13 +51,13 @@ export function LightControl({
             
             if (isWaitingForUpdate.current && lastCommittedValue.current !== null) {
                 if (waitingForType.current === 'brightness') {
-                    // Check brightness sync (increased tolerance to 5 steps ~2%)
-                    if (Math.abs((device.brightness || 0) - (lastCommittedValue.current as number)) <= 5) {
+                    // 亮度同步容差检查（覆盖硬件精度误差）
+                    if (Math.abs((device.brightness || 0) - (lastCommittedValue.current as number)) <= SYNC_TOLERANCE) {
                         synced = true;
                     }
                 } else if (waitingForType.current === 'color') {
-                    // Check color temp sync
-                    if (Math.abs((device.color_temp || 153) - (lastCommittedValue.current as number)) <= 5) {
+                    // 色温同步容差检查
+                    if (Math.abs((device.color_temp || 153) - (lastCommittedValue.current as number)) <= SYNC_TOLERANCE) {
                         synced = true;
                     }
                 }

@@ -161,8 +161,8 @@ export function ClimateControl({
         >
             <DeviceCardHeader device={device} onToggle={handleToggleWrapper} />
 
-            {/* 中部区域：更新时间 + 当前温度，紧凑垂直居中，不撑开 */}
-            <div className="flex flex-col items-center justify-center py-1 gap-1">
+            {/* 中部区域：更新时间 + 当前温度，极简紧凑布局 */}
+            <div className="flex flex-col items-center justify-center py-0 gap-0.5">
                 {/* 更新时间戳 */}
                 <SensorTimestamp
                     lastChanged={device.lastChanged || device.lastUpdated}
@@ -171,16 +171,16 @@ export function ClimateControl({
                     variant="compact"
                     className="text-[10px]"
                 />
-                {/* 当前温度 - 位于时间戳正下方，增加间距提升可读性 */}
+                {/* 当前温度 - 紧贴时间戳下方 */}
                 <span className="text-[10px] font-medium text-muted-foreground/60 leading-none tracking-wide">
                     当前 {typeof device.current_temperature === 'number' ? device.current_temperature : '--'}°C
                 </span>
             </div>
 
-            {/* 底部控制区域 - 紧凑布局防止溢出，flex-1撑满剩余空间并底部对齐 */}
-            <div className="flex flex-col gap-0.5 flex-1 justify-end">
-                {/* 温度调节按钮行：减号 | 设定温度 | 加号 */}
-                <div className="flex items-center justify-between px-0.5 h-8">
+            {/* 底部控制区域 - 紧凑布局，去除flex-1让内容自然向上排列 */}
+            <div className="flex flex-col gap-0.5 mt-auto">
+                {/* 温度调节按钮行：减号 | 设定温度 | 加号 - 减少高度 */}
+                <div className="flex items-center justify-between px-0.5 h-7">
                     <button
                         onClick={(e) => { e.stopPropagation(); handleTempChange(-1); }}
                         className="w-6 h-6 rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors active:scale-95 shrink-0"
@@ -216,8 +216,8 @@ export function ClimateControl({
 
                 {/* 控制区: 上下排列 (模式 + 风速) - 更紧凑布局 */}
                 <div className="flex flex-col gap-0.5">
-                    {/* 1. HVAC 模式 */}
-                    <div className="flex items-center bg-black/5 dark:bg-white/5 p-[2px] rounded-[6px] h-[22px] w-full gap-[2px]">
+                    {/* 1. HVAC 模式 - 减少高度 */}
+                    <div className="flex items-center bg-black/5 dark:bg-white/5 p-[2px] rounded-[6px] h-[20px] w-full gap-[2px]">
                         {availableModes.map((mode) => (
                             <button
                                 key={mode.id}
@@ -239,8 +239,8 @@ export function ClimateControl({
                         ))}
                     </div>
 
-                    {/* 2. 风速选择：使用统一的 FanModeIcon 组件 */}
-                    <div className="flex items-center bg-black/5 dark:bg-white/5 p-[2px] rounded-[6px] h-[22px] w-full gap-[2px]">
+                    {/* 2. 风速选择：使用统一的 FanModeIcon 组件 - 减少高度 */}
+                    <div className="flex items-center bg-black/5 dark:bg-white/5 p-[2px] rounded-[6px] h-[20px] w-full gap-[2px]">
                         {availableFanModes.slice(0, 5).map((fan: { id: string; label: string; level: number }) => {
                             const isActive = localFanMode === fan.id;
                             return (

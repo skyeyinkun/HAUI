@@ -47,10 +47,15 @@ describe('RemoteControlModal', () => {
   const mockOnClose = vi.fn();
   const mockCallService = vi.fn();
   const mockDevice = {
-    id: 'remote.living_room',
+    id: 1,
     name: 'Living Room Remote',
-    type: 'remote',
-    area: 'Living Room',
+    type: 'remote' as const,
+    icon: 'remote',
+    count: '',
+    power: '',
+    isOn: true,
+    room: 'Living Room',
+    entity_id: 'remote.living_room',
     state: 'on',
     attributes: {},
     last_updated: '',

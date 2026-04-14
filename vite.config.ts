@@ -56,7 +56,7 @@ export default defineConfig({
           proxy.on('error', (err, _req, _res) => {
             console.log('HA代理错误:', err.message);
           });
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
+          proxy.on('proxyReq', (_proxyReq, req, _res) => {
             console.log('HA代理请求:', req.method, req.url);
           });
         },

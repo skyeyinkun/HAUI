@@ -80,10 +80,56 @@ export function DynamicCurtainIcon({ position = 0, color }: { position?: number;
   const leftFoldX = 2 + halfWidth * 0.5;
   const rightFoldX = 22 - halfWidth * 0.5;
 
+  // 悬挂点位置：位于帘布外边缘和内边缘
+  const leftPanelOuterX = 2;           // 左帘布左边缘
+  const leftPanelInnerX = 2 + halfWidth; // 左帘布右边缘（靠近中心）
+  const rightPanelInnerX = 22 - halfWidth; // 右帘布左边缘（靠近中心）
+  const rightPanelOuterX = 22;         // 右帘布右边缘
+
+  // 悬挂环Y坐标：窗帘杆(y=3)下方
+  const hookY = 4;      // 悬挂环中心
+  const curtainTopY = 5.5; // 帘布顶部
+
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* 窗帘杆 - 从 x=2 到 x=22 */}
       <path d="M2 3H22" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeOpacity={0.9} />
+
+      {/* 悬挂系统 - 连接窗帘杆与帘布 */}
+      {/* 左帘布悬挂点 */}
+      <g>
+        {/* 左外边缘悬挂环 */}
+        <circle cx={leftPanelOuterX} cy={hookY} r="1" fill={strokeColor} fillOpacity={0.6} />
+        {/* 左外边缘连接线 */}
+        <line x1={leftPanelOuterX} y1={hookY + 1} x2={leftPanelOuterX} y2={curtainTopY}
+          stroke={strokeColor} strokeWidth="0.5" strokeOpacity={0.4} />
+        {/* 左内边缘悬挂环（仅当帘布足够宽时显示） */}
+        {halfWidth > 3 && (
+          <>
+            <circle cx={leftPanelInnerX} cy={hookY} r="1" fill={strokeColor} fillOpacity={0.6} />
+            <line x1={leftPanelInnerX} y1={hookY + 1} x2={leftPanelInnerX} y2={curtainTopY}
+              stroke={strokeColor} strokeWidth="0.5" strokeOpacity={0.4} />
+          </>
+        )}
+      </g>
+
+      {/* 右帘布悬挂点 */}
+      <g>
+        {/* 右外边缘悬挂环 */}
+        <circle cx={rightPanelOuterX} cy={hookY} r="1" fill={strokeColor} fillOpacity={0.6} />
+        {/* 右外边缘连接线 */}
+        <line x1={rightPanelOuterX} y1={hookY + 1} x2={rightPanelOuterX} y2={curtainTopY}
+          stroke={strokeColor} strokeWidth="0.5" strokeOpacity={0.4} />
+        {/* 右内边缘悬挂环（仅当帘布足够宽时显示） */}
+        {halfWidth > 3 && (
+          <>
+            <circle cx={rightPanelInnerX} cy={hookY} r="1" fill={strokeColor} fillOpacity={0.6} />
+            <line x1={rightPanelInnerX} y1={hookY + 1} x2={rightPanelInnerX} y2={curtainTopY}
+              stroke={strokeColor} strokeWidth="0.5" strokeOpacity={0.4} />
+          </>
+        )}
+      </g>
+
       {/* 左窗帘面板 - 从 x=2 开始，宽度 halfWidth，右边缘对齐中心线 */}
       <rect x="2" y="5.5" width={halfWidth} height="15" rx="0"
         fill={strokeColor} fillOpacity={0.12}
@@ -202,65 +248,68 @@ export function LargeCurtainVisual({ position = 0, isDragging = false }: { posit
       <div className="absolute top-1.5 left-1 right-1 h-[2px] rounded-sm z-10
         bg-slate-300/70 dark:bg-slate-500/55" />
 
-      {/* ── 左帘布面板 ── 纯直角 + 飘逸轻盈设计 */}
-      {/* 左面板：从左边缘开始，宽度为 panelWidth%，右边缘靠近中心线 */}
-      <div
-        className={`absolute top-[14px] bottom-0 left-0 ${transitionClass}`}
-        style={{ width: `${panelWidth}%` }}
-      >
-        {/* 帘布主体：三段式渐变，飘逸轻盈 */}
-        <div className="absolute inset-0
-          bg-gradient-to-b from-slate-300/65 via-slate-200/55 to-slate-100/45
-          dark:from-slate-500/55 dark:via-slate-600/45 dark:to-slate-700/35" />
-        {/* 褶皱纹理：11px 周期竖向条纹，模拟布料自然垂坠 */}
+      {/* 窗帘面板容器 - 使用与窗帘杆相同的左右边距（left-1 right-1），确保宽度一致 */}
+      <div className="absolute inset-x-1 top-0 bottom-0">
+        {/* ── 左帘布面板 ── 纯直角 + 飘逸轻盈设计 */}
+        {/* 左面板：从左边缘开始，宽度为 panelWidth%，右边缘靠近中心线 */}
         <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(90deg, transparent 0px, transparent 10px, rgba(0,0,0,0.04) 10px, rgba(0,0,0,0.04) 11px)',
-          }}
-        />
-        {/* 底部淡出层 - 增强飘逸感 */}
-        <div className="absolute bottom-0 left-0 right-0 h-5
-          bg-gradient-to-t from-white/20 to-transparent
-          dark:from-black/15" />
-        {/* 右侧边缘轻微阴影 - 帘布立体感 */}
-        <div className="absolute inset-y-0 right-0 w-1.5
-          bg-gradient-to-l from-black/[0.04] to-transparent" />
-      </div>
+          className={`absolute top-[14px] bottom-0 left-0 ${transitionClass}`}
+          style={{ width: `${panelWidth}%` }}
+        >
+          {/* 帘布主体：三段式渐变，飘逸轻盈 */}
+          <div className="absolute inset-0
+            bg-gradient-to-b from-slate-300/65 via-slate-200/55 to-slate-100/45
+            dark:from-slate-500/55 dark:via-slate-600/45 dark:to-slate-700/35" />
+          {/* 褶皱纹理：11px 周期竖向条纹，模拟布料自然垂坠 */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(90deg, transparent 0px, transparent 10px, rgba(0,0,0,0.04) 10px, rgba(0,0,0,0.04) 11px)',
+            }}
+          />
+          {/* 底部淡出层 - 增强飘逸感 */}
+          <div className="absolute bottom-0 left-0 right-0 h-5
+            bg-gradient-to-t from-white/20 to-transparent
+            dark:from-black/15" />
+          {/* 右侧边缘轻微阴影 - 帘布立体感 */}
+          <div className="absolute inset-y-0 right-0 w-1.5
+            bg-gradient-to-l from-black/[0.04] to-transparent" />
+        </div>
 
-      {/* ── 右帘布面板 ── 纯直角 + 飘逸轻盈设计 */}
-      {/* 右面板：从右边缘开始，宽度为 panelWidth%，左边缘靠近中心线 */}
-      <div
-        className={`absolute top-[14px] bottom-0 right-0 ${transitionClass}`}
-        style={{ width: `${panelWidth}%` }}
-      >
-        <div className="absolute inset-0
-          bg-gradient-to-b from-slate-300/65 via-slate-200/55 to-slate-100/45
-          dark:from-slate-500/55 dark:via-slate-600/45 dark:to-slate-700/35" />
-        {/* 褶皱纹理 */}
+        {/* ── 右帘布面板 ── 纯直角 + 飘逸轻盈设计 */}
+        {/* 右面板：从右边缘开始，宽度为 panelWidth%，左边缘靠近中心线 */}
         <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(90deg, transparent 0px, transparent 10px, rgba(0,0,0,0.04) 10px, rgba(0,0,0,0.04) 11px)',
-          }}
-        />
-        {/* 底部淡出层 */}
-        <div className="absolute bottom-0 left-0 right-0 h-5
-          bg-gradient-to-t from-white/20 to-transparent
-          dark:from-black/15" />
-        {/* 左侧边缘轻微阴影 */}
-        <div className="absolute inset-y-0 left-0 w-1.5
-          bg-gradient-to-r from-black/[0.04] to-transparent" />
-      </div>
+          className={`absolute top-[14px] bottom-0 right-0 ${transitionClass}`}
+          style={{ width: `${panelWidth}%` }}
+        >
+          <div className="absolute inset-0
+            bg-gradient-to-b from-slate-300/65 via-slate-200/55 to-slate-100/45
+            dark:from-slate-500/55 dark:via-slate-600/45 dark:to-slate-700/35" />
+          {/* 褶皱纹理 */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(90deg, transparent 0px, transparent 10px, rgba(0,0,0,0.04) 10px, rgba(0,0,0,0.04) 11px)',
+            }}
+          />
+          {/* 底部淡出层 */}
+          <div className="absolute bottom-0 left-0 right-0 h-5
+            bg-gradient-to-t from-white/20 to-transparent
+            dark:from-black/15" />
+          {/* 左侧边缘轻微阴影 */}
+          <div className="absolute inset-y-0 left-0 w-1.5
+            bg-gradient-to-r from-black/[0.04] to-transparent" />
+        </div>
 
-      {/* 中缝线（完全关闭时显示，表示两侧帘布合拢处） */}
-      <div
-        className={`absolute top-[14px] bottom-0 left-1/2 w-px -translate-x-px ${transitionClass}
-          bg-slate-400/25 dark:bg-slate-500/20`}
-        style={{ opacity: position < 8 ? 1 : 0 }}
-      />
+        {/* 中缝线（完全关闭时显示，表示两侧帘布合拢处） */}
+        <div
+          className={`absolute top-[14px] bottom-0 left-1/2 w-px -translate-x-px ${transitionClass}
+            bg-slate-400/25 dark:bg-slate-500/20`}
+          style={{ opacity: position < 8 ? 1 : 0 }}
+        />
+      </div>
     </div>
   );
 }

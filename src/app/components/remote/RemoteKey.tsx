@@ -1,4 +1,3 @@
-import React from 'react';
 import { RemoteButtonConfig } from '@/types/remote';
 import * as Icons from 'lucide-react';
 import { LucideIcon, X } from 'lucide-react';

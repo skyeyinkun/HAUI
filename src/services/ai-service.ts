@@ -112,11 +112,18 @@ export async function fetchOpenAICompatible(
   };
 
   try {
+    // 30 秒超时保护，防止网络异常时请求永久挂起
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
     const response = await fetch(url, {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -146,6 +153,10 @@ export async function fetchOpenAICompatible(
     if (error instanceof Error) {
       if (import.meta.env.DEV) {
         console.error('[AI Service] fetchOpenAICompatible Error:', error.message);
+      }
+      // 超时中断
+      if (error.name === 'AbortError') {
+        throw new Error('AI 请求超时（30秒），请检查网络连接后重试');
       }
       // 网络错误 (TypeError usually indicates network issue in fetch)
       if (error.name === 'TypeError' && error.message.includes('fetch')) {

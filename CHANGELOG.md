@@ -7,6 +7,33 @@
 
 ---
 
+## [4.15.0] - 2026-04-14
+
+### 🔧 代码审计与全面修复
+
+#### 🔴 高优先级修复
+- **disconnected 回调 ref 同步**：修复 `useHomeAssistant.ts` 中断开连接回调未同步 ref 导致 `callService` 闭包过期的问题
+- **handleDeviceClick 依赖数组**：修复 `App.tsx` 中 `requiresSecurityConfirm` 依赖导致安全确认绕过的问题，改用 `connectionType`
+- **ClimateControlModal touch 安全检查**：修复触摸事件中 `touches[0]` 可能为 `undefined` 的崩溃问题，添加 `changedTouches` 兜底
+- **AI 请求超时保护**：为 `ai-service.ts` 添加 30 秒 AbortController 超时机制，防止请求无限挂起
+
+#### 🟡 中优先级修复
+- **安全关键词中文覆盖**：在 `security-config.ts` 中补充门锁、安防、报警等中文关键词和 `alarm_control_panel` 类型
+- **LightControl 容差常量化**：将硬编码的亮度同步容差 `5` 提取为 `SYNC_TOLERANCE` 常量并添加文档
+- **语音取消阈值参数化**：将 `AiChatWidget.tsx` 中硬编码的滑动取消阈值提取为 `VOICE_CANCEL_SWIPE_THRESHOLD` 常量
+- **fetchStatesRest ref 统一**：新增 `configTokenRef`/`restBaseUrlRef`，使 REST 函数通过 ref 访问状态，避免闭包过期
+- **App.tsx 死代码清理**：移除未使用的隐藏占位按钮代码
+- **useHASyncManager 竞态条件**：引入 `entitiesRef` 避免 `setInterval` 回调闭包捕获过期 `entities`，间隔调整为 30 秒
+- **依赖数组修复**：修复 `App.tsx` 中 `addLog`、`setSettingsOpen` 缺失依赖警告
+
+#### 🛠 TypeScript 编译错误修复（48 项 → 0 项）
+- **未使用导入清理**：修复 14 个文件中的 TS6133/TS6192 未使用变量和导入错误
+- **测试文件类型修复**：修复 8 个测试文件中的 TS2739/TS2322 类型不匹配错误
+- **useWeather 缓存类型修复**：修正 `setWeather(cached)` → `setWeather(cached.data)`，适配 CacheManager 返回结构
+- **CameraDashboard v2 API 迁移**：将 `react-grid-layout` v2 的平铺属性迁移至 `gridConfig`/`dragConfig`/`resizeConfig` 分组配置对象
+
+---
+
 ## [4.3.2] - 2026-04-02
 
 ### 🔧 修复与优化

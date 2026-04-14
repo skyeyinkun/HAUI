@@ -50,11 +50,32 @@ type RemoteMappings = Record<string, RemoteMappingValue>;
 export default function RemoteControlModal({ isOpen, onClose, device, callService, entities }: RemoteControlModalProps) {
   const { playClick } = useSoundEffect();
 
-  const ensureButtons = (items: RemoteButtonConfig[]) => {
-    const map = new Map<string, RemoteButtonConfig>();
-    for (const b of DEFAULT_REMOTE_BUTTONS) map.set(b.id, b);
-    for (const b of items) map.set(b.id, { ...map.get(b.id), ...b });
-    return Array.from(map.values());
+  // 确保按钮配置完整，同时保持用户自定义的顺序
+  // 问题修复：Map.values() 返回插入顺序，先插默认按钮会覆盖用户排序
+  // 解决方案：以保存的列表为基准，用默认值补充缺失字段
+  // 新增：支持持久化"已删除按钮ID列表"，避免删除的按钮被重新添加
+  const ensureButtons = (savedItems: RemoteButtonConfig[], deletedIds: Set<string> = new Set()) => {
+    // 1. 创建默认按钮的映射，用于补充缺失字段
+    const defaultMap = new Map<string, RemoteButtonConfig>();
+    for (const b of DEFAULT_REMOTE_BUTTONS) defaultMap.set(b.id, b);
+
+    // 2. 以保存的列表为基准（保持用户自定义顺序），用默认值补充
+    const result: RemoteButtonConfig[] = savedItems.map(saved => {
+      const defaultBtn = defaultMap.get(saved.id);
+      // 合并：默认值 + 用户保存值（用户值优先）
+      return defaultBtn ? { ...defaultBtn, ...saved } : saved;
+    });
+
+    // 3. 检查是否有新增的默认按钮（排除已删除的）
+    const savedIds = new Set(savedItems.map(b => b.id));
+    for (const defaultBtn of DEFAULT_REMOTE_BUTTONS) {
+      // 只有当：不在保存列表中 AND 不在已删除列表中，才追加
+      if (!savedIds.has(defaultBtn.id) && !deletedIds.has(defaultBtn.id)) {
+        result.push(defaultBtn);
+      }
+    }
+
+    return result;
   };
 
   // State
@@ -64,16 +85,41 @@ export default function RemoteControlModal({ isOpen, onClose, device, callServic
     return 'tv';
   });
 
+  // 已删除按钮ID列表 - 用于持久化用户的删除操作，防止重新加载时被恢复
+  const [deletedButtonIds, setDeletedButtonIds] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem(`remote_deleted_${device.id}_${localStorage.getItem(`remote_profile_${device.id}`) || 'tv'}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return new Set(parsed as string[]);
+      } catch {
+        // ignore
+      }
+    }
+    return new Set();
+  });
+
   const [buttons, setButtons] = useState<RemoteButtonConfig[]>(() => {
-    const saved = localStorage.getItem(`remote_${device.id}_${profile}`); // Load from profile-specific key
-    if (!saved) return ensureButtons(DEFAULT_REMOTE_BUTTONS);
+    const currentProfile = localStorage.getItem(`remote_profile_${device.id}`) || 'tv';
+    const saved = localStorage.getItem(`remote_${device.id}_${currentProfile}`); // Load from profile-specific key
+    const savedDeletedIds: Set<string> = (() => {
+      const d = localStorage.getItem(`remote_deleted_${device.id}_${currentProfile}`);
+      if (d) {
+        try {
+          const parsed = JSON.parse(d);
+          if (Array.isArray(parsed)) return new Set<string>(parsed as string[]);
+        } catch {}
+      }
+      return new Set<string>();
+    })();
+    if (!saved) return ensureButtons(DEFAULT_REMOTE_BUTTONS, savedDeletedIds);
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return ensureButtons(parsed as RemoteButtonConfig[]);
+      if (Array.isArray(parsed)) return ensureButtons(parsed as RemoteButtonConfig[], savedDeletedIds);
     } catch {
       // ignore
     }
-    return ensureButtons(DEFAULT_REMOTE_BUTTONS);
+    return ensureButtons(DEFAULT_REMOTE_BUTTONS, savedDeletedIds);
   });
 
   const [globalMappings, setGlobalMappings] = useState<RemoteMappings>(() => {
@@ -150,6 +196,11 @@ export default function RemoteControlModal({ isOpen, onClose, device, callServic
     localStorage.setItem(`remote_map_${device.id}_${profile}`, JSON.stringify(mappings));
   }, [mappings, device.id, profile]);
 
+  // 持久化已删除按钮ID列表
+  useEffect(() => {
+    localStorage.setItem(`remote_deleted_${device.id}_${profile}`, JSON.stringify(Array.from(deletedButtonIds)));
+  }, [deletedButtonIds, device.id, profile]);
+
   // Load config when profile changes (or device changes)
   // We use a ref to skip the initial load since useState initializer handles it
   const isFirstRender = useRef(true);
@@ -159,17 +210,30 @@ export default function RemoteControlModal({ isOpen, onClose, device, callServic
       return;
     }
 
+    // Load Deleted IDs
+    const savedDeletedIds: Set<string> = (() => {
+      const d = localStorage.getItem(`remote_deleted_${device.id}_${profile}`);
+      if (d) {
+        try {
+          const parsed = JSON.parse(d);
+          if (Array.isArray(parsed)) return new Set<string>(parsed as string[]);
+        } catch {}
+      }
+      return new Set<string>();
+    })();
+    setDeletedButtonIds(savedDeletedIds);
+
     // Load Buttons
     const savedButtons = localStorage.getItem(`remote_${device.id}_${profile}`);
     if (!savedButtons) {
-      setButtons(ensureButtons(DEFAULT_REMOTE_BUTTONS));
+      setButtons(ensureButtons(DEFAULT_REMOTE_BUTTONS, savedDeletedIds));
     } else {
       try {
         const parsed = JSON.parse(savedButtons);
-        if (Array.isArray(parsed)) setButtons(ensureButtons(parsed as RemoteButtonConfig[]));
-        else setButtons(ensureButtons(DEFAULT_REMOTE_BUTTONS));
+        if (Array.isArray(parsed)) setButtons(ensureButtons(parsed as RemoteButtonConfig[], savedDeletedIds));
+        else setButtons(ensureButtons(DEFAULT_REMOTE_BUTTONS, savedDeletedIds));
       } catch {
-        setButtons(ensureButtons(DEFAULT_REMOTE_BUTTONS));
+        setButtons(ensureButtons(DEFAULT_REMOTE_BUTTONS, savedDeletedIds));
       }
     }
 
@@ -246,7 +310,10 @@ export default function RemoteControlModal({ isOpen, onClose, device, callServic
         // Core buttons cannot be deleted, UI should prevent this anyway
         return;
     }
+    // 从按钮列表中删除
     setButtons(prev => prev.filter(b => b.id !== btnId));
+    // 将删除的按钮ID添加到已删除列表，防止重新加载时被恢复
+    setDeletedButtonIds(prev => new Set([...prev, btnId]));
     if (activeEditId === btnId) {
         setActiveEditId(null);
         setDraftDirty(false);
@@ -520,20 +587,19 @@ export default function RemoteControlModal({ isOpen, onClose, device, callServic
             </div>
 
             <div className="mt-6 flex flex-col items-center gap-6 px-4 w-full">
-              {/* Top Row: Power On, Power Off, Menu, Home */}
-              <div className="w-full grid grid-cols-4 gap-2">
+              {/* Top Row: Power On, Power Off, Menu, Home - 使用flexbox水平垂直居中 */}
+              <div className="w-full flex items-center justify-center gap-3">
                 {topRowButtons.map((b) => (
-                  <div key={b.id} className="flex justify-center">
-                    <RemoteKey
-                      button={{ ...b, label: getDisplayText(b.id, b.label), entityId: getEntityId(b.id, b.entityId), icon: getIcon(b.id, b.icon) }}
-                      onClick={handlePress}
-                      variant={b.id.startsWith('power') ? "power" : "soft"}
-                      size="sm"
-                      ariaLabel={getDisplayText(b.id, b.label)}
-                      isEditing={isConfigMode}
-                      isReserved={RESERVED_KEYS.has(b.id)}
-                    />
-                  </div>
+                  <RemoteKey
+                    key={b.id}
+                    button={{ ...b, label: getDisplayText(b.id, b.label), entityId: getEntityId(b.id, b.entityId), icon: getIcon(b.id, b.icon) }}
+                    onClick={handlePress}
+                    variant={b.id.startsWith('power') ? "power" : "soft"}
+                    size="sm"
+                    ariaLabel={getDisplayText(b.id, b.label)}
+                    isEditing={isConfigMode}
+                    isReserved={RESERVED_KEYS.has(b.id)}
+                  />
                 ))}
               </div>
 

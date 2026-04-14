@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { GridLayout } from 'react-grid-layout';
 import { useContainerWidth } from 'react-grid-layout';
 // 必须导入核心 CSS，否则 react-grid-layout 的基本大小计算会彻底崩盘
@@ -30,9 +30,8 @@ export const CameraDashboard: React.FC<{ availableCameras?: CameraConfig[] }> = 
     const [activeCameras, setActiveCameras] = useState<CameraConfig[]>([]);
     const [layouts, setLayouts] = useState<LayoutItem[]>([]);
 
-    // 使用 react-grid-layout v2 的 useContainerWidth hook 获取容器宽度
-    const gridContainerRef = useRef<HTMLDivElement>(null);
-    const containerWidth = useContainerWidth(gridContainerRef);
+    // 使用 react-grid-layout v2 的 useContainerWidth hook 获取容器宽度和 ref
+    const { width: containerWidth, containerRef: gridContainerRef } = useContainerWidth();
 
     const handleAddCamera = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const id = e.target.value;
@@ -131,14 +130,25 @@ export const CameraDashboard: React.FC<{ availableCameras?: CameraConfig[] }> = 
                     <GridLayout
                         className="layout min-h-full"
                         layout={layouts as any}
-                        cols={12}
-                        rowHeight={40}
                         width={containerWidth}
                         onLayoutChange={onLayoutChange as any}
-                        draggableHandle=".drag-handle"
-                        margin={[16, 16] as [number, number]}
-                        useCSSTransforms={true}
-                        resizeHandles={['se', 'e', 's']}
+                        gridConfig={{
+                            cols: 12,
+                            rowHeight: 40,
+                            margin: [16, 16] as [number, number],
+                            containerPadding: null,
+                            maxRows: Infinity,
+                        }}
+                        dragConfig={{
+                            enabled: true,
+                            handle: '.drag-handle',
+                            bounded: false,
+                            threshold: 3,
+                        }}
+                        resizeConfig={{
+                            enabled: true,
+                            handles: ['se', 'e', 's'],
+                        }}
                     >
                         {activeCameras.map(cam => (
                             <div key={cam.id} className="relative z-0 group">

@@ -1,4 +1,4 @@
-                                              import { useState, useEffect } from 'react';
+                                              import { useState } from 'react';
 
 interface WindowSize {
   width: number;
@@ -10,7 +10,7 @@ const MIN_WIDTH = 720;
 const MIN_HEIGHT = 720;
 
 export function useSettingsWindowSize() {
-  const [size, setSize] = useState<WindowSize>(() => {
+  const [size, _setSize] = useState<WindowSize>(() => {
     // 1. Try to load from local storage
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {

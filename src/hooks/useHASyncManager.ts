@@ -53,6 +53,12 @@ export function useHASyncManager({
     personMappingsRef.current = haConfig.personMappings;
   }, [haConfig.personMappings]);
 
+  // 使用 ref 保存最新 entities，避免定时刷新闭包捕获过期值导致竞态
+  const entitiesRef = useRef(entities);
+  useEffect(() => {
+    entitiesRef.current = entities;
+  }, [entities]);
+
   // 同步设备与 HA 实体状态
   useEffect(() => {
     if (!isConnected || Object.keys(entities).length === 0) return;
@@ -63,20 +69,23 @@ export function useHASyncManager({
     // 注意：使用 ref 避免依赖项变化导致的重复执行
   }, [entities, isConnected, setDevices]);
 
-  // 定期强制刷新设备状态（每 15 秒），确保所有设备状态保持同步
-  // 这可以处理 WebSocket 事件可能丢失的情况
+  // 定期强制刷新设备状态（每 30 秒），作为 WebSocket 事件丢失的兜底
+  // 使用 ref 读取最新 entities，避免与实时推送冲突导致状态闪烁
   useEffect(() => {
     if (!isConnected) return;
 
     const intervalId = setInterval(() => {
-      logger.debug('强制刷新设备状态...');
+      // 通过 ref 读取最新 entities，避免闭包过期
+      const currentEntities = entitiesRef.current;
+      if (Object.keys(currentEntities).length === 0) return;
+      logger.debug('定时兜底刷新设备状态...');
       setDevices((prevDevices: Device[]) => 
-        syncDevicesWithEntities(prevDevices, entities, deviceMappingsRef.current)
+        syncDevicesWithEntities(prevDevices, currentEntities, deviceMappingsRef.current)
       );
-    }, 15000); // 15 秒间隔，提升实时性
+    }, 30000); // 30 秒间隔，作为兜底机制（实时同步依赖 WebSocket 推送）
 
     return () => clearInterval(intervalId);
-  }, [isConnected, entities, setDevices]);
+  }, [isConnected, setDevices]); // 移除 entities 依赖，通过 ref 访问
 
   // 同步用户与 HA person 实体
   useEffect(() => {

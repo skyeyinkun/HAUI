@@ -33,9 +33,10 @@ export function useWeather(lat?: number, lon?: number) {
       // 1. Try cache first (only for initial load, not retries)
       if (!isRetry) {
         const cached = CacheManager.get<WeatherData>(cacheKey);
-        if (cached) {
+        if (cached.data) {
           if (!cancelled) {
-            setWeather(cached);
+            // 使用缓存数据，提取实际的 WeatherData
+            setWeather(cached.data);
             setLoading(false);
             setError(null);
           }

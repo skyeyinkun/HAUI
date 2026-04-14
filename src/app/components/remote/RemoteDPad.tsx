@@ -1,4 +1,3 @@
-import React from 'react';
 import { RemoteButtonConfig } from '@/types/remote';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 

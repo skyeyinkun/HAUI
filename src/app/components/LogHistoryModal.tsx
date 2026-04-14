@@ -1,5 +1,4 @@
-import { X, Trash2, Download } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { Trash2 } from 'lucide-react';
 import LogCardAddon from './LogCardAddon';
 import { Log } from '@/types/dashboard';
 

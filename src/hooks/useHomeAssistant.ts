@@ -54,6 +54,9 @@ export function useHomeAssistant(config?: HAConfig) {
   const connectionRef = useRef<Connection | null>(null);
   const isConnectedRef = useRef(false);
   const isConnectionReadyRef = useRef(false);
+  // 使用 ref 追踪 token 和 REST base URL，确保 fetchStatesRest 等通过 ref 访问最新值
+  const configTokenRef = useRef(config?.token || '');
+  const restBaseUrlRef = useRef('/ha-api');
 
   // Heartbeat / Latency check
   useEffect(() => {
@@ -81,6 +84,11 @@ export function useHomeAssistant(config?: HAConfig) {
 
   // 使用 ref 保存上一次的配置值，用于比较
   const prevConfigRef = useRef({ localUrl: '', publicUrl: '', token: '' });
+
+  // 同步 token ref，供 fetchStatesRest/fetchEntityStateRest 通过 ref 访问
+  useEffect(() => {
+    configTokenRef.current = config?.token || '';
+  }, [config?.token]);
 
   // Effect to establish connection
   useEffect(() => {
@@ -197,6 +205,8 @@ export function useHomeAssistant(config?: HAConfig) {
                 .replace(/^ws:\/\//, 'http://')
                 .replace(/\/$/, '');
           setRestBaseUrl(normalized);
+          // 同步 ref，供 REST 降级函数使用
+          restBaseUrlRef.current = normalized;
         }
 
         // 指数退避重连机制
@@ -229,9 +239,14 @@ export function useHomeAssistant(config?: HAConfig) {
 
         conn.addEventListener('disconnected', () => {
             logger.info('Connection lost. Re-evaluating network...');
+            // 同步更新 ref（立即生效，确保 callService 不会使用过期连接）
+            connectionRef.current = null;
+            isConnectedRef.current = false;
+            isConnectionReadyRef.current = false;
+            // 更新 React state（触发 UI 重渲染）
             setIsConnected(false);
-            setIsConnectionReady(false);  // 断开时清除 ready 状态
-            setConnection(null);  // 关键修复：断开时清空 connection state
+            setIsConnectionReady(false);
+            setConnection(null);
             // 重置请求协调器状态
             globalCoordinator.reset();
             scheduleReconnect();
@@ -240,6 +255,8 @@ export function useHomeAssistant(config?: HAConfig) {
         // 连接成功后重置重连计数
         conn.addEventListener('ready', () => {
             reconnectAttemptsRef.current = 0;
+            // 同步更新 ref（确保 callService 立即可用）
+            isConnectionReadyRef.current = true;
             setIsConnectionReady(true);
             // 解析所有等待连接就绪的 Promise
             connectionReadyResolversRef.current.forEach(resolve => resolve());
@@ -479,13 +496,14 @@ export function useHomeAssistant(config?: HAConfig) {
   }, []); // 空依赖：通过 ref 访问连接
 
   const fetchEntityStateRest = useCallback(async (entityId: string) => {
+    // 通过 ref 获取最新 token 和 base URL（与 callService 保持一致的 ref 模式）
     const envToken = import.meta.env.VITE_HA_TOKEN;
     const isEnvTokenValid = envToken && envToken !== 'your_long_lived_access_token_here';
-    const token = config?.token || (isEnvTokenValid ? envToken : '');
+    const token = configTokenRef.current || (isEnvTokenValid ? envToken : '');
     if (!token) {
       throw new Error('缺少 Home Assistant Token');
     }
-    const base = restBaseUrl || '/ha-api';
+    const base = restBaseUrlRef.current || '/ha-api';
     const res = await fetch(`${base}/api/states/${encodeURIComponent(entityId)}`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -495,7 +513,7 @@ export function useHomeAssistant(config?: HAConfig) {
       throw new Error(`states API 请求失败: ${res.status}`);
     }
     return res.json();
-  }, [config?.token, restBaseUrl]);
+  }, []); // 空依赖：通过 ref 访问 token 和 baseUrl
 
   const fetchStatesRest = useCallback(async () => {
     // 优先使用 WebSocket（通过 ref 获取最新连接，避免闭包过期）
@@ -511,13 +529,14 @@ export function useHomeAssistant(config?: HAConfig) {
       }
     }
 
+    // REST 降级：通过 ref 获取最新 token 和 base URL
     const envToken = import.meta.env.VITE_HA_TOKEN;
     const isEnvTokenValid = envToken && envToken !== 'your_long_lived_access_token_here';
-    const token = config?.token || (isEnvTokenValid ? envToken : '');
+    const token = configTokenRef.current || (isEnvTokenValid ? envToken : '');
     if (!token) {
       throw new Error('缺少 Home Assistant Token');
     }
-    const base = restBaseUrl || '/ha-api';
+    const base = restBaseUrlRef.current || '/ha-api';
     const res = await fetch(`${base}/api/states`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -527,7 +546,7 @@ export function useHomeAssistant(config?: HAConfig) {
       throw new Error(`states API 请求失败: ${res.status}`);
     }
     return res.json();
-  }, [config?.token, restBaseUrl]);
+  }, []); // 空依赖：通过 ref 访问 token、baseUrl 和连接
 
   return {
     entities,

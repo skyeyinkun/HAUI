@@ -7,11 +7,17 @@
  * 高危操作关键词配置
  */
 export const HIGH_RISK_KEYWORDS = [
-  'lock',      // 门锁
-  'door',      // 门
-  'security',  // 安防
-  'alarm',     // 报警器
-  'gate',      // 大门/门禁
+  'lock',      // 门锁（英文）
+  'door',      // 门（英文）
+  'security',  // 安防（英文）
+  'alarm',     // 报警器（英文）
+  'gate',      // 大门/门禁（英文）
+  '门锁',      // 门锁（中文）
+  '门',        // 门（中文）
+  '安防',      // 安防（中文）
+  '报警',      // 报警器（中文）
+  '门禁',      // 门禁（中文）
+  '车库',      // 车库门（中文）
 ] as const;
 
 /**
@@ -21,6 +27,7 @@ export const HIGH_RISK_TYPES = [
   'lock',   // 门锁
   'cover',  // 窗帘/卷帘
   'garage', // 车库门
+  'alarm_control_panel', // 报警面板
 ] as const;
 
 /**

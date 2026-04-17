@@ -22,6 +22,7 @@ interface ClimateControlProps {
     onToggleCommon?: (e: React.MouseEvent) => void;
     onUpdate?: (id: number, updates: any) => void;
     nowMs?: number; // 用于时间戳显示的时间基准
+    onLongPress?: (device: Device, event: React.MouseEvent | React.TouchEvent) => void; // 长按回调
 }
 
 export function ClimateControl({
@@ -32,7 +33,8 @@ export function ClimateControl({
     isCommon,
     onToggleCommon,
     onUpdate,
-    nowMs
+    nowMs,
+    onLongPress
 }: ClimateControlProps) {
     const minTemp = device.min_temp ?? 16;
     const maxTemp = device.max_temp ?? 30;
@@ -158,6 +160,7 @@ export function ClimateControl({
             isEditing={isEditing}
             isCommon={isCommon}
             onToggleCommon={onToggleCommon}
+            onLongPress={onLongPress}
         >
             <DeviceCardHeader device={device} onToggle={handleToggleWrapper} />
 

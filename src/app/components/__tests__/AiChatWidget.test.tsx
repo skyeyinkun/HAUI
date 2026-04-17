@@ -27,6 +27,7 @@ vi.mock('@/hooks/useSpeechRecognition', () => ({
     transcript: '',
     interimTranscript: '',
     isSupported: false,
+    unsupportedReason: '测试环境不支持语音识别',
     startListening: vi.fn(),
     stopListening: vi.fn(),
     resetTranscript: vi.fn(),

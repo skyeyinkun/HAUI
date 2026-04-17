@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Device } from '@/types/device';
 import {
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
@@ -9,6 +9,7 @@ import * as Icons from 'lucide-react';
 import { createRemoteInputController, RemoteKeyCode } from '@/utils/remote-input';
 import { cn } from '@/app/components/ui/utils';
 import { ICON_PROPS, ICON_SIZES, ICON_STROKE_WIDTH } from '@/styles/icon-constants';
+import { useLongPress } from '@/hooks/useLongPress';
 import './RemoteCard.css';
 
 interface RemoteCardProps {
@@ -18,6 +19,7 @@ interface RemoteCardProps {
   isEditing?: boolean;
   isCommon?: boolean;
   onToggleCommon?: (e: React.MouseEvent) => void;
+  onLongPress?: (device: Device, event: React.MouseEvent | React.TouchEvent) => void; // 长按回调
 }
 
 import type { RemoteProfile } from '@/types/remote';
@@ -48,13 +50,37 @@ function XIcon({ className }: { className?: string }) {
   );
 }
 
-export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommon, onToggleCommon }: RemoteCardProps) {
+export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommon, onToggleCommon, onLongPress }: RemoteCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  
   const [activeProfile, setActiveProfile] = useState<RemoteProfile>(() => {
     if (typeof window === 'undefined') return 'tv';
     const saved = localStorage.getItem(`remote_profile_${device.id}`);
     if (saved === 'tv' || saved === 'stb' || saved === 'speaker') return saved;
     return 'tv';
   });
+
+  // 长按处理 - 1.5秒触发快速编辑菜单
+  const handleLongPress = useCallback(() => {
+    if (onLongPress && !isEditing && cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      const position = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
+      const mockEvent = {
+        clientX: position.x,
+        clientY: position.y
+      } as React.MouseEvent;
+      onLongPress(device, mockEvent);
+    }
+  }, [onLongPress, isEditing, device]);
+
+  const longPressHandler = useLongPress(
+    handleLongPress,
+    undefined,
+    { delay: 1500 }
+  );
 
   const [mappings, setMappings] = useState<RemoteMappings>({});
   const [globalMappings, setGlobalMappings] = useState<RemoteMappings>({});
@@ -169,12 +195,14 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
 
   return (
     <div
+      ref={cardRef}
       className={cn(
         "relative aspect-square rounded-[20px] shadow-sm overflow-hidden transition-all duration-200 flex flex-col bg-card border border-border/50",
         isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:scale-[1.02] hover:shadow-md cursor-pointer',
         "remote-card"
       )}
       onClick={!isEditing ? onClick : undefined}
+      {...longPressHandler}
     >
       {/* 编辑模式叠加层 */}
       {isEditing && (

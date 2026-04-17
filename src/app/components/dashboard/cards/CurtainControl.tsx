@@ -5,6 +5,14 @@ import { DeviceCardWrapper, DeviceCardHeader, LargeCurtainVisual } from './share
 import { SensorTimestamp } from '@/app/components/dashboard/SensorTimestamp';
 import { ICON_PROPS } from '@/styles/icon-constants';
 
+// 窗帘预设位置选项
+const CURTAIN_PRESETS = [
+  { value: 25, label: '25%' },
+  { value: 50, label: '50%' },
+  { value: 75, label: '75%' },
+  { value: 100, label: '全开' },
+] as const;
+
 interface CurtainControlProps {
     device: Device;
     onToggle: (e: React.MouseEvent) => void;
@@ -14,6 +22,7 @@ interface CurtainControlProps {
     onToggleCommon?: (e: React.MouseEvent) => void;
     onPositionChange?: (id: number, val: number | number[]) => void;
     nowMs?: number; // 用于时间戳显示的时间基准
+    onLongPress?: (device: Device, event: React.MouseEvent | React.TouchEvent) => void; // 长按回调
 }
 
 export function CurtainControl({
@@ -24,7 +33,8 @@ export function CurtainControl({
     isCommon,
     onToggleCommon,
     onPositionChange,
-    nowMs
+    nowMs,
+    onLongPress
 }: CurtainControlProps) {
     const [localPosition, setLocalPosition] = useState(device.position || 0);
     const [isDragging, setIsDragging] = useState(false);
@@ -185,6 +195,12 @@ export function CurtainControl({
         onToggle(e);
     };
 
+    // 处理预设位置点击
+    const handlePresetClick = useCallback((presetValue: number) => {
+        setLocalPosition(presetValue);
+        handleCommit('position', [presetValue]);
+    }, []);
+
     // Calculate curtain panel width percentage for arrow positioning
     const panelWidthPercent = 50 - (localPosition / 100) * 40;
 
@@ -208,6 +224,7 @@ export function CurtainControl({
             isEditing={isEditing}
             isCommon={isCommon}
             onToggleCommon={onToggleCommon}
+            onLongPress={onLongPress}
         >
             <DeviceCardHeader device={device} onToggle={handleToggleWrapper} value={localPosition} />
 
@@ -279,6 +296,30 @@ export function CurtainControl({
                         <LargeCurtainVisual position={localPosition} isDragging={isDragging} />
                     </div>
                 </div>
+            </div>
+
+            {/* 快捷预设按钮行 - 底部固定 */}
+            <div className="shrink-0 flex items-center justify-center gap-1.5 pt-1">
+                {CURTAIN_PRESETS.map((preset) => {
+                    const isActive = Math.abs(localPosition - preset.value) < 3; // 3% 容差
+                    return (
+                        <button
+                            key={preset.value}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handlePresetClick(preset.value);
+                            }}
+                            className={`px-2 py-1 rounded-[6px] text-[10px] font-medium transition-all
+                                ${isActive 
+                                    ? 'bg-primary text-primary-foreground shadow-sm' 
+                                    : 'bg-accent/50 text-muted-foreground hover:bg-accent hover:text-foreground'
+                                }`}
+                            title={`设置窗帘开度为 ${preset.value}%`}
+                        >
+                            {preset.label}
+                        </button>
+                    );
+                })}
             </div>
         </DeviceCardWrapper>
     );

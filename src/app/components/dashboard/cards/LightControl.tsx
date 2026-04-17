@@ -21,6 +21,7 @@ interface LightControlProps {
     onToggleCommon?: (e: React.MouseEvent) => void;
     onUpdate?: (id: number, updates: any) => void;
     nowMs?: number; // 用于时间戳显示的时间基准
+    onLongPress?: (device: Device, event: React.MouseEvent | React.TouchEvent) => void; // 长按回调
 }
 
 export function LightControl({
@@ -31,7 +32,8 @@ export function LightControl({
     isCommon,
     onToggleCommon,
     onUpdate,
-    nowMs
+    nowMs,
+    onLongPress
 }: LightControlProps) {
     const [localBrightness, setLocalBrightness] = useState(device.brightness || 0);
     const [localColorTemp, setLocalColorTemp] = useState(device.color_temp || 153);
@@ -172,6 +174,7 @@ export function LightControl({
                 isEditing={isEditing}
                 isCommon={isCommon}
                 onToggleCommon={onToggleCommon}
+                onLongPress={onLongPress}
             >
                 <DeviceCardHeader device={device} onToggle={handleToggleWrapper} />
 
@@ -198,6 +201,7 @@ export function LightControl({
             isEditing={isEditing}
             isCommon={isCommon}
             onToggleCommon={onToggleCommon}
+            onLongPress={onLongPress}
         >
             <DeviceCardHeader device={device} onToggle={handleToggleWrapper} />
             

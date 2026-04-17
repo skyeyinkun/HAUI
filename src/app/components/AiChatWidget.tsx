@@ -162,12 +162,14 @@ interface ChatInputProps {
     transcript: string;
     interimTranscript: string;
     isSpeechSupported: boolean;
+    /** 不支持语音识别时的原因说明 */
+    unsupportedReason: string;
 }
 
 function ChatInput({
     inputValue, onChange, onSend, isLoading, onStopListening,
     isListening: _isListening, startListening, stopListening, resetTranscript,
-    transcript, interimTranscript, isSpeechSupported
+    transcript, interimTranscript, isSpeechSupported, unsupportedReason
 }: ChatInputProps) {
     const [inputMode, setInputMode] = useState<'text' | 'voice'>('text');
     const [isRecording, setIsRecording] = useState(false);
@@ -205,7 +207,8 @@ function ChatInput({
     // 开始录音：请求权限并启动语音识别
     const startRecording = async () => {
         if (!isSpeechSupported) {
-            alert('您的浏览器不支持语音识别功能');
+            // 显示详细的不支持原因
+            alert(unsupportedReason || '您的浏览器不支持语音识别功能');
             return;
         }
         try {
@@ -429,7 +432,8 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
     const {
         isListening, transcript, interimTranscript,
         startListening, stopListening, resetTranscript,
-        isSupported: isSpeechSupported
+        isSupported: isSpeechSupported,
+        unsupportedReason
     } = useSpeechRecognition({
         onSpeechEnd: handleVoiceSpeechEnd,
         autoRestart: false,
@@ -718,6 +722,7 @@ export default function AiChatWidget({ entities }: AiChatWidgetProps) {
                             transcript={transcript}
                             interimTranscript={interimTranscript}
                             isSpeechSupported={isSpeechSupported}
+                            unsupportedReason={unsupportedReason}
                         />
                             </>
                         ) : (

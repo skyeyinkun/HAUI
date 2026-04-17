@@ -1,8 +1,10 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useRef, useCallback } from 'react';
+import { X, WifiOff } from 'lucide-react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
 import { Device } from '@/types/device';
 import { SensorTimestamp } from '@/app/components/dashboard/SensorTimestamp';
+import { useLongPress } from '@/hooks/useLongPress';
 import RemoteCard from '../remote/RemoteCard';
 import { LightControl } from './cards/LightControl';
 import { CurtainControl } from './cards/CurtainControl';
@@ -20,11 +22,40 @@ interface DeviceCardProps {
   onPositionChange?: (id: number, val: number | number[]) => void;
   onUpdate?: (id: number, updates: any) => void;
   onSendIR?: (id: number, code: string) => void;
+  onLongPress?: (device: Device, event: React.MouseEvent | React.TouchEvent) => void; // 长按回调
 }
 
+// 显示离线设备提示的统一函数
+const showOfflineToast = (deviceName: string) => {
+  toast.error('设备不可用', {
+    description: `「${deviceName}」当前离线，请检查设备网络连接`,
+    duration: 4000,
+    icon: <WifiOff className="w-4 h-4" />,
+  });
+};
+
 // Main Component
-function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEditing, isCommon, onToggleCommon, onPositionChange, onUpdate, onSendIR }: DeviceCardProps) {
+function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEditing, isCommon, onToggleCommon, onPositionChange, onUpdate, onSendIR, onLongPress }: DeviceCardProps) {
   const nowMs = nowMsProp ?? Date.now();
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // 长按处理 - 1.5秒触发快速编辑菜单（通过卡片中心点计算位置）
+  const handleLongPress = useCallback(() => {
+    if (onLongPress && !isEditing && cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      const mockEvent = {
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2,
+      } as React.MouseEvent;
+      onLongPress(device, mockEvent);
+    }
+  }, [onLongPress, isEditing, device]);
+
+  const longPressHandler = useLongPress(
+    handleLongPress,
+    undefined,
+    { delay: 1500 }
+  );
 
   const isLight = device.type === 'light' || device.type === 'dimmer' || device.icon === 'lamp';
   const isAC = device.type === 'ac' || device.type === 'climate' || device.type === 'heater' || device.type === 'fan';
@@ -60,13 +91,18 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
     return (
       <RemoteCard
         device={device}
-        onClick={onClick}
+        onClick={isOffline ? () => showOfflineToast(device.name) : onClick}
         sendIR={(code) => {
+          if (isOffline) {
+            showOfflineToast(device.name);
+            return;
+          }
           onSendIR?.(device.id, code);
         }}
         isEditing={isEditing}
         isCommon={isCommon}
         onToggleCommon={onToggleCommon}
+        onLongPress={onLongPress}
       />
     );
   }
@@ -75,13 +111,14 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
     return (
       <LightControl
         device={device}
-        onToggle={onToggle}
-        onClick={onClick}
+        onToggle={isOffline ? (e) => { e.stopPropagation(); showOfflineToast(device.name); } : onToggle}
+        onClick={isOffline ? () => showOfflineToast(device.name) : onClick}
         isEditing={isEditing}
         isCommon={isCommon}
         onToggleCommon={onToggleCommon}
-        onUpdate={onUpdate}
+        onUpdate={isOffline ? undefined : onUpdate}
         nowMs={nowMs}
+        onLongPress={onLongPress}
       />
     );
   }
@@ -90,13 +127,14 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
     return (
       <CurtainControl
         device={device}
-        onToggle={onToggle}
-        onClick={onClick}
+        onToggle={isOffline ? (e) => { e.stopPropagation(); showOfflineToast(device.name); } : onToggle}
+        onClick={isOffline ? () => showOfflineToast(device.name) : onClick}
         isEditing={isEditing}
         isCommon={isCommon}
         onToggleCommon={onToggleCommon}
-        onPositionChange={onPositionChange}
+        onPositionChange={isOffline ? undefined : onPositionChange}
         nowMs={nowMs}
+        onLongPress={onLongPress}
       />
     );
   }
@@ -105,13 +143,14 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
     return (
       <ClimateControl
         device={device}
-        onToggle={onToggle}
-        onClick={onClick}
+        onToggle={isOffline ? (e) => { e.stopPropagation(); showOfflineToast(device.name); } : onToggle}
+        onClick={isOffline ? () => showOfflineToast(device.name) : onClick}
         isEditing={isEditing}
         isCommon={isCommon}
         onToggleCommon={onToggleCommon}
-        onUpdate={onUpdate}
+        onUpdate={isOffline ? undefined : onUpdate}
         nowMs={nowMs}
+        onLongPress={onLongPress}
       />
     );
   }
@@ -119,11 +158,27 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
   if (isSensor) {
     return (
       <div
-        className={`relative aspect-square rounded-[16px] p-3 pb-10 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer'
+        ref={cardRef}
+        className={`relative aspect-square rounded-[16px] p-3 pb-10 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200
+          ${isOffline ? 'opacity-70' : ''}
+          ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer'}
           }`}
         style={{ backgroundColor: 'var(--card)' }}
-        onClick={!isEditing ? onClick : undefined}
+        onClick={!isEditing ? (isOffline ? () => showOfflineToast(device.name) : onClick) : undefined}
+        {...longPressHandler}
       >
+        {/* 离线状态徽章 */}
+        {isOffline && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-medium shadow-sm">
+            离线
+          </div>
+        )}
+
+        {/* 离线状态遮罩层 */}
+        {isOffline && (
+          <div className="absolute inset-0 bg-slate-200/50 dark:bg-slate-900/50 z-10 pointer-events-none" />
+        )}
+
         {isEditing && (
           <div
             className="absolute -right-2 -top-2 z-50 p-4 cursor-pointer"
@@ -209,11 +264,27 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
 
   return (
     <div
-      className={`relative aspect-square rounded-[16px] p-3 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer'
+      ref={cardRef}
+      className={`relative aspect-square rounded-[16px] p-3 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200
+        ${isOffline ? 'opacity-70' : ''}
+        ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer'}
         }`}
       style={{ backgroundColor: 'var(--card)' }}
-      onClick={!isEditing ? onClick : undefined}
+      onClick={!isEditing ? (isOffline ? () => showOfflineToast(device.name) : onClick) : undefined}
+      {...longPressHandler}
     >
+      {/* 离线状态徽章 */}
+      {isOffline && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-medium shadow-sm">
+          离线
+        </div>
+      )}
+
+      {/* 离线状态遮罩层 */}
+      {isOffline && (
+        <div className="absolute inset-0 bg-slate-200/50 dark:bg-slate-900/50 z-10 pointer-events-none" />
+      )}
+
       {isEditing && (
         <div className="absolute -right-2 -top-2 z-50 p-4 cursor-pointer" onClick={onToggleCommon}>
           <div
@@ -268,7 +339,10 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
 
       {/* 底部区域：开关控制 */}
       <div className="flex items-center justify-end relative z-10">
-        <button onClick={onToggle} className={isEditing ? 'pointer-events-none opacity-50' : ''}>
+        <button 
+          onClick={isOffline ? (e) => { e.stopPropagation(); showOfflineToast(device.name); } : onToggle} 
+          className={isEditing ? 'pointer-events-none opacity-50' : ''}
+        >
           <SquareToggle isOn={device.isOn} />
         </button>
       </div>

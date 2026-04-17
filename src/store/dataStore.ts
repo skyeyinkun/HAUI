@@ -17,6 +17,7 @@ interface DataState {
     // Actions
     setDevices: (devices: Device[] | ((prev: Device[]) => Device[])) => void;
     updateDevice: (id: number, updates: Partial<Device>) => void;
+    deleteDevice: (id: number) => void;
     setRooms: (rooms: Room[] | ((prev: Room[]) => Room[])) => void;
     setScenes: (scenes: Scene[] | ((prev: Scene[]) => Scene[])) => void;
     setUsers: (users: User[] | ((prev: User[]) => User[])) => void;
@@ -71,6 +72,10 @@ export const useDataStore = create<DataState>()(
 
             updateDevice: (id, updates) => set((state) => ({
                 devices: state.devices.map((d) => (d.id === id ? { ...d, ...updates } : d))
+            })),
+
+            deleteDevice: (id) => set((state) => ({
+                devices: state.devices.filter((d) => d.id !== id)
             })),
 
             setRooms: (rooms) => set((state) => ({

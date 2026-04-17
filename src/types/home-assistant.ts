@@ -31,6 +31,8 @@ export interface HAConfig {
   personMappings: Record<string, string>;
   sceneMappings: Record<string, string>;
   cameras?: CameraConfig[];
+  /** 温度单位：'celsius' 摄氏度 或 'fahrenheit' 华氏度 */
+  tempUnit?: 'celsius' | 'fahrenheit';
 }
 
 /** HA 连接状态 */

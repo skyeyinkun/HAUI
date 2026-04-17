@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react
 import { useLongPress } from '@/hooks/useLongPress';
 import { useUIStore } from '@/store/uiStore';
 import { useDataStore } from '@/store/dataStore';
-import { Home, Settings, Moon, Activity, Tv, Book, Users, Coffee, DoorOpen } from 'lucide-react';
+import { Home, Settings, Moon, Activity, Tv, Book, Users, Coffee, DoorOpen, Power, PowerOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Toaster } from '@/app/components/ui/sonner';
 import { toast } from 'sonner';
@@ -37,6 +37,8 @@ import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { CardErrorBoundary } from '@/app/components/ui/CardErrorBoundary';
 import { SecureActionConfirm } from '@/app/components/ui/SecureActionConfirm';
+import { ScrollIndicator } from '@/app/components/ui/ScrollIndicator';
+import { QuickEditMenu } from '@/app/components/dashboard/QuickEditMenu';
 
 // 按需加载重型组件
 const SettingsModal = React.lazy(() => import('./components/SettingsModal'));
@@ -144,6 +146,30 @@ function App() {
     severity: 'high',
   });
 
+  // 快速编辑菜单状态
+  const [quickEditDevice, setQuickEditDevice] = useState<Device | null>(null);
+  const [quickEditPosition, setQuickEditPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // 处理设备卡片长按 - 触发快速编辑菜单
+  const handleDeviceLongPress = useCallback((device: Device, event: React.MouseEvent | React.TouchEvent) => {
+    // 获取点击位置
+    let x = 0;
+    let y = 0;
+    if ('clientX' in event) {
+      x = event.clientX;
+      y = event.clientY;
+    } else if ('touches' in event && event.touches.length > 0) {
+      x = event.touches[0].clientX;
+      y = event.touches[0].clientY;
+    }
+    
+    // 震动反馈
+    window.navigator?.vibrate?.(50);
+    
+    setQuickEditPosition({ x, y });
+    setQuickEditDevice(device);
+  }, []);
+
   // UI State from Zustand Store
   const {
     settingsOpen, setSettingsOpen,
@@ -174,8 +200,37 @@ function App() {
     scenes, setScenes,
     users, setUsers,
     logs,
-    addLog, clearLogs
+    addLog, clearLogs,
+    updateDevice, deleteDevice
   } = useDataStore();
+
+  // 快速编辑：重命名设备
+  const handleQuickEditRename = useCallback((deviceId: number, newName: string) => {
+    updateDevice(deviceId, { name: newName });
+    toast.success('重命名成功', { description: `设备已重命名为「${newName}」` });
+  }, [updateDevice]);
+
+  // 快速编辑：移动设备到其他房间
+  const handleQuickEditMoveRoom = useCallback((deviceId: number, newRoom: string) => {
+    const device = devices.find(d => d.id === deviceId);
+    const oldRoom = device?.room || '未知';
+    updateDevice(deviceId, { room: newRoom });
+    toast.success('移动成功', { description: `设备已从「${oldRoom}」移动到「${newRoom}」` });
+  }, [devices, updateDevice]);
+
+  // 快速编辑：删除设备
+  const handleQuickEditDelete = useCallback((deviceId: number) => {
+    const device = devices.find(d => d.id === deviceId);
+    const deviceName = device?.name || '设备';
+    deleteDevice(deviceId);
+    toast.success('删除成功', { description: `「${deviceName}」已从设备列表移除` });
+  }, [devices, deleteDevice]);
+
+  // 关闭快速编辑菜单
+  const handleCloseQuickEdit = useCallback(() => {
+    setQuickEditDevice(null);
+  }, []);
+
   const [selectedRegion, setSelectedRegion] = useState<{ province: Region; city: Region; district: Region }>(() => {
     try {
       const saved = localStorage.getItem('selected_region');
@@ -716,9 +771,37 @@ function App() {
     }
 
     if (entityIdToCall) {
+      // 调用 HA 场景服务，添加执行结果反馈
       callService('scene', 'turn_on', { entity_id: entityIdToCall as string })
+        .then(() => {
+          // 场景激活成功，显示成功提示
+          toast.success('场景已激活', {
+            description: `「${sceneName}」场景已成功执行`,
+            duration: 3000,
+          });
+          // 记录日志
+          const now = new Date();
+          const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+          addLog({
+            time: timeString,
+            message: `✓ 场景「${sceneName}」已激活`
+          });
+        })
         .catch((err) => {
+          // 场景激活失败，显示错误详情
           handleServiceError(err, '场景激活', entityIdToCall);
+          const errorMsg = err?.message || String(err);
+          toast.error('场景执行失败', {
+            description: `「${sceneName}」执行失败：${errorMsg}`,
+            duration: 5000,
+          });
+          // 记录错误日志
+          const now = new Date();
+          const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+          addLog({
+            time: timeString,
+            message: `✗ 场景「${sceneName}」执行失败：${errorMsg}`
+          });
         });
     } else {
       logger.warn('No matching scene entity found for', scenes.find(s => s.id === id)?.name);
@@ -736,7 +819,7 @@ function App() {
       ));
       setSceneCooldown(false);
     }, 3000);
-  }, [sceneCooldown, scenes, haConfig.sceneMappings, entities, callService]);
+  }, [sceneCooldown, scenes, haConfig.sceneMappings, entities, callService, addLog]);
 
 
   const handleUpdateScenes = useCallback((updatedScenes: { id: number; name: string; }[]) => {
@@ -765,6 +848,102 @@ function App() {
   const filteredDevices = selectedRoom === '常用'
     ? (isEditingCommon ? devices : devices.filter(d => d.isCommon))
     : devices.filter(d => d.room === selectedRoom);
+
+  // 可控制的设备类型（排除传感器和遥控器）
+  const controllableDeviceTypes = ['light', 'dimmer', 'switch', 'outlet', 'ac', 'climate', 'heater', 'fan', 'curtain', 'cover'];
+
+  // 获取当前房间可控制的设备列表
+  const getControllableDevices = useCallback((roomName: string) => {
+    const roomDevices = roomName === '常用'
+      ? devices.filter(d => d.isCommon)
+      : devices.filter(d => d.room === roomName);
+    return roomDevices.filter(d => 
+      controllableDeviceTypes.includes(d.type) && 
+      d.haAvailable !== false // 排除离线设备
+    );
+  }, [devices]);
+
+  // 批量开关房间设备
+  const toggleAllRoomDevices = useCallback((turnOn: boolean) => {
+    const controllableDevices = getControllableDevices(selectedRoom);
+    
+    if (controllableDevices.length === 0) {
+      toast.info('无可控设备', {
+        description: '当前房间没有可控制的设备',
+      });
+      return;
+    }
+
+    // 批量更新本地状态（乐观更新）
+    const deviceIds = controllableDevices.map(d => d.id);
+    setDevices(prev => prev.map(device => {
+      if (deviceIds.includes(device.id)) {
+        if (device.type === 'curtain') {
+          return { ...device, isOn: turnOn, position: turnOn ? 100 : 0 };
+        }
+        if (device.type === 'light' && turnOn) {
+          const currentBrightness = device.brightness || 0;
+          return { ...device, isOn: true, brightness: currentBrightness > 0 ? currentBrightness : 255 };
+        }
+        return { ...device, isOn: turnOn };
+      }
+      return device;
+    }));
+
+    // 批量调用 HA 服务
+    let successCount = 0;
+    let failCount = 0;
+
+    controllableDevices.forEach(device => {
+      const entityId = haConfig.deviceMappings[device.id];
+      if (entityId) {
+        const domain = entityId.split('.')[0];
+        let service = turnOn ? 'turn_on' : 'turn_off';
+        const serviceData: any = { entity_id: entityId };
+
+        // 窗帘使用特殊服务
+        if (domain === 'cover') {
+          service = turnOn ? 'open_cover' : 'close_cover';
+        }
+
+        callService(domain, service, serviceData)
+          .then(() => {
+            successCount++;
+            // 全部完成后显示结果
+            if (successCount + failCount === controllableDevices.length) {
+              if (failCount === 0) {
+                toast.success(`已${turnOn ? '开启' : '关闭'}所有设备`, {
+                  description: `成功控制 ${successCount} 个设备`,
+                });
+              } else {
+                toast.warning(`部分设备控制失败`, {
+                  description: `成功 ${successCount} 个，失败 ${failCount} 个`,
+                });
+              }
+            }
+          })
+          .catch(() => {
+            failCount++;
+            if (successCount + failCount === controllableDevices.length) {
+              toast.warning(`部分设备控制失败`, {
+                description: `成功 ${successCount} 个，失败 ${failCount} 个`,
+              });
+            }
+          });
+      } else {
+        // 没有映射的设备也算失败
+        failCount++;
+      }
+    });
+
+    // 添加日志
+    const now = new Date();
+    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    addLog({
+      time: timeString,
+      message: `${turnOn ? '📤' : '📥'} 批量${turnOn ? '开启' : '关闭'}「${selectedRoom}」${controllableDevices.length} 个设备`
+    });
+  }, [selectedRoom, getControllableDevices, haConfig.deviceMappings, callService, setDevices, addLog]);
 
   return (
     <div data-testid="dashboard-container" className="h-screen bg-background text-foreground relative transition-colors duration-300 flex flex-col overflow-hidden">
@@ -894,15 +1073,16 @@ function App() {
 
           {/* Scene & Room Tabs */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex gap-2 overflow-x-auto pb-2 flex-1 scrollbar-hide items-center">
-              {/* Scenes */}
-              {scenes.map((scene) => {
-                const IconMap: Record<string, any> = {
-                  'home': Home,
-                  'door-open': DoorOpen,
-                  'tv': Tv,
-                  'moon': Moon,
-                  'book': Book,
+            <ScrollIndicator className="flex-1">
+              <div className="flex gap-2 pb-2 items-center">
+                {/* Scenes */}
+                {scenes.map((scene) => {
+                  const IconMap: Record<string, any> = {
+                    'home': Home,
+                    'door-open': DoorOpen,
+                    'tv': Tv,
+                    'moon': Moon,
+                    'book': Book,
                   'users': Users,
                   'coffee': Coffee,
                   'play': Activity
@@ -955,7 +1135,8 @@ function App() {
                   {room.name}
                 </button>
               ))}
-            </div>
+              </div>
+            </ScrollIndicator>
 
             {selectedRoom === '常用' && (
               <div className="pb-2 shrink-0 ml-4">
@@ -967,6 +1148,28 @@ function App() {
                     }`}
                 >
                   {isEditingCommon ? '完成' : '管理'}
+                </button>
+              </div>
+            )}
+
+            {/* 批量控制按钮 - 非常用房间显示 */}
+            {selectedRoom !== '常用' && getControllableDevices(selectedRoom).length > 0 && (
+              <div className="pb-2 shrink-0 ml-4 flex items-center gap-2">
+                <button
+                  onClick={() => toggleAllRoomDevices(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-[14px] text-[13px] font-medium transition-all bg-green-500/10 text-green-600 hover:bg-green-500/20 border border-green-500/20"
+                  title="开启当前房间所有可控设备"
+                >
+                  <Power className="w-3.5 h-3.5" />
+                  <span>全开</span>
+                </button>
+                <button
+                  onClick={() => toggleAllRoomDevices(false)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-[14px] text-[13px] font-medium transition-all bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+                  title="关闭当前房间所有可控设备"
+                >
+                  <PowerOff className="w-3.5 h-3.5" />
+                  <span>全关</span>
                 </button>
               </div>
             )}
@@ -990,6 +1193,7 @@ function App() {
                   onPositionChange={handlePositionChange}
                   onUpdate={handleLightUpdate}
                   onSendIR={sendIR}
+                  onLongPress={handleDeviceLongPress}
                 />
               </CardErrorBoundary>
             ))}
@@ -1107,6 +1311,19 @@ function App() {
         description={secureConfirmConfig.description}
         severity={secureConfirmConfig.severity}
       />
+
+      {/* 设备快速编辑菜单 - 长按设备卡片触发 */}
+      {quickEditDevice && (
+        <QuickEditMenu
+          device={quickEditDevice}
+          rooms={rooms}
+          position={quickEditPosition}
+          onClose={handleCloseQuickEdit}
+          onRename={handleQuickEditRename}
+          onMoveRoom={handleQuickEditMoveRoom}
+          onDelete={handleQuickEditDelete}
+        />
+      )}
     </div>
   );
 }

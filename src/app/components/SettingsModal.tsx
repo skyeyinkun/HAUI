@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Cpu, Users, Camera } from 'lucide-react';
+import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Cpu, Users, Camera, Thermometer } from 'lucide-react';
 import { toast } from 'sonner';
 import { HAConfig } from '@/types/home-assistant';
 import { sanitizeToken, isValidTokenFormat } from '@/utils/ha-connection';
@@ -51,6 +51,8 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
   const [localDevices, setLocalDevices] = useState(devices);
   const [localRooms, setLocalRooms] = useState<Room[]>(rooms);
   const [localCameras, setLocalCameras] = useState(initialConfig.cameras || []);
+  // 温度单位状态：'celsius' 或 'fahrenheit'
+  const [tempUnit, setTempUnit] = useState<'celsius' | 'fahrenheit'>(initialConfig.tempUnit || 'celsius');
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -182,7 +184,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
     setIsSaving(true);
     setIsSaved(false);
     await new Promise(resolve => setTimeout(resolve, 600));
-    const finalConfig = { ...config, cameras: localCameras };
+    const finalConfig = { ...config, cameras: localCameras, tempUnit };
     onSave(finalConfig);
     if (onUpdateUsers) onUpdateUsers(localUsers);
     if (onUpdateScenes) onUpdateScenes(localScenes);
@@ -350,6 +352,41 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
                     </div>
                   </div>
                   <p className="text-xs text-gray-500">令牌将加密存储在本地浏览器中，用于连接 Home Assistant。输入后自动验证。</p>
+                </div>
+
+                {/* 温度单位切换 */}
+                <div className="space-y-2 pt-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Thermometer className="w-4 h-4" />
+                    温度单位
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTempUnit('celsius')}
+                      className={`flex-1 py-3 px-4 rounded-xl border transition-all font-medium text-sm flex items-center justify-center gap-2
+                        ${tempUnit === 'celsius' 
+                          ? 'border-blue-500 bg-blue-50 text-blue-600 ring-2 ring-blue-100' 
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                      <span className="text-lg">°C</span>
+                      摄氏度
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTempUnit('fahrenheit')}
+                      className={`flex-1 py-3 px-4 rounded-xl border transition-all font-medium text-sm flex items-center justify-center gap-2
+                        ${tempUnit === 'fahrenheit' 
+                          ? 'border-blue-500 bg-blue-50 text-blue-600 ring-2 ring-blue-100' 
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                      <span className="text-lg">°F</span>
+                      华氏度
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500">选择温度显示单位，将应用于空调控制等温度相关界面。</p>
                 </div>
               </div>
             </div>

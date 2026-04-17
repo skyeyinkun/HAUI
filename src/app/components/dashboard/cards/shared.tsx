@@ -5,6 +5,7 @@ import imgToggleSwitch from "@/assets/toggle_switch.png";
 import { Device } from '@/types/device';
 import { CustomIcon } from './shared/CustomIcon';
 import { SensorTimestamp } from '@/app/components/dashboard/SensorTimestamp';
+import { useLongPress } from '@/hooks/useLongPress';
 
 // 重导出空调控制共享配置与图标
 export {
@@ -29,6 +30,9 @@ export interface DeviceCardWrapperProps {
   isEditing?: boolean;
   isCommon?: boolean;
   onToggleCommon?: (e: React.MouseEvent) => void;
+  isOffline?: boolean; // 设备离线状态
+  onOfflineClick?: () => void; // 离线设备点击回调
+  onLongPress?: (device: Device, event: React.MouseEvent | React.TouchEvent) => void; // 长按回调
 }
 
 export interface DeviceCardHeaderProps {
@@ -319,13 +323,52 @@ export function LargeCurtainVisual({ position = 0, isDragging = false }: { posit
 // ----------------------------------------------------------------------
 
 // 1. Unified Card Wrapper
-export function DeviceCardWrapper({ children, className, onClick, isEditing, isCommon, onToggleCommon }: DeviceCardWrapperProps) {
+export function DeviceCardWrapper({ children, className, onClick, device, isEditing, isCommon, onToggleCommon, isOffline, onOfflineClick, onLongPress }: DeviceCardWrapperProps) {
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  
+  // 处理点击事件：离线设备特殊处理
+  const handleClick = (e: React.MouseEvent) => {
+    if (isOffline && onOfflineClick) {
+      onOfflineClick();
+      return;
+    }
+    onClick(e);
+  };
+
+  // 长按处理 - 1.5秒触发快速编辑菜单
+  const handleLongPress = React.useCallback(() => {
+    if (onLongPress && !isEditing && wrapperRef.current) {
+      // 获取元素中心位置作为菜单位置
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const position = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
+      // 创建一个模拟事件对象
+      const mockEvent = {
+        clientX: position.x,
+        clientY: position.y
+      } as React.MouseEvent;
+      onLongPress(device, mockEvent);
+    }
+  }, [onLongPress, isEditing, device]);
+
+  const longPressHandler = useLongPress(
+    handleLongPress,
+    undefined,
+    { delay: 1500 }
+  );
+
   return (
     <div
-      className={`relative aspect-square rounded-[16px] p-3 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 flex flex-col ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:scale-105 cursor-default'
-        } ${className}`}
+      ref={wrapperRef}
+      className={`relative aspect-square rounded-[16px] p-3 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 flex flex-col
+        ${isOffline ? 'opacity-70' : ''}
+        ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:scale-105 cursor-default'}
+        ${className}`}
       style={{ backgroundColor: "var(--card)" }}
-      onClick={onClick}
+      onClick={handleClick}
+      {...longPressHandler}
     >
       {/* Background Pattern - Always Dark/Neutral (Default) */}
       <div className="absolute left-[-27px] top-[-27px] w-[117px] h-[117px] pointer-events-none opacity-50">
@@ -344,6 +387,18 @@ export function DeviceCardWrapper({ children, className, onClick, isEditing, isC
           </defs>
         </svg>
       </div>
+
+      {/* 离线状态遮罩层 */}
+      {isOffline && (
+        <div className="absolute inset-0 bg-slate-200/50 dark:bg-slate-900/50 z-10 pointer-events-none" />
+      )}
+
+      {/* 离线状态徽章 */}
+      {isOffline && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-medium shadow-sm">
+          离线
+        </div>
+      )}
 
       {/* Editing Overlay */}
       {isEditing && (

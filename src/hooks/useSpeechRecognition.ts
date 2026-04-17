@@ -1,6 +1,44 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { logger } from '@/utils/logger';
 
+/**
+ * 检测 iOS Safari 环境
+ * iOS Safari 对 SpeechRecognition 有特殊限制
+ */
+const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+/**
+ * 检测是否为 HTTPS 或 localhost 环境
+ * iOS Safari 要求 HTTPS 才能使用 SpeechRecognition
+ */
+const isSecureContext = typeof window !== 'undefined' && (window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+
+/**
+ * 检测浏览器是否支持 SpeechRecognition API
+ */
+function checkSpeechRecognitionSupport(): { supported: boolean; reason: string } {
+    if (typeof window === 'undefined') {
+        return { supported: false, reason: '非浏览器环境' };
+    }
+    
+    // 检查 API 是否存在
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        // iOS Safari 14.5 以下版本不支持
+        if (isIOS) {
+            return { supported: false, reason: '您的 iOS 版本过低，请升级至 iOS 14.5 或更高版本以使用语音功能' };
+        }
+        return { supported: false, reason: '您的浏览器不支持语音识别功能，建议使用 Chrome、Safari 或 Edge 浏览器' };
+    }
+    
+    // iOS Safari 要求 HTTPS 环境
+    if (isIOS && !isSecureContext) {
+        return { supported: false, reason: 'iOS Safari 需要 HTTPS 安全连接才能使用语音识别，请使用 HTTPS 访问' };
+    }
+    
+    return { supported: true, reason: '' };
+}
+
 export interface SpeechRecognitionOptions {
     lang?: string;
     /** 用户停止说话且有最终识别结果时触发，供对话模式自动发送使用 */
@@ -16,6 +54,8 @@ export interface SpeechRecognitionResult {
     transcript: string;
     interimTranscript: string;
     isSupported: boolean;
+    /** 不支持时的原因说明，用于显示友好提示 */
+    unsupportedReason: string;
     startListening: () => void;
     stopListening: () => void;
     resetTranscript: () => void;
@@ -32,7 +72,15 @@ export function useSpeechRecognition({
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const [isSupported, setIsSupported] = useState(true);
+    // 初始化时检测支持情况
+    const [isSupported, setIsSupported] = useState(() => {
+        const { supported } = checkSpeechRecognitionSupport();
+        return supported;
+    });
+    const [unsupportedReason, setUnsupportedReason] = useState(() => {
+        const { reason } = checkSpeechRecognitionSupport();
+        return reason;
+    });
 
     const recognitionRef = useRef<any>(null);
     // 用 ref 保存最新的回调和配置，避免闭包捕获旧值
@@ -70,19 +118,17 @@ export function useSpeechRecognition({
     }, [silenceTimeout, clearSilenceTimer]);
 
     useEffect(() => {
-        if (typeof window === 'undefined') {
+        // 使用新的检测函数进行完整检测
+        const { supported, reason } = checkSpeechRecognitionSupport();
+        if (!supported) {
             setIsSupported(false);
-            return;
-        }
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            setIsSupported(false);
+            setUnsupportedReason(reason);
             return;
         }
 
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         // 安卓端 continuous=true 可避免自动断开，iOS Safari 不支持 continuous
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         recognition.continuous = !isIOS;
         recognition.interimResults = true;
         recognition.lang = lang;
@@ -208,6 +254,7 @@ export function useSpeechRecognition({
         transcript,
         interimTranscript,
         isSupported,
+        unsupportedReason,
         startListening,
         stopListening,
         resetTranscript,

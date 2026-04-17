@@ -247,7 +247,7 @@ function StatisticsPanelInternal(props: StatisticsPanelProps) {
                   break;
                 case 'sensor_status':
                   renderContent = (
-                    <div className="h-full bg-card rounded-[16px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] border-0 overflow-hidden">
+                    <div className="h-full bg-card rounded-[16px] shadow-[var(--shadow-card)] border-0 overflow-hidden">
                         <SensorStatusCard
                           cardId={widget.id}
                           haEntities={props.haEntities}

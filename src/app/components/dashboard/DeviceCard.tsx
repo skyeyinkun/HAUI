@@ -159,7 +159,7 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
     return (
       <div
         ref={cardRef}
-        className={`relative aspect-square rounded-[16px] p-3 pb-10 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200
+        className={`relative aspect-square rounded-[16px] p-3 pb-10 flex flex-col gap-1.5 shadow-[var(--shadow-card)] overflow-hidden transition-all duration-200
           ${isOffline ? 'opacity-70' : ''}
           ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer'}
           }`}
@@ -232,7 +232,7 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
         <div className="flex items-center justify-between relative z-10">
           <DeviceIcon icon={device.icon} isOn={device.isOn && !isOffline} type={device.type} />
           {/* 状态指示点：触发/开启状态显示绿色，否则显示灰色 */}
-          <div className={`w-2.5 h-2.5 rounded-full ${isTriggered && !isOffline ? 'bg-[#65cf58]' : 'bg-black/10 dark:bg-white/10'}`} />
+          <div className={`w-2.5 h-2.5 rounded-full ${isTriggered && !isOffline ? 'bg-status-online' : 'bg-black/10 dark:bg-white/10'}`} />
         </div>
 
         <div className="flex flex-col gap-1 relative z-10 mt-1">
@@ -265,7 +265,7 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
   return (
     <div
       ref={cardRef}
-      className={`relative aspect-square rounded-[16px] p-3 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200
+      className={`relative aspect-square rounded-[16px] p-3 flex flex-col gap-1.5 shadow-[var(--shadow-card)] overflow-hidden transition-all duration-200
         ${isOffline ? 'opacity-70' : ''}
         ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer'}
         }`}

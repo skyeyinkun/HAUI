@@ -241,7 +241,7 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
             <button
               type="button"
               className="w-6 h-6 rounded-[8px] flex items-center justify-center shadow-[0px_0px_12px_0px_rgba(0,0,0,0.08)] cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
-              style={{ backgroundImage: 'linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)' }}
+              style={{ backgroundImage: 'var(--gradient-icon-dark)' }}
               title="点击更换图标"
             >
               <MainIcon className="w-3.5 h-3.5 text-white" />

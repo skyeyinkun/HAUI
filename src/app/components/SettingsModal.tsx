@@ -536,7 +536,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className={`w-full text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed ${isSaved ? 'bg-green-500 hover:bg-green-600' : 'bg-[#040415] hover:opacity-90'}`}
+            className={`w-full text-white py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed ${isSaved ? 'bg-green-500 hover:bg-green-600' : 'bg-text-heading hover:opacity-90'}`}
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
             {isSaving ? '保存中...' : isSaved ? '保存成功' : '保存配置'}

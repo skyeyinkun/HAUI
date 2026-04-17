@@ -46,7 +46,7 @@ export function SensorTimestamp({
           {/* 呼吸动画光环 - 使用统一的绿色 */}
           {isFresh && !isOffline && (
             <motion.span
-              className="absolute inline-flex h-2 w-2 rounded-full bg-[#65cf58]"
+              className="absolute inline-flex h-2 w-2 rounded-full bg-status-online"
               animate={{
                 scale: [1, 2.5],
                 opacity: [0.6, 0],

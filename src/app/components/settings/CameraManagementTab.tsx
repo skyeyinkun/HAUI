@@ -196,7 +196,7 @@ export function CameraManagementTab({ cameras, onUpdateCameras }: CameraManageme
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <Camera className="w-8 h-8 text-gray-200" />
               </div>
-              <h3 className="text-[16px] font-bold text-[#040415]">暂无摄像头</h3>
+              <h3 className="text-[16px] font-bold text-text-heading">暂无摄像头</h3>
               <p className="text-[13px] text-gray-400 mt-1.5 max-w-[240px] mx-auto leading-relaxed">
                 点击上方“添加摄像头”开始配置您的全屋智能监控
               </p>

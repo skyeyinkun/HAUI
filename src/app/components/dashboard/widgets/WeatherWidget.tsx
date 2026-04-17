@@ -45,7 +45,7 @@ export function WeatherWidget({
         <div className="flex items-center gap-2">
           <div
             className="w-6 h-6 rounded-[8px] flex items-center justify-center shadow-[0px_0px_12px_0px_rgba(0,0,0,0.08)]"
-            style={{ backgroundImage: "linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" }}
+            style={{ backgroundImage: "var(--gradient-icon-dark)" }}
           >
             {weather ? React.createElement(getWeatherIcon(weather.weatherCode), { className: "w-3 h-3 text-white" }) : <Cloud className="w-3 h-3 text-white" />}
           </div>

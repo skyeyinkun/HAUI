@@ -47,7 +47,7 @@ export interface DeviceCardHeaderProps {
 
 export function StatusDot({ isOn }: { isOn: boolean }) {
   return (
-    <div className={`w-2.5 h-2.5 rounded-full ${isOn ? 'bg-[#65cf58]' : 'bg-black/10 dark:bg-white/10'}`} />
+    <div className={`w-2.5 h-2.5 rounded-full ${isOn ? 'bg-status-online' : 'bg-black/10 dark:bg-white/10'}`} />
   );
 }
 
@@ -158,7 +158,7 @@ export function DynamicCurtainIcon({ position = 0, color }: { position?: number;
 
 export function DeviceIcon({ icon, isOn, value }: { icon: string; isOn: boolean; type: string; value?: number }) {
   // 开启：绿色，关闭：白色（深色背景下统一白色）
-  const iconColor = isOn ? "#65cf58" : "white";
+  const iconColor = isOn ? "var(--status-online)" : "white";
 
   return (
     <div

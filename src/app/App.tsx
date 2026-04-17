@@ -1072,7 +1072,7 @@ function App() {
           />
 
           {/* Scene & Room Tabs */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6 animate-fade-in-up">
             <ScrollIndicator className="flex-1">
               <div className="flex gap-2 pb-2 items-center">
                 {/* Scenes */}
@@ -1095,10 +1095,10 @@ function App() {
                     onClick={() => toggleScene(scene.id)}
                     disabled={sceneCooldown}
                     className={`
-                        relative flex items-center gap-1.5 px-3 py-2 rounded-[14px] transition-all shrink-0 border
+                        relative flex items-center gap-1.5 px-3 py-2 rounded-[14px] transition-all duration-200 shrink-0 border
                         ${scene.isActive
                         ? "bg-primary text-primary-foreground border-transparent shadow-md"
-                        : "bg-white dark:bg-card border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"}
+                        : "bg-card border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"}
                       `}
                   >
                     <Icon className={`w-4 h-4 ${scene.isActive ? 'animate-pulse' : ''}`} />
@@ -1113,11 +1113,11 @@ function App() {
               {/* Common Room */}
               <button
                 onClick={() => setSelectedRoom('常用')}
-                className={`px-5 py-2 rounded-[14px] font-['SF_Pro_Display',sans-serif] text-[14px] transition-all whitespace-nowrap ${selectedRoom === '常用'
-                  ? "shadow-[0px_0px_24px_0px_rgba(0,0,0,0.12)] text-white font-semibold"
-                  : "bg-white text-[rgba(4,4,21,0.6)]"
+                className={`px-5 py-2 rounded-[14px] font-['SF_Pro_Display',sans-serif] text-[14px] transition-all duration-200 whitespace-nowrap ${selectedRoom === '常用'
+                  ? "shadow-[var(--shadow-card-hover)] text-primary-foreground font-semibold"
+                  : "bg-card text-text-secondary hover:bg-accent/60"
                   }`}
-                style={selectedRoom === '常用' ? { backgroundImage: "linear-gradient(163.817deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" } : {}}
+                style={selectedRoom === '常用' ? { backgroundImage: "var(--gradient-tab-active)" } : {}}
               >
                 常用
               </button>
@@ -1126,11 +1126,11 @@ function App() {
                 <button
                   key={room.id}
                   onClick={() => setSelectedRoom(room.name)}
-                  className={`px-5 py-2 rounded-[14px] font-['SF_Pro_Display',sans-serif] text-[14px] transition-all whitespace-nowrap ${selectedRoom === room.name
-                    ? "shadow-[0px_0px_24px_0px_rgba(0,0,0,0.12)] text-white font-semibold"
-                    : "bg-white text-[rgba(4,4,21,0.6)]"
+                  className={`px-5 py-2 rounded-[14px] font-['SF_Pro_Display',sans-serif] text-[14px] transition-all duration-200 whitespace-nowrap ${selectedRoom === room.name
+                    ? "shadow-[var(--shadow-card-hover)] text-primary-foreground font-semibold"
+                    : "bg-card text-text-secondary hover:bg-accent/60"
                     }`}
-                  style={selectedRoom === room.name ? { backgroundImage: "linear-gradient(163.817deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" } : {}}
+                  style={selectedRoom === room.name ? { backgroundImage: "var(--gradient-tab-active)" } : {}}
                 >
                   {room.name}
                 </button>
@@ -1143,7 +1143,7 @@ function App() {
                 <button
                   onClick={() => setIsEditingCommon(!isEditingCommon)}
                   className={`px-4 py-2 rounded-[14px] text-[14px] font-medium transition-all ${isEditingCommon
-                    ? "bg-red-50 text-red-500 ring-1 ring-red-200"
+                    ? "bg-destructive/10 text-destructive ring-1 ring-destructive/20"
                     : "bg-accent text-muted-foreground hover:bg-accent/80"
                     }`}
                 >
@@ -1176,7 +1176,7 @@ function App() {
           </div>
 
           {/* Devices Grid - Optimized for larger cards (125% size) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 pb-24">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 pb-24 animate-fade-in-up">
             {filteredDevices.map((device) => (
               <CardErrorBoundary key={device.id}>
                 <DeviceCard

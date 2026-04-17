@@ -46,7 +46,7 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4 md:gap-0">
             <div className="flex flex-col gap-0.5">
                 <div className="flex items-baseline gap-4">
-                    <div className="flex items-baseline gap-2 text-[rgba(4,4,21,0.6)]">
+                    <div className="flex items-baseline gap-2 text-text-secondary">
                         <span className="font-['SF_Pro_Display',sans-serif] text-[13px] font-medium">{formattedDate}</span>
                         <span className="font-['SF_Pro_Display',sans-serif] text-[13px] font-medium">{formattedTime}</span>
                     </div>
@@ -54,15 +54,15 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
                 <div className="flex flex-col">
                     {weather && weather.forecast && weather.forecast.length > 1 ? (
                         <>
-                            <h1 className="font-['SF_Pro_Display',sans-serif] text-[22px] md:text-[28px] text-[#040415] tracking-[0.364px] leading-tight">
+                            <h1 className="font-['SF_Pro_Display',sans-serif] text-[22px] md:text-[28px] text-text-heading tracking-[0.364px] leading-tight">
                                 明天{weather.forecast[1].description}，{weather.forecast[1].minTemp}°C - {weather.forecast[1].maxTemp}°C
                             </h1>
-                            <div className="text-[14px] text-[rgba(4,4,21,0.6)] mt-0.5 font-normal">
+                            <div className="text-[14px] text-text-secondary mt-0.5 font-normal">
                                 今天{weather.description}，<span className="font-light">气温{weather.temperature}°C</span>
                             </div>
                         </>
                     ) : (
-                        <h1 className="font-['SF_Pro_Display',sans-serif] text-[22px] md:text-[28px] text-[#040415] tracking-[0.364px]">
+                        <h1 className="font-['SF_Pro_Display',sans-serif] text-[22px] md:text-[28px] text-text-heading tracking-[0.364px]">
                             今天天气晴朗，<span className="font-light">气温适宜</span>
                         </h1>
                     )}
@@ -77,10 +77,10 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
                             <div key={index} className="relative group cursor-pointer flex flex-col items-center" title={haConfig.personMappings[user.name] || 'Not Configured'}>
                                 {/* 在线状态呼吸动画光环 */}
                                 {user.online && (
-                                    <div className="absolute inset-0 rounded-full animate-sensor-pulse ring-2 ring-[#65cf58]/50" />
+                                    <div className="absolute inset-0 rounded-full animate-sensor-pulse ring-2 ring-status-online/50" />
                                 )}
-                                <div className={`relative rounded-full shadow-[0px_0px_20px_0px_rgba(0,0,0,0.12)] w-[48px] h-[48px] ring-2 transition-transform duration-300 group-hover:scale-105 group-hover:z-10 ${user.online ? 'ring-[#65cf58]' : 'ring-white'}`}>
-                                    <div className="absolute inset-0 rounded-full" style={{ backgroundImage: "linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" }} />
+                                <div className={`relative rounded-full shadow-[var(--shadow-card)] w-[48px] h-[48px] ring-2 transition-transform duration-300 group-hover:scale-105 group-hover:z-10 ${user.online ? 'ring-status-online' : 'ring-border dark:ring-accent'}`}>
+                                    <div className="absolute inset-0 rounded-full" style={{ backgroundImage: "var(--gradient-icon-dark)" }} />
                                     <img alt={user.name} className="absolute inset-0 w-full h-full object-cover rounded-full" src={user.avatar} />
                                 </div>
                                 <span className="text-[12px] font-medium mt-1 text-foreground/80 bg-background/50 backdrop-blur-sm px-2 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-6 whitespace-nowrap z-20 pointer-events-none">{user.name}</span>

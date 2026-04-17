@@ -2,7 +2,7 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
+  --background: #f8f9fb;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
@@ -18,7 +18,7 @@
   --accent-foreground: #030213;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: rgba(0, 0, 0, 0.08);
   --input: transparent;
   --input-background: #f3f3f5;
   --switch-background: #cbced4;
@@ -39,30 +39,61 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* ===== 视觉增强令牌 ===== */
+  /* 语义色彩 */
+  --success: #10b981;
+  --success-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --info: #3b82f6;
+  --info-foreground: #ffffff;
+
+  /* 文本层级色彩（取代硬编码色值） */
+  --text-heading: #040415;
+  --text-secondary: rgba(4, 4, 21, 0.55);
+  --text-tertiary: rgba(4, 4, 21, 0.38);
+
+  /* 阴影体系 */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* 毛玻璃效果 */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.5);
+
+  /* 渐变 */
+  --gradient-tab-active: linear-gradient(163deg, rgb(50, 50, 56) 1%, rgb(38, 38, 42) 100%);
+  --gradient-icon-dark: linear-gradient(140deg, rgb(55, 55, 60) 1%, rgb(40, 40, 44) 100%);
+
+  /* 状态指示器 */
+  --status-online: #10b981;
+  --status-offline: #94a3b8;
 }
 
 .dark {
-  /* 深色模式优化：降低纯黑白对比度，减少眼睛疲劳 */
-  /* 参考 WCAG AA 标准，确保对比度 >= 4.5:1 */
-  --background: oklch(0.12 0 0);      /* 从 0.145 略微调深，区分度更好 */
-  --foreground: oklch(0.95 0 0);      /* 从 0.985 降低，避免刺眼 */
-  --card: oklch(0.17 0 0);           /* 提升卡片与背景区分度 */
-  --card-foreground: oklch(0.92 0 0); /* 降低对比度 */
-  --popover: oklch(0.17 0 0);
+  /* 深色模式：微蓝色调代替纯灰，增加视觉层次 */
+  --background: oklch(0.13 0.008 270);
+  --foreground: oklch(0.93 0 0);
+  --card: oklch(0.175 0.006 270);
+  --card-foreground: oklch(0.92 0 0);
+  --popover: oklch(0.18 0.006 270);
   --popover-foreground: oklch(0.92 0 0);
-  --primary: #a78bfa;                  /* 改用柔和的紫色，不过于刺眼 */
+  --primary: #a78bfa;
   --primary-foreground: oklch(0.15 0 0);
-  --secondary: oklch(0.25 0 0);
+  --secondary: oklch(0.24 0.006 270);
   --secondary-foreground: oklch(0.92 0 0);
-  --muted: oklch(0.22 0 0);           /* 提升 muted 区域可见度 */
-  --muted-foreground: oklch(0.65 0 0); /* 从 0.708 提升，确保 >= 4.5:1 */
-  --accent: oklch(0.28 0 0);
+  --muted: oklch(0.22 0.006 270);
+  --muted-foreground: oklch(0.62 0 0);
+  --accent: oklch(0.26 0.006 270);
   --accent-foreground: oklch(0.95 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.3 0 0);            /* 提升边框可见度 */
-  --input: oklch(0.25 0 0);
-  --ring: oklch(0.5 0 0);              /* 调亮 focus ring */
+  --border: oklch(0.28 0.006 270);
+  --input: oklch(0.24 0.006 270);
+  --ring: oklch(0.5 0.05 270);
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --chart-1: oklch(0.488 0.243 264.376);
@@ -70,14 +101,37 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.18 0 0);
+  --sidebar: oklch(0.16 0.006 270);
   --sidebar-foreground: oklch(0.92 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.25 0 0);
+  --sidebar-accent: oklch(0.24 0.006 270);
   --sidebar-accent-foreground: oklch(0.92 0 0);
-  --sidebar-border: oklch(0.3 0 0);
+  --sidebar-border: oklch(0.28 0.006 270);
   --sidebar-ring: oklch(0.5 0 0);
+
+  /* 暗色模式视觉增强令牌 */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #60a5fa;
+
+  --text-heading: oklch(0.95 0 0);
+  --text-secondary: oklch(0.65 0 0);
+  --text-tertiary: oklch(0.5 0 0);
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.18);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+
+  --glass-bg: rgba(30, 30, 40, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.08);
+
+  --gradient-tab-active: linear-gradient(163deg, #a78bfa 1%, #7c3aed 100%);
+  --gradient-icon-dark: linear-gradient(140deg, oklch(0.3 0.01 270) 1%, oklch(0.22 0.01 270) 100%);
+
+  --status-online: #34d399;
+  --status-offline: #64748b;
 }
 
 @theme inline {
@@ -119,6 +173,20 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* 新增语义色彩令牌 */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  /* 文本层级色彩令牌 */
+  --color-text-heading: var(--text-heading);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+
+  /* 状态色 */
+  --color-status-online: var(--status-online);
+  --color-status-offline: var(--status-offline);
 }
 
 @layer base {

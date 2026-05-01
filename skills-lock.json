@@ -1,0 +1,72 @@
+{
+  "version": 2,
+  "skills": {
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "computedHash": "4cfe5e95a230616c17d92b44e3cd37bae543ce087a7756a446a62f77d7c58a37",
+      "scope": "project",
+      "description": "UI/UX 设计智能，67 种风格、161 种调色板、57 种字体搭配"
+    },
+    "react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "React 和 Next.js 性能优化指南，40+ 规则覆盖 8 大类别"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "Web 界面最佳实践审查，100+ 规则覆盖可访问性、性能、UX"
+    },
+    "composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "React 组合模式，复合组件、状态提升、内部组合"
+    },
+    "react-19": {
+      "source": "Gentleman-Programming/Gentleman-Skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "React 19 模式与 React Compiler 最佳实践"
+    },
+    "typescript-gp": {
+      "source": "Gentleman-Programming/Gentleman-Skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "TypeScript 严格模式模式，类型安全、泛型、工具类型"
+    },
+    "tailwind-4": {
+      "source": "Gentleman-Programming/Gentleman-Skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "Tailwind CSS 4 模式，CSS-first 配置、容器查询"
+    },
+    "zustand-5": {
+      "source": "Gentleman-Programming/Gentleman-Skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "Zustand 5 状态管理模式，持久化、中间件"
+    },
+    "zod-4": {
+      "source": "Gentleman-Programming/Gentleman-Skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "Zod 4 模式验证，类型推断、错误处理"
+    },
+    "playwright-gp": {
+      "source": "Gentleman-Programming/Gentleman-Skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "Playwright E2E 测试模式，跨浏览器测试"
+    },
+    "frontend-design-review": {
+      "source": "microsoft/skills",
+      "sourceType": "github",
+      "scope": "global",
+      "description": "前端设计审查，设计系统合规性、可访问性审计"
+    }
+  }
+}

@@ -1,5 +1,8 @@
 import { getApiUrl } from '@/utils/sync';
 
+const AGENT_API_PREFIX = '/ha-api';
+const REQUEST_TIMEOUT_MS = 10000;
+
 export interface AgentModelProfile {
   label: string;
   base_url: string;
@@ -119,23 +122,57 @@ export interface AgentChatMessage {
   content: string;
 }
 
-async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(getApiUrl(endpoint), {
-    credentials: 'include',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
-  const payload = await response.json().catch(() => null) as unknown;
-  if (!response.ok) {
-    const message = payload && typeof payload === 'object' && 'error' in payload
-      ? String((payload as { error?: unknown }).error)
-      : `请求失败 (${response.status})`;
-    throw new Error(message);
+function getAgentApiUrl(endpoint: string): string {
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return getApiUrl(`${AGENT_API_PREFIX}${cleanEndpoint}`);
+}
+
+function getPayloadError(payload: unknown): string | null {
+  if (payload && typeof payload === 'object' && 'error' in payload) {
+    return String((payload as { error?: unknown }).error);
   }
-  return payload as T;
+  return null;
+}
+
+async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(getAgentApiUrl(endpoint), {
+      credentials: 'include',
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+    const text = await response.text();
+    let payload: unknown = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        const snippet = text.replace(/\s+/g, ' ').slice(0, 80);
+        throw new Error(`Agent API 返回了非 JSON 内容：${snippet || response.status}`);
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(getPayloadError(payload) || `Agent API 请求失败 (${response.status})`);
+    }
+    if (payload === null || typeof payload !== 'object') {
+      throw new Error('Agent API 返回内容为空或格式不正确');
+    }
+    return payload as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Agent API 请求超时，请确认 HAUI 自定义集成已加载');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 export const agentKernelApi = {

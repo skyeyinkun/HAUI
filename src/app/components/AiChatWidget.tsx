@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import {
     Bot, X, Settings, Loader2, Sparkles, User as UserIcon,
-    Eraser, PanelRight, PinOff, Mic, Volume2, Keyboard, ArrowUp, VolumeX, Pause, Play, Wrench
+    Eraser, PanelRight, PinOff, Mic, Volume2, Keyboard, ArrowUp, VolumeX, Pause, Play, BrainCircuit
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo, useDragControls, Variants } from 'motion/react';
 import { useAiChat, Message } from '@/hooks/useAiChat';
@@ -680,7 +680,7 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
     // 侧边栏/浮窗样式
     const modalClass = viewMode === 'sidebar'
         ? 'fixed top-0 right-0 h-full w-full md:w-[48%] lg:w-[38%] xl:w-[34%] rounded-none border-l border-gray-200'
-        : 'fixed bottom-24 right-6 w-[calc(100vw-48px)] max-w-[520px] h-[720px] max-h-[84vh] rounded-[24px] shadow-2xl';
+        : 'fixed bottom-24 right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[380px] max-w-[380px] h-[650px] max-h-[80vh] rounded-[24px] shadow-2xl';
 
     // 未展开时显示触发按钮
     if (!isVisible) {
@@ -849,7 +849,7 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
                                     <Settings className="w-4 h-4" />
                                 </button>
                                 <button onClick={() => setView('agent')} className="p-1.5 hover:bg-gray-100 hover:text-[#334155] rounded-full transition-colors" title="Agent 控制台">
-                                    <Wrench className="w-4 h-4" />
+                                    <BrainCircuit className="w-4 h-4" />
                                 </button>
                                 <VoiceMenu
                                     isTtsSupported={isTtsSupported}

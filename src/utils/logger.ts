@@ -15,9 +15,13 @@ const enum LogLevel {
 const getLogLevel = (): LogLevel => {
   if (typeof window === 'undefined') return LogLevel.WARN;
   
-  // 检查 localStorage 中的调试开关
-  const debugEnabled = localStorage.getItem('haui_debug') === '1';
-  if (debugEnabled) return LogLevel.DEBUG;
+  // 检查 localStorage 中的调试开关；部分 WebView/测试环境可能禁用或替换 storage。
+  try {
+    const debugEnabled = window.localStorage?.getItem?.('haui_debug') === '1';
+    if (debugEnabled) return LogLevel.DEBUG;
+  } catch {
+    // 忽略 storage 访问失败，继续使用环境默认级别。
+  }
   
   // 生产环境默认只显示警告和错误
   if (import.meta.env.PROD) return LogLevel.WARN;

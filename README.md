@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.1.7-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/version-5.2.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/React-18-61DAFB.svg?logo=react" alt="React 18">
   <img src="https://img.shields.io/badge/Vite-6-646CFF.svg?logo=vite" alt="Vite">
   <img src="https://img.shields.io/badge/Tailwind-4-06B6D4.svg?logo=tailwindcss" alt="Tailwind CSS">

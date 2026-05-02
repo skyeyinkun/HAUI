@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import {
   ArrowLeft,
-  Bot,
+  BrainCircuit,
   Check,
   CircleAlert,
   Clock3,
@@ -96,6 +96,10 @@ function createUiId(prefix: string) {
     return crypto.randomUUID();
   }
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getErrorText(reason: unknown) {
+  return reason instanceof Error ? reason.message : String(reason || 'Agent 控制台加载失败');
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -265,49 +269,54 @@ export default function AgentConsole({ onClose, onDragStart }: AgentConsoleProps
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [
-      statusResult,
-      configResult,
-      toolsResult,
-      proposalsResult,
-      workspaceResult,
-      memoryResult,
-      heartbeatResult,
-      auditResult,
-    ] = await Promise.allSettled([
-      agentKernelApi.status(),
-      agentKernelApi.config(),
-      agentKernelApi.tools(),
-      agentKernelApi.proposals(),
-      agentKernelApi.workspace(),
-      agentKernelApi.memory(),
-      agentKernelApi.heartbeats(),
-      agentKernelApi.audit(),
-    ]);
+    try {
+      const [
+        statusResult,
+        configResult,
+        toolsResult,
+        proposalsResult,
+        workspaceResult,
+        memoryResult,
+        heartbeatResult,
+        auditResult,
+      ] = await Promise.allSettled([
+        agentKernelApi.status(),
+        agentKernelApi.config(),
+        agentKernelApi.tools(),
+        agentKernelApi.proposals(),
+        agentKernelApi.workspace(),
+        agentKernelApi.memory(),
+        agentKernelApi.heartbeats(),
+        agentKernelApi.audit(),
+      ]);
 
-    if (statusResult.status === 'fulfilled') setStatus(statusResult.value);
-    if (configResult.status === 'fulfilled') setConfig(configResult.value);
-    if (toolsResult.status === 'fulfilled') setTools(toolsResult.value.tools);
-    if (proposalsResult.status === 'fulfilled') setProposals(proposalsResult.value.proposals);
-    if (workspaceResult.status === 'fulfilled') setWorkspaceDocs(workspaceResult.value.documents);
-    if (memoryResult.status === 'fulfilled') setMemory(memoryResult.value.entries);
-    if (heartbeatResult.status === 'fulfilled') setHeartbeats(heartbeatResult.value.heartbeats);
-    if (auditResult.status === 'fulfilled') setAudit(auditResult.value.entries);
+      if (statusResult.status === 'fulfilled') setStatus(statusResult.value);
+      if (configResult.status === 'fulfilled') setConfig(configResult.value);
+      if (toolsResult.status === 'fulfilled') setTools(toolsResult.value.tools || []);
+      if (proposalsResult.status === 'fulfilled') setProposals(proposalsResult.value.proposals || []);
+      if (workspaceResult.status === 'fulfilled') setWorkspaceDocs(workspaceResult.value.documents || []);
+      if (memoryResult.status === 'fulfilled') setMemory(memoryResult.value.entries || []);
+      if (heartbeatResult.status === 'fulfilled') setHeartbeats(heartbeatResult.value.heartbeats || []);
+      if (auditResult.status === 'fulfilled') setAudit(auditResult.value.entries || []);
 
-    const rejected = [
-      statusResult,
-      configResult,
-      toolsResult,
-      proposalsResult,
-      workspaceResult,
-      memoryResult,
-      heartbeatResult,
-      auditResult,
-    ].find((result) => result.status === 'rejected');
-    if (rejected?.status === 'rejected') {
-      setError(rejected.reason instanceof Error ? rejected.reason.message : 'Agent 控制台加载失败');
+      const rejected = [
+        statusResult,
+        configResult,
+        toolsResult,
+        proposalsResult,
+        workspaceResult,
+        memoryResult,
+        heartbeatResult,
+        auditResult,
+      ].find((result) => result.status === 'rejected');
+      if (rejected?.status === 'rejected') {
+        setError(getErrorText(rejected.reason));
+      }
+    } catch (err) {
+      setError(getErrorText(err));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -551,7 +560,14 @@ export default function AgentConsole({ onClose, onDragStart }: AgentConsoleProps
 
   const renderConfig = () => (
     <div className="space-y-3 p-4">
-      {config && (
+      {!config ? (
+        <PanelState
+          loading={loading}
+          title="模型配置不可用"
+          text={error || '正在读取 Agent 模型配置，请确认 HAUI 自定义集成已加载。'}
+          onRetry={loadAll}
+        />
+      ) : (
         <>
           <ProfileEditor
             title="Primary AI"
@@ -664,6 +680,9 @@ export default function AgentConsole({ onClose, onDragStart }: AgentConsoleProps
               {doc.name}
             </button>
           ))}
+          {workspaceDocs.length === 0 && (
+            <p className="px-2 py-6 text-center text-xs text-gray-400">暂无文档</p>
+          )}
         </div>
       </div>
       <div className="flex min-h-0 flex-col p-3">
@@ -847,7 +866,7 @@ export default function AgentConsole({ onClose, onDragStart }: AgentConsoleProps
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#334155] text-white">
-            <Bot className="h-4 w-4" />
+            <BrainCircuit className="h-4 w-4" />
           </div>
           <div className="min-w-0">
             <h2 className="truncate text-[15px] font-semibold leading-tight">Agent 控制台</h2>
@@ -918,6 +937,34 @@ function EmptyState({ text }: { text: string }) {
   return (
     <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white text-sm text-gray-400">
       {text}
+    </div>
+  );
+}
+
+function PanelState({
+  loading,
+  title,
+  text,
+  onRetry,
+}: {
+  loading: boolean;
+  title: string;
+  text: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white p-5 text-center">
+      {loading ? <Loader2 className="mb-3 h-5 w-5 animate-spin text-[#334155]" /> : <CircleAlert className="mb-3 h-5 w-5 text-amber-500" />}
+      <h3 className="text-sm font-semibold text-[#1E293B]">{loading ? '正在加载' : title}</h3>
+      <p className="mt-1 max-w-[280px] text-xs leading-relaxed text-gray-500">{text}</p>
+      {!loading && (
+        <button
+          onClick={onRetry}
+          className="mt-4 rounded-md bg-[#334155] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+        >
+          重新加载
+        </button>
+      )}
     </div>
   );
 }

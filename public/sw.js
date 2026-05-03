@@ -1,4 +1,5 @@
-const CACHE_NAME = 'haui-shell-v1';
+const APP_VERSION = '5.4.0';
+const CACHE_NAME = `haui-shell-${APP_VERSION}`;
 const SHELL_URLS = ['/', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -21,6 +22,15 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ha-api/')) return;
+
+  if (url.pathname === '/' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/sw.js')) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => response)
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/'))),
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(request)

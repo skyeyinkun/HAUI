@@ -862,13 +862,23 @@ app.post('/api/ai/chat', requireProFeature('ai'), async (req, res) => {
 });
 
 // 静态文件服务（React 打包产物）
+// index.html / sw.js / manifest 必须尽快更新，否则 HA Ingress iframe
+// 可能继续加载旧版本前端；带 hash 的 assets 才允许长期缓存。
 app.use(express.static(path.join(__dirname, 'dist'), {
-    maxAge: '1d',
     etag: true,
+    setHeaders: (res, filePath) => {
+        const normalizedPath = filePath.replace(/\\/g, '/');
+        if (normalizedPath.includes('/assets/')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            return;
+        }
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    },
 }));
 
 // React Router fallback：对未知路径返回 index.html
 app.use((_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

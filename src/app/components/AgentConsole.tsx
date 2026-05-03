@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import {
   agentKernelApi,
+  setAgentKernelAuthToken,
   AgentConfigPayload,
   AgentModelProfile,
   AgentProposal,
@@ -40,6 +41,7 @@ type AgentTab = 'chat' | 'config' | 'proposals' | 'workspace' | 'memory' | 'hear
 interface AgentConsoleProps {
   onClose: () => void;
   onDragStart?: (event: React.PointerEvent) => void;
+  haToken?: string;
 }
 
 interface UiChatMessage {
@@ -229,7 +231,7 @@ function ProfileEditor({
   );
 }
 
-export default function AgentConsole({ onClose, onDragStart }: AgentConsoleProps) {
+export default function AgentConsole({ onClose, onDragStart, haToken }: AgentConsoleProps) {
   const [activeTab, setActiveTab] = useState<AgentTab>('chat');
   const [status, setStatus] = useState<AgentStatus | null>(null);
   const [config, setConfig] = useState<AgentConfigPayload | null>(null);
@@ -265,6 +267,10 @@ export default function AgentConsole({ onClose, onDragStart }: AgentConsoleProps
 
   const pendingCount = useMemo(() => proposals.filter((proposal) => proposal.status === 'pending').length, [proposals]);
   const implementedToolCount = useMemo(() => tools.filter((tool) => tool.implemented).length, [tools]);
+
+  useEffect(() => {
+    setAgentKernelAuthToken(haToken);
+  }, [haToken]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);

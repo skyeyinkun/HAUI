@@ -1081,7 +1081,7 @@ function App() {
       </div>
 
       <Suspense fallback={null}>
-        <AiChatWidget entities={entities} callService={callService} isHaConnected={isConnected} />
+        <AiChatWidget entities={entities} callService={callService} isHaConnected={isConnected} haToken={haConfig.token} />
       </Suspense>
       <Toaster />
 

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { agentKernelApi } from '@/services/agent-kernel-api';
+import { agentKernelApi, setAgentKernelAuthToken } from '@/services/agent-kernel-api';
 
 describe('agentKernelApi', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    setAgentKernelAuthToken('');
   });
 
   it('routes agent requests through the Home Assistant proxy', async () => {
@@ -45,5 +46,32 @@ describe('agentKernelApi', () => {
     );
 
     await expect(agentKernelApi.config()).rejects.toThrow('非 JSON');
+  });
+
+  it('forwards the Home Assistant token to the proxy when configured', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({
+        primary: { label: 'Primary AI', base_url: '', api_key: '', model: '', enabled: true, timeout: 45 },
+        backup: null,
+        summary: null,
+        summary_enabled: false,
+        max_turn_steps: 6,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    setAgentKernelAuthToken('  test-agent-token  ');
+    await agentKernelApi.config();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/ha-api/api/yinkun_ui/agent/config'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-agent-token',
+        }),
+      }),
+    );
   });
 });

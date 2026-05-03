@@ -20,6 +20,13 @@ const entities: any = {
     last_changed: '2026-04-30T00:00:00.000Z',
     last_updated: '2026-04-30T00:00:00.000Z',
   },
+  'light.shu_fang_deng_dai': {
+    entity_id: 'light.shu_fang_deng_dai',
+    state: 'on',
+    attributes: { friendly_name: '书房灯带' },
+    last_changed: '2026-04-30T00:00:00.000Z',
+    last_updated: '2026-04-30T00:00:00.000Z',
+  },
 };
 
 describe('ai quick control', () => {
@@ -46,6 +53,40 @@ describe('ai quick control', () => {
     expect(plan.pendingMessage).toBe('正在打开书房主灯...');
     expect(args.domain).toBe('switch');
     expect(args.service_data.entity_id).toBe('switch.wall_switch_4');
+  });
+
+  it('controls a precise light strip name without being confused by another study light', () => {
+    const plan = createQuickControlPlan('关闭书房灯带', entities, true, true);
+
+    expect(plan?.kind).toBe('execute');
+    if (plan?.kind !== 'execute') return;
+
+    const args = JSON.parse(plan.toolCall.function.arguments);
+    expect(plan.pendingMessage).toBe('正在关闭书房灯带...');
+    expect(args.domain).toBe('light');
+    expect(args.service).toBe('turn_off');
+    expect(args.service_data.entity_id).toBe('light.shu_fang_deng_dai');
+  });
+
+  it('prefers the real light entity when duplicate display names include a helper switch', () => {
+    const duplicateEntities = {
+      ...entities,
+      'switch.shu_fang_deng_dai': {
+        entity_id: 'switch.shu_fang_deng_dai',
+        state: 'on',
+        attributes: { friendly_name: '书房灯带' },
+        last_changed: '2026-04-30T00:00:00.000Z',
+        last_updated: '2026-04-30T00:00:00.000Z',
+      },
+    };
+    const plan = createQuickControlPlan('关闭书房灯带', duplicateEntities, true, true);
+
+    expect(plan?.kind).toBe('execute');
+    if (plan?.kind !== 'execute') return;
+
+    const args = JSON.parse(plan.toolCall.function.arguments);
+    expect(args.domain).toBe('light');
+    expect(args.service_data.entity_id).toBe('light.shu_fang_deng_dai');
   });
 
   it('returns a concise failure when Home Assistant is not connected', () => {

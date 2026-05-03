@@ -1,3 +1,4 @@
+import { sanitizeToken } from '@/utils/ha-connection';
 import { getApiUrl } from '@/utils/sync';
 
 const AGENT_API_PREFIX = '/ha-api';
@@ -122,6 +123,12 @@ export interface AgentChatMessage {
   content: string;
 }
 
+let agentAuthToken = '';
+
+export function setAgentKernelAuthToken(token?: string | null): void {
+  agentAuthToken = sanitizeToken(token);
+}
+
 function getAgentApiUrl(endpoint: string): string {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   return getApiUrl(`${AGENT_API_PREFIX}${cleanEndpoint}`);
@@ -137,15 +144,18 @@ function getPayloadError(payload: unknown): string | null {
 async function requestJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(agentAuthToken ? { Authorization: `Bearer ${agentAuthToken}` } : {}),
+    ...(options.headers || {}),
+  };
+
   try {
     const response = await fetch(getAgentApiUrl(endpoint), {
       credentials: 'include',
       ...options,
       signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers || {}),
-      },
+      headers,
     });
     const text = await response.text();
     let payload: unknown = null;

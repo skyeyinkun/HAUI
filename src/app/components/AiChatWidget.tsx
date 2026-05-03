@@ -377,6 +377,7 @@ interface AiChatWidgetProps {
     entities: HassEntities;
     callService?: AiCallService;
     isHaConnected?: boolean;
+    haToken?: string;
 }
 
 type ViewMode = 'floating' | 'sidebar' | 'minimized';
@@ -520,7 +521,7 @@ function VoiceMenu({
     );
 }
 
-export default function AiChatWidget({ entities, callService, isHaConnected = false }: AiChatWidgetProps) {
+export default function AiChatWidget({ entities, callService, isHaConnected = false, haToken }: AiChatWidgetProps) {
     // UI 状态
     const [viewMode, setViewMode] = useState<ViewMode>('floating');
     const [isVisible, setIsVisible] = useState(false);
@@ -928,6 +929,7 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
                             <AgentConsole
                                 onClose={() => setView('chat')}
                                 onDragStart={(e) => { if (viewMode === 'floating') dragControls.start(e); }}
+                                haToken={haToken}
                             />
                         )}
                         </div>

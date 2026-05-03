@@ -15,6 +15,7 @@ interface EntityCandidate {
     name: string;
     domain: string;
     score: number;
+    exact: boolean;
 }
 
 export interface QuickControlExecutePlan {
@@ -139,6 +140,54 @@ function getDomainHints(targetText: string): string[] {
     return [...new Set(hints)];
 }
 
+function getDomainRank(domain: string, domainHints: string[]): number {
+    const hintedIndex = domainHints.indexOf(domain);
+    if (hintedIndex >= 0) return hintedIndex;
+    const fallbackOrder = ['light', 'switch', 'input_boolean', 'cover', 'fan', 'climate', 'humidifier', 'media_player', 'vacuum', 'scene', 'script'];
+    const fallbackIndex = fallbackOrder.indexOf(domain);
+    return fallbackIndex >= 0 ? domainHints.length + fallbackIndex : domainHints.length + fallbackOrder.length;
+}
+
+function hasExactComparableMatch(targetText: string, values: string[]): boolean {
+    const targets = getComparableVariants(targetText);
+    return values.some(value => {
+        const variants = getComparableVariants(value);
+        return variants.some(variant => targets.includes(variant));
+    });
+}
+
+function pickUniquePreferredCandidate(candidates: EntityCandidate[], domainHints: string[]): EntityCandidate | null {
+    const orderedDomains = [
+        ...domainHints,
+        'light',
+        'switch',
+        'input_boolean',
+        'cover',
+        'fan',
+        'climate',
+        'humidifier',
+        'media_player',
+        'vacuum',
+        'scene',
+        'script',
+    ];
+
+    for (const domain of [...new Set(orderedDomains)]) {
+        const matches = candidates.filter(candidate => candidate.domain === domain);
+        if (matches.length === 1) return matches[0];
+    }
+
+    return null;
+}
+
+function formatAmbiguousDeviceError(candidates: EntityCandidate[], fallbackTarget: string): string {
+    const names = [...new Set(candidates.map(candidate => candidate.name).filter(Boolean))];
+    if (names.length <= 1) {
+        return `找到多个同名设备“${names[0] || fallbackTarget}”，请在 Home Assistant 中设置不同名称或使用更具体的设备别名`;
+    }
+    return `找到多个设备，请说具体名称：${names.slice(0, 3).join('、')}`;
+}
+
 function isUnavailable(state: string): boolean {
     return state === 'unavailable' || state === 'unknown';
 }
@@ -200,8 +249,9 @@ function resolveTarget(entities: HassEntities, targetText: string): EntityCandid
             if (isUnavailable(entity.state)) return null;
 
             const name = getEntityName(entity);
+            const nameCandidates = getEntityNameCandidates(entity);
             const score = Math.max(
-                ...getEntityNameCandidates(entity).map(candidateName => scoreEntity(targetText, entity.entity_id, candidateName))
+                ...nameCandidates.map(candidateName => scoreEntity(targetText, entity.entity_id, candidateName))
             );
             if (score <= 0) return null;
 
@@ -210,23 +260,43 @@ function resolveTarget(entities: HassEntities, targetText: string): EntityCandid
                 name,
                 domain,
                 score: score + (domainHints.includes(domain) ? 30 : 0),
+                exact: hasExactComparableMatch(targetText, [
+                    ...nameCandidates,
+                    entity.entity_id,
+                    entity.entity_id.split('.')[1] || entity.entity_id,
+                ]),
             };
         })
         .filter((item): item is EntityCandidate => Boolean(item))
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => {
+            const scoreDiff = b.score - a.score;
+            if (scoreDiff !== 0) return scoreDiff;
+            const domainDiff = getDomainRank(a.domain, domainHints) - getDomainRank(b.domain, domainHints);
+            if (domainDiff !== 0) return domainDiff;
+            return a.name.localeCompare(b.name, 'zh-Hans-CN');
+        });
 
     if (candidates.length === 0) {
         return { error: `未找到“${targetText}”` };
     }
 
+    const exactMatches = candidates.filter(candidate => candidate.exact);
+    if (exactMatches.length === 1) {
+        return exactMatches[0];
+    }
+    if (exactMatches.length > 1) {
+        const preferred = pickUniquePreferredCandidate(exactMatches, domainHints);
+        if (preferred) return preferred;
+        return { error: formatAmbiguousDeviceError(exactMatches, targetText) };
+    }
+
     const best = candidates[0];
     const closeMatches = candidates.filter(candidate => best.score - candidate.score < 80);
     const normalizedTarget = normalizeComparableText(targetText);
-    const targetIsGeneric = /^(灯|主灯|开关|窗帘|风扇|空调|加湿器|电视|扫地机器人)$/.test(normalizedTarget);
+    const targetIsGeneric = /^(灯|灯带|主灯|开关|窗帘|风扇|空调|加湿器|电视|扫地机器人)$/.test(normalizedTarget);
 
     if (closeMatches.length > 1 || targetIsGeneric) {
-        const names = candidates.slice(0, 3).map(candidate => candidate.name).join('、');
-        return { error: `找到多个设备，请说具体名称：${names}` };
+        return { error: formatAmbiguousDeviceError(closeMatches, targetText) };
     }
 
     return best;

@@ -1,8 +1,8 @@
 {
   "name": "haui-dashboard",
-  "version": "5.2.1",
+  "version": "5.4.0",
   "type": "module",
-  "description": "",
+  "description": "HAUI Home Assistant Add-on backend for storage, licensing, AI proxy, camera proxy, and backup restore.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

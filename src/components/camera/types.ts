@@ -15,6 +15,9 @@ export interface CameraConfig {
     accessToken?: string; // 仅萤石云设备需要 accessToken
     go2rtcUrl?: string; // go2rtc 服务地址，如 http://192.168.1.100:1984
     streamName?: string; // go2rtc 中配置的流名称
+    entityId?: string; // 可选：Home Assistant camera/entity_id，用于测试和 PTZ 控制
+    mutedByDefault?: boolean; // 墙屏/公共空间默认静音
+    privacyMode?: boolean; // 隐私模式：默认不自动预览
 }
 
 export interface CameraDashboardState {

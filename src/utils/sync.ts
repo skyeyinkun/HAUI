@@ -42,6 +42,30 @@ export async function fetchWithTimeout(
     }
 }
 
+/**
+ * 读取后端 JSON/text 错误，避免把 {"error":"..."} 直接展示给用户。
+ */
+export async function readApiError(response: Response, fallback = '请求失败'): Promise<string> {
+    const statusText = response.status ? `${response.status}` : '';
+    const text = await response.text().catch(() => '');
+
+    if (!text) {
+        return statusText ? `${fallback}（${statusText}）` : fallback;
+    }
+
+    try {
+        const parsed = JSON.parse(text);
+        const message = parsed?.error || parsed?.message || parsed?.license?.message;
+        if (typeof message === 'string' && message.trim()) {
+            return message;
+        }
+    } catch {
+        // 非 JSON 响应继续走纯文本提示。
+    }
+
+    return text.length > 240 ? `${text.slice(0, 240)}...` : text;
+}
+
 // 防抖定时器
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 

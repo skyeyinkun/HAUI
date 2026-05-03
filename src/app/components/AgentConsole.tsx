@@ -35,6 +35,7 @@ import {
   MemoryEntry,
   WorkspaceDocMeta,
 } from '@/services/agent-kernel-api';
+import { sanitizeToken } from '@/utils/ha-connection';
 
 type AgentTab = 'chat' | 'config' | 'proposals' | 'workspace' | 'memory' | 'heartbeats' | 'tools' | 'audit';
 
@@ -264,15 +265,22 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
   const [busyId, setBusyId] = useState('');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const cleanHaToken = useMemo(() => sanitizeToken(haToken), [haToken]);
+  const hasHaToken = cleanHaToken.length > 0;
 
   const pendingCount = useMemo(() => proposals.filter((proposal) => proposal.status === 'pending').length, [proposals]);
   const implementedToolCount = useMemo(() => tools.filter((tool) => tool.implemented).length, [tools]);
 
   useEffect(() => {
-    setAgentKernelAuthToken(haToken);
-  }, [haToken]);
+    setAgentKernelAuthToken(cleanHaToken);
+  }, [cleanHaToken]);
 
   const loadAll = useCallback(async () => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -323,13 +331,21 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hasHaToken]);
 
   useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
+    if (hasHaToken) {
+      void loadAll();
+    } else {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+    }
+  }, [hasHaToken, loadAll]);
 
   const saveConfig = async () => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     if (!config) return;
     setLoading(true);
     setError('');
@@ -346,6 +362,10 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
   };
 
   const sendAgentTurn = async () => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     const text = chatInput.trim();
     if (!text || loading) return;
     const userMessage: UiChatMessage = { id: createUiId('agent-user'), role: 'user', content: text };
@@ -387,6 +407,10 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
   };
 
   const approveProposal = async (proposalId: string) => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     setBusyId(proposalId);
     setError('');
     try {
@@ -403,6 +427,10 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
   };
 
   const discardProposal = async (proposalId: string) => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     setBusyId(proposalId);
     setError('');
     try {
@@ -419,6 +447,10 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
   };
 
   const loadWorkspaceDoc = async (name: string) => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     setSelectedDoc(name);
     setError('');
     try {
@@ -431,6 +463,10 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
   };
 
   const proposeWorkspaceUpdate = async () => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     if (!selectedDoc) return;
     setLoading(true);
     setError('');
@@ -448,11 +484,19 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
   };
 
   const refreshMemory = async () => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     const result = await agentKernelApi.memory(memoryQuery.trim() || undefined);
     setMemory(result.entries);
   };
 
   const addMemory = async () => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     if (!newMemory.trim()) return;
     setLoading(true);
     setError('');
@@ -471,6 +515,10 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
   };
 
   const createHeartbeat = async () => {
+    if (!hasHaToken) {
+      setError('缺少 Home Assistant Token：请先在设置中保存有效的长期访问令牌');
+      return;
+    }
     if (!heartbeatName.trim() || !heartbeatPrompt.trim()) return;
     setLoading(true);
     setError('');
@@ -553,7 +601,7 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
           />
           <button
             onClick={() => void sendAgentTurn()}
-            disabled={loading || !chatInput.trim()}
+            disabled={loading || !hasHaToken || !chatInput.trim()}
             className="mb-0.5 rounded-lg bg-[#334155] p-2.5 text-white disabled:opacity-50"
             title="发送"
           >
@@ -620,7 +668,7 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
           </section>
           <button
             onClick={() => void saveConfig()}
-            disabled={loading}
+            disabled={loading || !hasHaToken}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#334155] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -884,6 +932,7 @@ export default function AgentConsole({ onClose, onDragStart, haToken }: AgentCon
           onPointerDown={(event) => event.stopPropagation()}
           className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-[#334155]"
           title="刷新"
+          disabled={!hasHaToken}
         >
           <RefreshCw className={classNames('h-4 w-4', loading && 'animate-spin')} />
         </button>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Cpu, Users, Camera } from 'lucide-react';
+import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Cpu, Users, Camera, ShieldCheck, FileClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { HAConfig } from '@/types/home-assistant';
 import { sanitizeToken, isValidTokenFormat } from '@/utils/ha-connection';
@@ -10,6 +10,8 @@ import { Room } from '@/types/room';
 import { RoomManagementTab } from './settings/RoomManagementTab';
 import { DeviceDiscoveryPanel } from './settings/DeviceDiscoveryPanel';
 import { CameraManagementTab } from './settings/CameraManagementTab';
+import { LicenseSettingsPanel } from './settings/LicenseSettingsPanel';
+import { BackupRestorePanel } from './settings/BackupRestorePanel';
 import { Scene } from '@/types/dashboard';
 import { useSettingsWindowSize } from '@/hooks/useSettingsWindowSize';
 
@@ -38,7 +40,8 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose, devices, users, scenes = [], rooms = [], onUpdateUsers, onUpdateDevices, onUpdateScenes, onUpdateRooms, onSave, initialConfig, defaultTab, isConnected = false, fetchStatesRest, areas, devicesRegistry, entitiesRegistry }: SettingsModalProps) {
   const windowSize = useSettingsWindowSize();
-  const [activeTab, setActiveTab] = useState<'connection' | 'devices' | 'users' | 'rooms' | 'cameras'>('connection');
+  type SettingsTab = 'connection' | 'devices' | 'users' | 'rooms' | 'cameras' | 'backup' | 'license';
+  const [activeTab, setActiveTab] = useState<SettingsTab>('connection');
   const [config, setConfig] = useState<HAConfig>(initialConfig);
 
   const [showToken, setShowToken] = useState(false);
@@ -88,7 +91,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
   // defaultTab 切换
   useEffect(() => {
     if (isOpen && defaultTab) {
-      const validTabs = ['connection', 'devices', 'users', 'rooms', 'cameras'];
+      const validTabs = ['connection', 'devices', 'users', 'rooms', 'cameras', 'backup', 'license'];
       if (validTabs.includes(defaultTab)) {
         setActiveTab(defaultTab as any);
       }
@@ -199,9 +202,19 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
 
   if (!isOpen) return null;
 
+  const tabs: Array<{ key: SettingsTab; label: string; group: string; icon: typeof Link }> = [
+    { key: 'connection', label: '连接配置', group: '基础', icon: Link },
+    { key: 'devices', label: '设备管理', group: '空间', icon: Cpu },
+    { key: 'rooms', label: '房间管理', group: '空间', icon: Layout },
+    { key: 'users', label: '人员管理', group: '空间', icon: Users },
+    { key: 'cameras', label: '摄像头', group: '体验', icon: Camera },
+    { key: 'backup', label: '备份恢复', group: '体验', icon: FileClock },
+    { key: 'license', label: '授权', group: '商业', icon: ShieldCheck },
+  ];
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-[24px] w-full max-w-4xl max-h-[90vh] md:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden transition-all duration-300" style={{ width: `${windowSize.width}px`, height: `${windowSize.height}px` }}>
+      <div data-haui-settings-window className="bg-white rounded-[24px] w-full max-w-4xl max-h-[90vh] md:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden transition-all duration-300" style={{ width: `${windowSize.width}px`, height: `${windowSize.height}px` }}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-lg md:text-xl font-semibold text-[#040415]">系统设置</h2>
@@ -211,57 +224,28 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100 px-4 md:px-6 overflow-x-auto scrollbar-hide flex-shrink-0 gap-2 md:gap-4">
-          <button
-            onClick={() => setActiveTab('connection')}
-            className={`py-3 md:py-4 px-2 md:px-4 font-medium text-xs md:text-sm transition-colors relative whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'connection' ? 'text-[#040415]' : 'text-gray-400'}`}
-          >
-            <Link className="w-3.5 h-3.5" />
-            连接配置
-            {activeTab === 'connection' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#040415]" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('devices')}
-            className={`py-3 md:py-4 px-2 md:px-4 font-medium text-xs md:text-sm transition-colors relative whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'devices' ? 'text-[#040415]' : 'text-gray-400'}`}
-          >
-            <Cpu className="w-3.5 h-3.5" />
-            设备管理
-            {activeTab === 'devices' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#040415]" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`py-3 md:py-4 px-2 md:px-4 font-medium text-xs md:text-sm transition-colors relative whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'users' ? 'text-[#040415]' : 'text-gray-400'}`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            人员管理
-            {activeTab === 'users' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#040415]" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('rooms')}
-            className={`py-3 md:py-4 px-2 md:px-4 font-medium text-xs md:text-sm transition-colors relative whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'rooms' ? 'text-[#040415]' : 'text-gray-400'}`}
-          >
-            <Layout className="w-3.5 h-3.5" />
-            房间管理
-            {activeTab === 'rooms' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#040415]" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('cameras')}
-            className={`py-3 md:py-4 px-2 md:px-4 font-medium text-xs md:text-sm transition-colors relative whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'cameras' ? 'text-[#040415]' : 'text-gray-400'}`}
-          >
-            <Camera className="w-3.5 h-3.5" />
-            摄像头
-            {activeTab === 'cameras' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#040415]" />
-            )}
-          </button>
+        <div className="flex border-b border-gray-100 px-3 md:px-6 overflow-x-auto scrollbar-hide flex-shrink-0 gap-2 md:gap-3">
+          {tabs.map((tab, index) => {
+            const Icon = tab.icon;
+            const showGroup = index === 0 || tabs[index - 1].group !== tab.group;
+            return (
+              <div key={tab.key} className="flex items-center gap-2">
+                {showGroup && (
+                  <span className="hidden md:inline text-[11px] font-semibold text-gray-300">{tab.group}</span>
+                )}
+                <button
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`py-3 md:py-4 px-2 md:px-3 font-medium text-xs md:text-sm transition-colors relative whitespace-nowrap flex items-center gap-1.5 ${activeTab === tab.key ? 'text-[#040415]' : 'text-gray-400'}`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                  {activeTab === tab.key && (
+                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#040415]" />
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {/* Content */}
@@ -492,6 +476,8 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
           )}
           {activeTab === 'rooms' && <RoomManagementTab rooms={localRooms} onUpdateRooms={setLocalRooms} />}
           {activeTab === 'cameras' && <CameraManagementTab cameras={localCameras} onUpdateCameras={setLocalCameras} />}
+          {activeTab === 'backup' && <BackupRestorePanel />}
+          {activeTab === 'license' && <LicenseSettingsPanel />}
         </div>
 
         {/* Footer */}

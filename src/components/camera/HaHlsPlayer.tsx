@@ -3,9 +3,10 @@ import Hls from 'hls.js';
 
 interface HaHlsPlayerProps {
     url: string;
+    muted?: boolean;
 }
 
-export const HaHlsPlayer: React.FC<HaHlsPlayerProps> = ({ url }) => {
+export const HaHlsPlayer: React.FC<HaHlsPlayerProps> = ({ url, muted = true }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     // =========================================================================
@@ -91,7 +92,7 @@ export const HaHlsPlayer: React.FC<HaHlsPlayerProps> = ({ url }) => {
             ref={videoRef} 
             className="w-full h-full object-contain bg-black pointer-events-auto" 
             controls 
-            muted 
+            muted={muted}
             autoPlay 
             playsInline
         />

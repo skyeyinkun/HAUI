@@ -57,6 +57,7 @@ export function useHomeAssistant(config?: HAConfig) {
   // 使用 ref 追踪 token 和 REST base URL，确保 fetchStatesRest 等通过 ref 访问最新值
   const configTokenRef = useRef(config?.token || '');
   const restBaseUrlRef = useRef('/ha-api');
+  const proxyRestAvailableRef = useRef(false);
 
   // Heartbeat / Latency check
   useEffect(() => {
@@ -116,6 +117,39 @@ export function useHomeAssistant(config?: HAConfig) {
     
     // 更新 ref 中的配置值
     prevConfigRef.current = currentConfig;
+
+    const initProxyRestFallback = async () => {
+      try {
+        const res = await fetch('/ha-api/api/states', {
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) throw new Error(`HA proxy states failed: ${res.status}`);
+        const states = await res.json();
+        const nextEntities: HassEntities = {};
+        if (Array.isArray(states)) {
+          states.forEach((state) => {
+            const entity = state as { entity_id?: string };
+            if (entity.entity_id) {
+              nextEntities[entity.entity_id] = state;
+            }
+          });
+        }
+
+        if (!isMounted) return;
+        proxyRestAvailableRef.current = true;
+        restBaseUrlRef.current = '/ha-api';
+        setRestBaseUrl('/ha-api');
+        setEntities(nextEntities);
+        setConnectionType('Local');
+        setIsConnected(true);
+        setIsConnectionReady(true);
+        setError(null);
+        logger.info('Connected via HA proxy REST fallback');
+      } catch (restErr) {
+        proxyRestAvailableRef.current = false;
+        logger.info('HA proxy REST fallback unavailable:', restErr);
+      }
+    };
 
     const initConnection = async () => {
       try {
@@ -358,6 +392,7 @@ export function useHomeAssistant(config?: HAConfig) {
         isConnectingRef.current = false;
       });
     } else {
+        void initProxyRestFallback();
         if (tokenToUse && tokenToUse.length <= 20) {
             logger.warn('Token too short, skipping connection.');
         } else {
@@ -409,6 +444,26 @@ export function useHomeAssistant(config?: HAConfig) {
       currentConn = connectionRef.current;
       currentReady = isConnectionReadyRef.current;
       currentConnected = isConnectedRef.current;
+    }
+
+    // REST 代理降级：HA Add-on Ingress 中可由后端使用 SUPERVISOR_TOKEN 转发。
+    if (!currentConn && proxyRestAvailableRef.current) {
+      const base = restBaseUrlRef.current || '/ha-api';
+      const token = configTokenRef.current;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`${base}/api/services/${domain}/${service}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(serviceData || {}),
+      });
+      if (!res.ok) {
+        throw new Error(`服务调用失败: ${domain}.${service} (${res.status})`);
+      }
+      return;
     }
 
     // 最终连接有效性校验
@@ -481,6 +536,18 @@ export function useHomeAssistant(config?: HAConfig) {
     // 通过 ref 获取最新连接（与 callService 保持一致）
     const conn = connectionRef.current;
     if (!conn) {
+      if (proxyRestAvailableRef.current) {
+        const states = await fetchStatesRest();
+        const nextEntities: HassEntities = {};
+        if (Array.isArray(states)) {
+          states.forEach((state) => {
+            const entity = state as { entity_id?: string };
+            if (entity.entity_id) nextEntities[entity.entity_id] = state;
+          });
+        }
+        setEntities(nextEntities);
+        return nextEntities;
+      }
       throw new Error('未连接到 Home Assistant');
     }
     
@@ -500,14 +567,14 @@ export function useHomeAssistant(config?: HAConfig) {
     const envToken = import.meta.env.VITE_HA_TOKEN;
     const isEnvTokenValid = envToken && envToken !== 'your_long_lived_access_token_here';
     const token = configTokenRef.current || (isEnvTokenValid ? envToken : '');
-    if (!token) {
+    const base = restBaseUrlRef.current || '/ha-api';
+    if (!token && !base.startsWith('/ha-api')) {
       throw new Error('缺少 Home Assistant Token');
     }
-    const base = restBaseUrlRef.current || '/ha-api';
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(`${base}/api/states/${encodeURIComponent(entityId)}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
     });
     if (!res.ok) {
       throw new Error(`states API 请求失败: ${res.status}`);
@@ -533,14 +600,14 @@ export function useHomeAssistant(config?: HAConfig) {
     const envToken = import.meta.env.VITE_HA_TOKEN;
     const isEnvTokenValid = envToken && envToken !== 'your_long_lived_access_token_here';
     const token = configTokenRef.current || (isEnvTokenValid ? envToken : '');
-    if (!token) {
+    const base = restBaseUrlRef.current || '/ha-api';
+    if (!token && !base.startsWith('/ha-api')) {
       throw new Error('缺少 Home Assistant Token');
     }
-    const base = restBaseUrlRef.current || '/ha-api';
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(`${base}/api/states`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
     });
     if (!res.ok) {
       throw new Error(`states API 请求失败: ${res.status}`);

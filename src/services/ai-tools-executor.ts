@@ -20,7 +20,7 @@ export type AiCallService = (
 
 type ToolArguments = Record<string, unknown>;
 
-interface ParsedServiceCall {
+export interface ParsedServiceCall {
     domain: string;
     service: string;
     serviceData: HAServiceCallData;
@@ -52,7 +52,7 @@ const BLOCKED_SERVICES = new Set([
 /**
  * 验证服务调用是否在白名单中
  */
-function parseToolArguments(rawArguments: unknown): ToolArguments {
+export function parseToolArguments(rawArguments: unknown): ToolArguments {
     if (typeof rawArguments === 'string') {
         const trimmed = rawArguments.trim();
         if (!trimmed) return {};
@@ -70,7 +70,7 @@ function parseToolArguments(rawArguments: unknown): ToolArguments {
     return rawArguments as ToolArguments;
 }
 
-function getEntityIds(serviceData: Record<string, unknown>): string[] {
+export function getServiceEntityIds(serviceData: Record<string, unknown>): string[] {
     const value = serviceData.entity_id;
     if (typeof value === 'string') return [value];
     if (Array.isArray(value) && value.every(item => typeof item === 'string')) return value;
@@ -107,7 +107,7 @@ function validateServiceCall(args: ToolArguments, entities: HassEntities): Parse
     }
 
     const serviceData = rawServiceData as Record<string, unknown>;
-    const entityIds = getEntityIds(serviceData);
+    const entityIds = getServiceEntityIds(serviceData);
     if (entityIds.length === 0) {
         throw new Error('服务调用必须指定明确的 entity_id');
     }
@@ -157,6 +157,18 @@ function validateServiceCall(args: ToolArguments, entities: HassEntities): Parse
     };
 }
 
+export function previewHaServiceToolCall(entities: HassEntities, toolCall: any): ParsedServiceCall & { targetNames: string[] } {
+    const fn = toolCall?.function || {};
+    if (fn.name !== 'call_ha_service') {
+        throw new Error('不是 Home Assistant 服务调用');
+    }
+    const serviceCall = validateServiceCall(parseToolArguments(fn.arguments), entities);
+    return {
+        ...serviceCall,
+        targetNames: getServiceEntityIds(serviceCall.serviceData).map((entityId) => getAiEntityDisplayName(entities, entityId)),
+    };
+}
+
 /**
  * 执行 AI 识别出的 HA 工具调用
  */
@@ -180,7 +192,7 @@ export async function executeHaTools(
                 if (!callService) throw new Error('HA 连接未激活，无法执行服务');
                 const serviceCall = validateServiceCall(args, entities);
                 await callService(serviceCall.domain, serviceCall.service, serviceCall.serviceData);
-                const entityIds = getEntityIds(serviceCall.serviceData);
+                const entityIds = getServiceEntityIds(serviceCall.serviceData);
                 resultStr = JSON.stringify({
                     ok: true,
                     action: `${serviceCall.domain}.${serviceCall.service}`,

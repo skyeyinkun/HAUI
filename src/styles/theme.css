@@ -223,3 +223,54 @@
 .entity-card__value {
   font-size: calc(11px * var(--entity-scale));
 }
+
+.haui-mobile-tabbar-safe {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+.haui-phone-mode .haui-dashboard-shell {
+  padding-bottom: 7.5rem;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
+}
+
+.haui-phone-mode .haui-device-grid {
+  gap: 0.75rem;
+}
+
+.haui-phone-mode [data-haui-settings-window] {
+  border-radius: 18px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+}
+
+.haui-tablet-mode .haui-dashboard-shell {
+  max-width: 1180px;
+}
+
+.haui-tablet-mode .haui-device-grid {
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+}
+
+.haui-wall-mode .haui-dashboard-shell {
+  padding-top: 1.25rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+.haui-wall-mode .haui-device-grid {
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
+  gap: 1rem;
+}
+
+.haui-wall-mode [data-haui-scroll-area] {
+  scroll-behavior: smooth;
+}
+
+.haui-wall-mode [data-haui-license-banner] {
+  display: none;
+}
+
+.haui-ha-panel-mode {
+  min-height: 100vh;
+}

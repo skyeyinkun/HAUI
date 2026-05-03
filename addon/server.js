@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createHash, createVerify, randomUUID } from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -9,12 +10,16 @@ const app = express();
 // HA Add-on 持久化存储目录（HA Supervisor 会将 /data 映射为持久卷）
 const DATA_DIR = '/data';
 const CONFIG_FILE = path.join(DATA_DIR, 'haui_config.json');
+const LICENSE_FILE_NAME = 'haui_license.json';
+const BACKUP_DIR_NAME = 'backups';
 // AI 配置独立存储，避免与面板数据混淆
 const AI_CONFIG_FILE_NAME = 'haui_ai_config.json';
+const INSTALL_ID_FILE_NAME = 'haui_install_id';
 
 // 兼容本地开发时没有 /data 目录的情况
 const LOCAL_DATA_DIR = path.join(__dirname, '.data');
 const LOCAL_CONFIG_FILE = path.join(LOCAL_DATA_DIR, 'haui_config.json');
+const ADDON_OPTIONS_FILE = '/data/options.json';
 
 function getConfigFile() {
     return fs.existsSync(DATA_DIR) ? CONFIG_FILE : LOCAL_CONFIG_FILE;
@@ -25,11 +30,166 @@ function getAiConfigFile() {
     return path.join(dir, AI_CONFIG_FILE_NAME);
 }
 
+function getDataDir() {
+    return fs.existsSync(DATA_DIR) ? DATA_DIR : LOCAL_DATA_DIR;
+}
+
+function getLicenseFile() {
+    return path.join(getDataDir(), LICENSE_FILE_NAME);
+}
+
+function getBackupDir() {
+    return path.join(getDataDir(), BACKUP_DIR_NAME);
+}
+
+function getInstallIdFile() {
+    return path.join(getDataDir(), INSTALL_ID_FILE_NAME);
+}
+
 function ensureConfig() {
-    const dir = fs.existsSync(DATA_DIR) ? DATA_DIR : LOCAL_DATA_DIR;
+    const dir = getDataDir();
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const file = getConfigFile();
     if (!fs.existsSync(file)) fs.writeFileSync(file, '{}');
+}
+
+function canonicalStringify(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(canonicalStringify).join(',')}]`;
+    return `{${Object.keys(value)
+        .sort()
+        .map((key) => `${JSON.stringify(key)}:${canonicalStringify(value[key])}`)
+        .join(',')}}`;
+}
+
+function readJsonFile(file, fallback = {}) {
+    try {
+        if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (_) { /* ignore */ }
+    return fallback;
+}
+
+function readAddonOptions() {
+    return readJsonFile(ADDON_OPTIONS_FILE, {});
+}
+
+function groupCode(raw) {
+    return raw.match(/.{1,4}/g)?.join('-') ?? raw;
+}
+
+function getMachineCode() {
+    ensureConfig();
+    const file = getInstallIdFile();
+    let installId = '';
+    try {
+        if (fs.existsSync(file)) {
+            installId = fs.readFileSync(file, 'utf8').trim();
+        }
+        if (!installId) {
+            installId = randomUUID();
+            fs.writeFileSync(file, installId, { mode: 0o600 });
+        }
+    } catch (_) {
+        installId = randomUUID();
+    }
+
+    const digest = createHash('sha256')
+        .update(`HAUI:${installId}`)
+        .digest('base64url')
+        .toUpperCase()
+        .replace(/[OIL]/g, 'X')
+        .slice(0, 12);
+    return `HAUI-MACHINE-${groupCode(digest)}`;
+}
+
+function getPublicKeyPem() {
+    const options = readAddonOptions();
+    const envKey = process.env.HAUI_LICENSE_PUBLIC_KEY
+        || process.env.VITE_HAUI_LICENSE_PUBLIC_KEY
+        || options.HAUI_LICENSE_PUBLIC_KEY;
+    if (envKey && envKey.trim()) return envKey.replace(/\\n/g, '\n');
+    const publicKeyFile = path.join(getDataDir(), 'license-public.pem');
+    if (fs.existsSync(publicKeyFile)) return fs.readFileSync(publicKeyFile, 'utf8');
+    return '';
+}
+
+function verifySignedLicense(license) {
+    if (!license || typeof license !== 'object') {
+        return { ok: false, error: '授权内容为空' };
+    }
+    if (license.algorithm !== 'ECDSA_P256_SHA256') {
+        return { ok: false, error: '授权算法不匹配' };
+    }
+    if (license.payload?.product !== 'HAUI' || license.payload?.edition !== 'pro') {
+        return { ok: false, error: '授权产品或版本不匹配' };
+    }
+    if (!license.payload?.licenseId || !license.payload?.machineCode || !license.payload?.updatesUntil || !license.signature) {
+        return { ok: false, error: '授权缺少必要字段' };
+    }
+    if (license.payload.machineCode !== getMachineCode()) {
+        return { ok: false, error: '授权文件与当前 HAUI 机器码不匹配' };
+    }
+
+    const publicKey = getPublicKeyPem();
+    if (!publicKey) {
+        return { ok: false, error: 'Add-on 未配置授权公钥' };
+    }
+
+    try {
+        const verify = createVerify('SHA256');
+        verify.update(canonicalStringify(license.payload));
+        verify.end();
+        const signatureOk = verify.verify(publicKey, Buffer.from(license.signature, 'base64url'));
+        if (!signatureOk) return { ok: false, error: '授权签名验证失败' };
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: `授权验证异常: ${e.message}` };
+    }
+}
+
+function readStoredLicense() {
+    const stored = readJsonFile(getLicenseFile(), null);
+    if (!stored?.license) return null;
+    return stored;
+}
+
+function getLicenseStatus() {
+    const stored = readStoredLicense();
+    if (!stored?.license) {
+        return { active: false, edition: 'free', message: '未激活 Pro 授权' };
+    }
+
+    const verification = verifySignedLicense(stored.license);
+    if (!verification.ok) {
+        return { active: false, edition: 'free', message: verification.error };
+    }
+
+    const payload = stored.license.payload;
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+        active: true,
+        edition: payload.edition,
+        payload,
+        activatedAt: stored.activatedAt,
+        updatesExpired: payload.updatesUntil < today,
+        message: payload.updatesUntil < today ? 'Pro 已激活，维护期已到期' : 'Pro 已激活，维护期内',
+    };
+}
+
+function requireProFeature(feature) {
+    return (req, res, next) => {
+        const status = getLicenseStatus();
+        if (!status.active) {
+            return res.status(402).json({ error: '此功能需要 HAUI Pro 授权', feature, license: status });
+        }
+
+        const features = new Set((status.payload?.features || []).map((item) => String(item).toLowerCase()));
+        if (!features.has('pro') && feature && !features.has(feature)) {
+            return res.status(403).json({ error: '当前授权未包含此功能', feature, license: status });
+        }
+
+        next();
+    };
 }
 
 function readAiConfig() {
@@ -53,20 +213,31 @@ app.use(express.json({ limit: '20mb' }));
 const HA_CORE_URL = process.env.HA_CORE_URL || 'http://supervisor/core';
 const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN;
 
+function getForwardedAuthHeader(req) {
+    const standardAuth = req.headers['authorization'];
+    const alternateAuth = req.headers['x-ha-authorization'];
+    const rawToken = req.headers['x-ha-token'];
+
+    if (standardAuth) return { value: standardAuth, source: 'authorization' };
+    if (alternateAuth) return { value: alternateAuth, source: 'x-ha-authorization' };
+    if (rawToken) return { value: `Bearer ${rawToken}`, source: 'x-ha-token' };
+    if (SUPERVISOR_TOKEN) return { value: `Bearer ${SUPERVISOR_TOKEN}`, source: 'supervisor-token' };
+    return { value: undefined, source: 'none' };
+}
+
 app.all(/^\/ha-api\/.*/, async (req, res) => {
     // 去掉 /ha-api 前缀，拼接到 HA Core 地址
     const haPath = req.path.replace(/^\/ha-api/, '');
-    const targetUrl = `${HA_CORE_URL}${haPath}`;
+    const targetUrl = `${HA_CORE_URL}${haPath}${req.url.includes('?') ? `?${req.url.split('?').slice(1).join('?')}` : ''}`;
 
     try {
-        // 选用请求头中的 Authorization（用户 token），无则用 SUPERVISOR_TOKEN
-        const authHeader = req.headers['authorization'] ||
-            (SUPERVISOR_TOKEN ? `Bearer ${SUPERVISOR_TOKEN}` : undefined);
+        // 选用请求头中的 Authorization；HA Ingress 可能剥离标准头，因此支持备用头。
+        const authHeader = getForwardedAuthHeader(req);
 
         const headers = {
             'Content-Type': req.headers['content-type'] || 'application/json',
         };
-        if (authHeader) headers['Authorization'] = authHeader;
+        if (authHeader.value) headers['Authorization'] = authHeader.value;
 
         // 构建 fetch 请求参数
         const fetchOpts = {
@@ -79,6 +250,11 @@ app.all(/^\/ha-api\/.*/, async (req, res) => {
         }
 
         const haRes = await fetch(targetUrl, fetchOpts);
+        if (haRes.status === 401 || haRes.status === 403) {
+            console.warn(
+                `[HAUI] /ha-api 鉴权失败: path=${haPath}, status=${haRes.status}, authSource=${authHeader.source}, hasAuth=${Boolean(authHeader.value)}`
+            );
+        }
 
         // 透传 HA 返回的状态码和响应体
         res.status(haRes.status);
@@ -119,10 +295,128 @@ app.post('/api/storage', (req, res) => {
     }
 });
 
+// --- HAUI Pro 授权：前端离线验证后同步到 Add-on，后端再次验签并持久化 ---
+app.get('/api/license/status', (_req, res) => {
+    res.json({ ...getLicenseStatus(), machineCode: getMachineCode() });
+});
+
+app.post('/api/license/activate', (req, res) => {
+    try {
+        ensureConfig();
+        const { license } = req.body || {};
+        const verification = verifySignedLicense(license);
+        if (!verification.ok) {
+            return res.status(400).json({ ok: false, error: verification.error });
+        }
+
+        const stored = {
+            license,
+            activatedAt: new Date().toISOString(),
+        };
+        fs.writeFileSync(getLicenseFile(), JSON.stringify(stored, null, 2));
+        res.json({ ok: true, license: getLicenseStatus() });
+    } catch (e) {
+        console.error('[HAUI] 授权激活失败:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.delete('/api/license', (_req, res) => {
+    try {
+        fs.rmSync(getLicenseFile(), { force: true });
+        res.json({ ok: true, license: getLicenseStatus() });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- 备份与恢复 ---
+function createBackupPayload() {
+    ensureConfig();
+    return {
+        version: 1,
+        product: 'HAUI',
+        createdAt: new Date().toISOString(),
+        storage: readJsonFile(getConfigFile(), {}),
+        aiConfig: readJsonFile(getAiConfigFile(), {}),
+        license: readStoredLicense(),
+    };
+}
+
+function createBackupName() {
+    return `haui-backup-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+}
+
+app.get('/api/backup/export', requireProFeature('pro'), (_req, res) => {
+    const backup = createBackupPayload();
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${createBackupName()}"`);
+    res.send(JSON.stringify(backup, null, 2));
+});
+
+app.post('/api/backup/create', requireProFeature('pro'), (_req, res) => {
+    try {
+        const backupDir = getBackupDir();
+        fs.mkdirSync(backupDir, { recursive: true });
+        const name = createBackupName();
+        const file = path.join(backupDir, name);
+        fs.writeFileSync(file, JSON.stringify(createBackupPayload(), null, 2));
+        res.json({ ok: true, name, createdAt: new Date().toISOString() });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/backup/list', requireProFeature('pro'), (_req, res) => {
+    try {
+        const backupDir = getBackupDir();
+        if (!fs.existsSync(backupDir)) return res.json({ backups: [] });
+        const backups = fs.readdirSync(backupDir)
+            .filter((name) => name.endsWith('.json'))
+            .map((name) => {
+                const file = path.join(backupDir, name);
+                const stat = fs.statSync(file);
+                return { name, size: stat.size, updatedAt: stat.mtime.toISOString() };
+            })
+            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        res.json({ backups });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/backup/restore', requireProFeature('pro'), (req, res) => {
+    try {
+        const payload = req.body;
+        if (!payload || payload.product !== 'HAUI' || !payload.storage || typeof payload.storage !== 'object') {
+            return res.status(400).json({ error: '备份文件格式不正确' });
+        }
+
+        ensureConfig();
+        const rollbackDir = getBackupDir();
+        fs.mkdirSync(rollbackDir, { recursive: true });
+        fs.writeFileSync(path.join(rollbackDir, `rollback-before-restore-${Date.now()}.json`), JSON.stringify(createBackupPayload(), null, 2));
+        fs.writeFileSync(getConfigFile(), JSON.stringify(payload.storage, null, 2));
+        if (payload.aiConfig && typeof payload.aiConfig === 'object') {
+            fs.writeFileSync(getAiConfigFile(), JSON.stringify(payload.aiConfig, null, 2));
+        }
+        if (payload.license?.license) {
+            const verification = verifySignedLicense(payload.license.license);
+            if (verification.ok) {
+                fs.writeFileSync(getLicenseFile(), JSON.stringify(payload.license, null, 2));
+            }
+        }
+        res.json({ ok: true });
+    } catch (e) {
+        console.error('[HAUI] 备份恢复失败:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 萤石云 API 代理：隐藏 AppKey/AppSecret，避免前端直接暴露，同时解决跨域问题
 // 接收参数：appKey, appSecret, deviceSerial, channelNo
 // 先获取 accessToken，再获取 HLS 流地址
-app.post('/api/ezviz/url', async (req, res) => {
+app.post('/api/ezviz/url', requireProFeature('camera_grid'), async (req, res) => {
     try {
         const {
             deviceSerial,
@@ -133,8 +427,9 @@ app.post('/api/ezviz/url', async (req, res) => {
 
         // 从后端配置读取 Secrets 而非前端传入
         const aiConfig = readAiConfig();
-        const appKey = aiConfig.ezvizAppKey || process.env.EZVIZ_APP_KEY;
-        const appSecret = aiConfig.ezvizAppSecret || process.env.EZVIZ_APP_SECRET;
+        const options = readAddonOptions();
+        const appKey = aiConfig.ezvizAppKey || process.env.EZVIZ_APP_KEY || options.EZVIZ_APP_KEY;
+        const appSecret = aiConfig.ezvizAppSecret || process.env.EZVIZ_APP_SECRET || options.EZVIZ_APP_SECRET;
 
         if (!appKey || !appSecret || !deviceSerial) {
             return res.status(400).json({ error: '缺少必要的萤石云参数（需在设置中配置 AppKey/AppSecret）' });
@@ -197,11 +492,12 @@ app.post('/api/ezviz/url', async (req, res) => {
 
 // 萤石云 Token 代理：只获取 AccessToken（供 ezuikit-js SDK 使用）
 // 隐藏 AppKey/AppSecret，避免前端直接暴露
-app.post('/api/ezviz/token', async (req, res) => {
+app.post('/api/ezviz/token', requireProFeature('camera_grid'), async (req, res) => {
     try {
         const aiConfig = readAiConfig();
-        const appKey = aiConfig.ezvizAppKey || process.env.EZVIZ_APP_KEY;
-        const appSecret = aiConfig.ezvizAppSecret || process.env.EZVIZ_APP_SECRET;
+        const options = readAddonOptions();
+        const appKey = aiConfig.ezvizAppKey || process.env.EZVIZ_APP_KEY || options.EZVIZ_APP_KEY;
+        const appSecret = aiConfig.ezvizAppSecret || process.env.EZVIZ_APP_SECRET || options.EZVIZ_APP_SECRET;
 
         if (!appKey || !appSecret) {
             return res.status(400).json({ error: '缺少必要的萤石云参数（需在设置中配置 AppKey/AppSecret）' });
@@ -228,9 +524,13 @@ app.post('/api/ezviz/token', async (req, res) => {
 
 // ONVIF 摄像头 PTZ 云台控制代理
 // 将前端指令转换为 Home Assistant 的 onvif.ptz 服务调用
-app.post('/api/camera/ptz', async (req, res) => {
+app.post('/api/camera/ptz', requireProFeature('camera_grid'), async (req, res) => {
     try {
-        const { deviceId, direction, name } = req.body;
+        const { direction, name } = req.body || {};
+        const allowedDirections = new Set(['up', 'down', 'left', 'right', 'zoomIn', 'zoomOut']);
+        if (!allowedDirections.has(direction)) {
+            return res.status(400).json({ error: '无效的 PTZ 方向' });
+        }
         
         // 鉴权令牌（优先使用请求头，无则用环境变量）
         const authHeader = req.headers['authorization'] || 
@@ -240,10 +540,12 @@ app.post('/api/camera/ptz', async (req, res) => {
             return res.status(401).json({ error: '未授权，缺少访问令牌' });
         }
 
-        // 构造服务调用参数 (ContinuousMove 模式)
-        // 实际上在 HA 中，通常需要 entity_id。如果前端没传，我们尝试基于名称匹配或推断。
-        // 为了演示集成，我们假设 entity_id 为 camera.{name_lowercase} 或直接使用前端传来的 deviceId
-        const entityId = req.body.entityId || `camera.${name?.toLowerCase().replace(/\s+/g, '_')}`;
+        const entityId = typeof req.body.entityId === 'string'
+            ? req.body.entityId.trim()
+            : `camera.${String(name || '').toLowerCase().replace(/\s+/g, '_')}`;
+        if (!/^camera\.[a-zA-Z0-9_]+$/.test(entityId)) {
+            return res.status(400).json({ error: '无效的摄像头实体 ID' });
+        }
 
         const ptzData = {
             entity_id: entityId,
@@ -274,11 +576,10 @@ app.post('/api/camera/ptz', async (req, res) => {
         if (!haRes.ok) {
             const errText = await haRes.text();
             console.error('[HAUI] HA PTZ 调用失败:', errText);
-            // 尝试降级调用通用的 camera.ptz_move
-            // ...
+            return res.status(haRes.status).json({ error: errText || 'Home Assistant PTZ 服务调用失败' });
         }
 
-        res.json({ ok: haRes.ok });
+        res.json({ ok: true });
     } catch (e) {
         console.error('[HAUI] PTZ 代理指令执行异常:', e.message);
         res.status(500).json({ error: e.message });
@@ -291,7 +592,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // --- AI Config 接口 ---
-app.get('/api/ai/config', (_req, res) => {
+app.get('/api/ai/config', requireProFeature('ai'), (_req, res) => {
     try {
         ensureConfig();
         const config = readAiConfig();
@@ -301,7 +602,7 @@ app.get('/api/ai/config', (_req, res) => {
     }
 });
 
-app.post('/api/ai/config', (req, res) => {
+app.post('/api/ai/config', requireProFeature('ai'), (req, res) => {
     try {
         ensureConfig();
         const payload = typeof req.body === 'object' ? req.body : JSON.parse(req.body);
@@ -439,19 +740,20 @@ async function consumeStream(response, onContentChunk) {
     return { toolCalls };
 }
 
-app.post('/api/ai/chat', async (req, res) => {
+app.post('/api/ai/chat', requireProFeature('ai'), async (req, res) => {
     try {
         const { messages, token } = req.body;
 
         let aiConfig = readAiConfig();
 
         // 兜底环境变量
-        if (!aiConfig.apiKey && process.env.AI_API_KEY) {
+        const options = readAddonOptions();
+        if (!aiConfig.apiKey && (process.env.AI_API_KEY || options.AI_API_KEY)) {
             aiConfig = {
-                provider: process.env.AI_PROVIDER || 'alibaba',
-                apiKey: process.env.AI_API_KEY,
-                baseUrl: process.env.AI_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-                modelName: process.env.AI_MODEL || 'qwen-plus'
+                provider: process.env.AI_PROVIDER || options.AI_PROVIDER || 'alibaba',
+                apiKey: process.env.AI_API_KEY || options.AI_API_KEY,
+                baseUrl: process.env.AI_BASE_URL || options.AI_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                modelName: process.env.AI_MODEL || options.AI_MODEL || 'qwen-plus'
             };
         }
 

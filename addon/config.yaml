@@ -1,5 +1,5 @@
 name: "HAUI - 智能家庭中枢"
-version: "5.2.1"
+version: "5.4.0"
 slug: "haui_dashboard"
 description: "专为 Home Assistant 打造的高性能现代化前端控制面板，集成 AI 助手语音交互、全平台自适应界面与 iOS 风格组件体系。"
 # 替换为你的 GitHub 用户名/仓库名
@@ -19,15 +19,21 @@ map:
   - config:rw
   - ssl:rw
 options:
+  HAUI_LICENSE_PUBLIC_KEY: ""
   AI_PROVIDER: "alibaba"
   AI_API_KEY: ""
   AI_MODEL: "qwen-plus"
   AI_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  EZVIZ_APP_KEY: ""
+  EZVIZ_APP_SECRET: ""
 schema:
+  HAUI_LICENSE_PUBLIC_KEY: str?
   AI_PROVIDER: str
   AI_API_KEY: str?
   AI_MODEL: str
   AI_BASE_URL: str
+  EZVIZ_APP_KEY: str?
+  EZVIZ_APP_SECRET: password?
 ingress: true
 ingress_port: 8099
 ingress_stream: true

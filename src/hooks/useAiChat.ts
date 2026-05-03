@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AiConfig, DEFAULT_CONFIG, AiConfigSchema, providerSupportsToolCalling } from '@/services/ai-service';
 import { chatStream, AiChatMessage, StreamEvent } from '@/services/ai-chat';
 import { HassEntities } from 'home-assistant-js-websocket';
-import { AiCallService, executeHaTools } from '@/services/ai-tools-executor';
+import { AiCallService, executeHaTools, previewHaServiceToolCall } from '@/services/ai-tools-executor';
 import {
     createQuickControlPlan,
     executeQuickControlPlan,
     summarizeControlToolResults
 } from '@/services/ai-quick-control';
-import { getApiUrl } from '@/utils/sync';
+import { getApiUrl, readApiError } from '@/utils/sync';
 import { getDeviceSummary, getSmartHomeContext, sanitizeAiResponseForDisplay } from '@/utils/ai-context';
 import { logger } from '@/utils/logger';
 
@@ -38,6 +38,18 @@ export interface UseAiChatOptions {
     onStatusChange?: (status: string) => void;
     /** 错误状态回调 */
     onError?: () => void;
+    /** 控制类工具执行前确认 */
+    onConfirmAction?: (request: AiActionConfirmRequest) => Promise<boolean>;
+    /** Pro/后端保存配置失败等非对话错误 */
+    onConfigSaveError?: (message: string) => void;
+}
+
+export interface AiActionConfirmRequest {
+    title: string;
+    description: string;
+    targetNames: string[];
+    domain: string;
+    service: string;
 }
 
 // Hook 返回值
@@ -104,6 +116,8 @@ export function useAiChat({
     onAiReplyDone,
     onStatusChange,
     onError,
+    onConfirmAction,
+    onConfigSaveError,
 }: UseAiChatOptions): UseAiChatReturn {
     // 从 localStorage 恢复对话历史，无则使用欢迎消息
     const [messages, setMessages] = useState<Message[]>(() => {
@@ -137,6 +151,24 @@ export function useAiChat({
     const abortControllerRef = useRef<AbortController | null>(null);
     const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastSubmittedRef = useRef<{ text: string; timestamp: number } | null>(null);
+
+    const confirmToolCalls = useCallback(async (toolCalls: any[]): Promise<boolean> => {
+        const controlCalls = toolCalls.filter(toolCall => toolCall?.function?.name === 'call_ha_service');
+        if (controlCalls.length === 0 || !onConfirmAction) return true;
+
+        for (const toolCall of controlCalls) {
+            const preview = previewHaServiceToolCall(entitiesRef.current, toolCall);
+            const ok = await onConfirmAction({
+                title: '确认 AI 执行控制',
+                description: `AI 将调用 ${preview.domain}.${preview.service} 控制 ${preview.targetNames.join('、')}`,
+                targetNames: preview.targetNames,
+                domain: preview.domain,
+                service: preview.service,
+            });
+            if (!ok) return false;
+        }
+        return true;
+    }, [onConfirmAction]);
 
     // 节流持久化消息到 localStorage
     useEffect(() => {
@@ -175,7 +207,10 @@ export function useAiChat({
 
         // 尝试从后端获取最新的配置
         fetch(getApiUrl('/api/ai/config'))
-            .then(res => res.json())
+            .then(async res => {
+                if (!res.ok) throw new Error(await readApiError(res, 'AI 配置读取失败'));
+                return res.json();
+            })
             .then(data => {
                 if (data && data.modelName) {
                     setConfig(prev => ({ ...prev, ...data }));
@@ -189,15 +224,19 @@ export function useAiChat({
         setConfig(newConfig);
         localStorage.setItem('ai_config', JSON.stringify(newConfig));
         try {
-            await fetch(getApiUrl('/api/ai/config'), {
+            const res = await fetch(getApiUrl('/api/ai/config'), {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newConfig)
             });
+            if (!res.ok) throw new Error(await readApiError(res, 'AI 配置保存失败'));
         } catch (e) {
             logger.error('保存 AI 配置到后端失败', e);
+            onConfigSaveError?.(e instanceof Error ? e.message : 'AI 配置保存到 Add-on 后端失败');
+            throw e;
         }
-    }, []);
+    }, [onConfigSaveError]);
 
     const abortChat = useCallback(() => {
         if (abortControllerRef.current) {
@@ -274,6 +313,13 @@ export function useAiChat({
             try {
                 // 先让“正在操作”消息进入渲染队列，再提交 HA 服务调用。
                 await new Promise(resolve => setTimeout(resolve, 0));
+                const confirmed = await confirmToolCalls([quickControlPlan.toolCall]);
+                if (!confirmed) {
+                    const cancelMessage = `${quickControlPlan.actionLabel}已取消`;
+                    setMessages(prev => replaceMessageContent(prev, quickMsgId, cancelMessage));
+                    onAiReplyDone?.(cancelMessage);
+                    return;
+                }
                 const finalMessage = await executeQuickControlPlan(
                     quickControlPlan,
                     entitiesRef.current,
@@ -420,6 +466,21 @@ ${smartHomeContext}`;
 
                 // 执行工具：控制类工具复用主应用的 callService，避免绕过用户配置和连接状态。
                 const safeCallService = isHaConnectedRef.current ? callServiceRef.current : undefined;
+                const confirmed = await confirmToolCalls(interceptedToolCalls);
+                if (!confirmed) {
+                    setMessages(prev => {
+                        const withoutCurrentAssistant = prev.filter(m => m.id !== msgId);
+                        return [...withoutCurrentAssistant, {
+                            id: (Date.now() + toolRound * 2 + 2).toString(),
+                            role: 'ai',
+                            content: '已取消 AI 控制操作',
+                            timestamp: Date.now()
+                        }];
+                    });
+                    finalContent = '已取消 AI 控制操作';
+                    break;
+                }
+
                 const toolResults = await executeHaTools(entitiesRef.current, interceptedToolCalls, safeCallService);
                 const compactControlResult = summarizeControlToolResults(
                     entitiesRef.current,
@@ -484,7 +545,7 @@ ${smartHomeContext}`;
                 abortControllerRef.current = null;
             }
         }
-    }, [inputValue, messages, isLoading, abortChat, onStatusChange, onAiReplyDone, onError]);
+    }, [inputValue, messages, abortChat, onStatusChange, onAiReplyDone, onError, confirmToolCalls]);
 
     // 清空对话记录
     const clearHistory = useCallback(() => {

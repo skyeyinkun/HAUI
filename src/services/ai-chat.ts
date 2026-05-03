@@ -4,6 +4,7 @@
 
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { AiConfig, providerSupportsToolCalling } from './ai-service';
+import { getApiUrl, readApiError } from '@/utils/sync';
 
 export interface AiChatMessage {
     role: 'user' | 'system' | 'assistant' | 'tool';
@@ -17,6 +18,22 @@ export interface StreamEvent {
     type: 'content' | 'tool_call' | 'error' | 'done';
     content?: string;
     tool_calls?: any[];
+}
+
+function shouldUseAddonAiProxy(): boolean {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.includes('hassio_ingress');
+}
+
+function normalizeProxyToolCall(toolCall: any): any {
+    return {
+        ...toolCall,
+        type: toolCall.type || 'function',
+        function: {
+            name: toolCall.function?.name || toolCall.name || '',
+            arguments: toolCall.function?.arguments || toolCall.arguments || '',
+        },
+    };
 }
 
 export interface AiToolDefinition {
@@ -127,6 +144,64 @@ export async function chatStream(
     signal: AbortSignal,
     onEvent: (event: StreamEvent) => void
 ): Promise<void> {
+    if (shouldUseAddonAiProxy()) {
+        const response = await fetch(getApiUrl('/api/ai/chat'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: sanitizeChatMessages(messages) }),
+            signal,
+        });
+
+        if (!response.ok || !response.body) {
+            throw new Error(await readApiError(response, 'AI 请求失败'));
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split('\n\n');
+            buffer = chunks.pop() || '';
+
+            for (const chunk of chunks) {
+                const line = chunk.split('\n').find(item => item.startsWith('data: '));
+                if (!line) continue;
+                const data = line.slice(6).trim();
+                if (!data) continue;
+                if (data === '[DONE]') {
+                    onEvent({ type: 'done' });
+                    return;
+                }
+
+                try {
+                    const event = JSON.parse(data);
+                    if (event.type === 'content') {
+                        onEvent({ type: 'content', content: event.content || '' });
+                    } else if (event.type === 'tool_calls_batch') {
+                        onEvent({
+                            type: 'tool_call',
+                            tool_calls: Array.isArray(event.tool_calls)
+                                ? event.tool_calls.map(normalizeProxyToolCall)
+                                : []
+                        });
+                    } else if (event.type === 'error') {
+                        onEvent({ type: 'error', content: event.content || 'AI 请求失败' });
+                    }
+                } catch (err) {
+                    console.warn('[AI Proxy Stream] 数据片段解析警告:', err, data);
+                }
+            }
+        }
+
+        onEvent({ type: 'done' });
+        return;
+    }
+
     const { apiKey, baseUrl, modelName } = config;
 
     if (!apiKey) throw new Error('API Key 未提供');

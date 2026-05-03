@@ -159,3 +159,9 @@ vite-dev.err.log
 # 本地覆盖/私有配置
 *.private.*
 *.secret.*
+
+# HAUI Pro 授权密钥，只保存在开发者本机或密钥管理系统
+license-private.pem
+license-public.pem
+*.license-private.pem
+*.license-public.pem

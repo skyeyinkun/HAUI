@@ -13,7 +13,7 @@ import {
 
 export interface AiSettingsViewProps {
     onClose: () => void;
-    onSave: (config: AiConfig) => void;
+    onSave: (config: AiConfig) => void | Promise<void>;
     initialConfig?: AiConfig;
     onDragStart?: (e: React.PointerEvent) => void;
 }
@@ -23,6 +23,7 @@ export default function AiSettingsView({ onClose, onSave, initialConfig, onDragS
     const [showKey, setShowKey] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+    const [saveError, setSaveError] = useState('');
 
     useEffect(() => {
         if (initialConfig) {
@@ -51,14 +52,19 @@ export default function AiSettingsView({ onClose, onSave, initialConfig, onDragS
             return;
         }
         setIsSaving(true);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        onSave(result.data as AiConfig);
-        setIsSaving(false);
-        setIsSaved(true);
-        setTimeout(() => {
-            setIsSaved(false);
-            onClose();
-        }, 1000);
+        setSaveError('');
+        try {
+            await onSave(result.data as AiConfig);
+            setIsSaved(true);
+            setTimeout(() => {
+                setIsSaved(false);
+                onClose();
+            }, 1000);
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : '保存失败，请稍后重试');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // Safe fallback if provider in config is invalid
@@ -211,6 +217,11 @@ export default function AiSettingsView({ onClose, onSave, initialConfig, onDragS
 
             {/* Footer */}
             <div className="px-5 py-4 border-t border-gray-100 bg-[#F8FAFC] shrink-0">
+                {saveError && (
+                    <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-600">
+                        {saveError}
+                    </p>
+                )}
                 <button
                     onClick={handleSave}
                     disabled={isSaving}

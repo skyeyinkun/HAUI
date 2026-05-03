@@ -1,10 +1,12 @@
 {
-  "name": "@figma/my-make-file",
+  "name": "haui-dashboard",
   "private": true,
-  "version": "5.2.1",
+  "description": "Home Assistant Add-on first smart home dashboard with AI, camera, PWA, wall panel, offline Pro licensing, and backup restore.",
+  "version": "5.4.0",
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "build:addon": "node scripts/build-addon.mjs",
     "dev": "vite",
     "dev:ha": "vite --mode development",
     "dev:force": "vite --force",

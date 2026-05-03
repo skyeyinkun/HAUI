@@ -36,6 +36,10 @@ import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { CardErrorBoundary } from '@/app/components/ui/CardErrorBoundary';
 import { SecureActionConfirm } from '@/app/components/ui/SecureActionConfirm';
+import { useAdaptiveExperience } from '@/features/runtime/useAdaptiveExperience';
+import { MobileBottomNav } from '@/app/components/navigation/MobileBottomNav';
+import { getLicenseEntitlements, LicenseEntitlements } from '@/features/license/license-policy';
+import { getApiUrl, readApiError } from '@/utils/sync';
 
 // 按需加载重型组件
 const SettingsModal = React.lazy(() => import('./components/SettingsModal'));
@@ -79,6 +83,44 @@ function ConnectionStatusBanner({ isConnected, hasToken }: { isConnected: boolea
         <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
         与 Home Assistant 连接已断开，部分功能不可用
       </span>
+    </div>
+  );
+}
+
+function ProGateBanner({
+  entitlements,
+  onOpenLicense,
+}: {
+  entitlements: LicenseEntitlements;
+  onOpenLicense: () => void;
+}) {
+  if (entitlements.isPro && !entitlements.updatesExpired) return null;
+
+  const copy = entitlements.isPro
+    ? {
+        title: 'Pro 授权已激活，维护期已到期',
+        description: '当前版本可继续使用，新版本更新需要续维护。',
+        action: '查看授权',
+      }
+    : {
+        title: '当前为 Free 模式',
+        description: 'AI、Agent、墙屏等交付功能需要导入授权码后启用。',
+        action: '导入授权',
+      };
+
+  return (
+    <div data-haui-license-banner className="mx-auto mb-4 flex max-w-[2400px] items-center justify-between gap-3 rounded-[18px] border border-gray-100 bg-white/90 px-4 py-3 text-[#040415] shadow-sm backdrop-blur-xl">
+      <div className="min-w-0">
+        <p className="truncate text-[13px] font-semibold">{copy.title}</p>
+        <p className="mt-0.5 text-[12px] text-gray-500">{copy.description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onOpenLicense}
+        className="shrink-0 rounded-[12px] bg-[#040415] px-3 py-2 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
+      >
+        {copy.action}
+      </button>
     </div>
   );
 }
@@ -130,6 +172,9 @@ function RemoteAuditScreen() {
 function App() {
   const [selectedRoom, setSelectedRoom] = useState<string>('常用');
   const [sceneCooldown, setSceneCooldown] = useState(false);
+  const [aiOpenSignal, setAiOpenSignal] = useState(0);
+  const experience = useAdaptiveExperience();
+  const [licenseEntitlements, setLicenseEntitlements] = useState<LicenseEntitlements>(() => getLicenseEntitlements());
 
   // 安全确认对话框状态
   const [secureConfirmOpen, setSecureConfirmOpen] = useState(false);
@@ -156,6 +201,50 @@ function App() {
     selectedRemoteDevice, setSelectedRemoteDevice,
     dashboardEditing, setDashboardEditing
   } = useUIStore();
+  const openSettingsAt = useUIStore((state) => state.openSettingsAt);
+
+  const refreshLicenseEntitlements = useCallback(() => {
+    setLicenseEntitlements(getLicenseEntitlements());
+  }, []);
+
+  useEffect(() => {
+    const handleLicenseChange = (event: Event) => {
+      const detail = (event as CustomEvent<LicenseEntitlements>).detail;
+      if (detail?.status) {
+        setLicenseEntitlements(detail);
+        return;
+      }
+      refreshLicenseEntitlements();
+    };
+    window.addEventListener('haui-license-change', handleLicenseChange);
+    window.addEventListener('storage', handleLicenseChange);
+
+    fetch(getApiUrl('/api/license/status'), { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await readApiError(res, '授权状态读取失败'));
+        return res.json();
+      })
+      .then((status) => {
+        if (status?.active && status?.payload) {
+          // 后端授权状态足以控制 Pro 入口；前端 localStorage 缺失时也刷新 UI。
+          const serverEntitlements = getLicenseEntitlements({
+            edition: status.edition,
+            active: true,
+            message: status.message,
+            payload: status.payload,
+            machineCode: status.machineCode,
+          });
+          setLicenseEntitlements(serverEntitlements);
+          window.dispatchEvent(new CustomEvent('haui-license-change', { detail: serverEntitlements }));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      window.removeEventListener('haui-license-change', handleLicenseChange);
+      window.removeEventListener('storage', handleLicenseChange);
+    };
+  }, [refreshLicenseEntitlements]);
 
   const isEditingCommon = dashboardEditing;
   const setIsEditingCommon = setDashboardEditing;
@@ -766,8 +855,20 @@ function App() {
     ? (isEditingCommon ? devices : devices.filter(d => d.isCommon))
     : devices.filter(d => d.room === selectedRoom);
 
+  const containerModeClass = [
+    experience.isPhone ? 'haui-phone-mode' : '',
+    experience.isTablet ? 'haui-tablet-mode' : '',
+    experience.isWallPanel && licenseEntitlements.canUseWallPanel ? 'haui-wall-mode' : '',
+    experience.isHaPanel ? 'haui-ha-panel-mode' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div data-testid="dashboard-container" className="h-screen bg-background text-foreground relative transition-colors duration-300 flex flex-col overflow-hidden">
+    <div
+      data-testid="dashboard-container"
+      data-haui-host={experience.host}
+      data-haui-viewport={experience.viewport}
+      className={`h-screen bg-background text-foreground relative transition-colors duration-300 flex flex-col overflow-hidden ${containerModeClass}`}
+    >
       {/* 全局断线状态提示 - 添加延迟显示避免闪烁 */}
       <ConnectionStatusBanner isConnected={isConnected} hasToken={Boolean(haConfig.token)} />
       {/* 使用 Suspense 包裹懒加载的 Modal 组件 */}
@@ -835,9 +936,14 @@ function App() {
       </Suspense>
 
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto w-full" {...onDashboardLongPress}>
+      <div data-haui-scroll-area className="flex-1 overflow-y-auto w-full" {...onDashboardLongPress}>
         {/* Main Content */}
-        <div className="w-full max-w-[2400px] mx-auto px-4 md:px-6 lg:px-8 py-8">
+        <div className="w-full max-w-[2400px] mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 haui-dashboard-shell">
+          <ProGateBanner
+            entitlements={licenseEntitlements}
+            onOpenLicense={() => openSettingsAt('license')}
+          />
+
           {/* Header */}
           <Header
             weather={weather}
@@ -893,7 +999,7 @@ function App() {
           />
 
           {/* Scene & Room Tabs */}
-          <div className="flex items-center justify-between mb-6">
+          <div id="haui-rooms" className="flex items-center justify-between mb-6 scroll-mt-6">
             <div className="flex gap-2 overflow-x-auto pb-2 flex-1 scrollbar-hide items-center">
               {/* Scenes */}
               {scenes.map((scene) => {
@@ -973,7 +1079,7 @@ function App() {
           </div>
 
           {/* Devices Grid - Optimized for larger cards (125% size) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 pb-24">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 pb-28 md:pb-24 haui-device-grid">
             {filteredDevices.map((device) => (
               <CardErrorBoundary key={device.id}>
                 <DeviceCard
@@ -998,7 +1104,7 @@ function App() {
       </div>
 
       {/* Bottom Floating Controls */}
-      <div className="fixed bottom-8 right-8 z-50 flex items-center gap-4">
+      <div className="fixed bottom-8 right-8 z-50 hidden md:flex items-center gap-4">
         {/* Settings Button (Direct Access) - 支持减少动画模式 */}
         {reduceMotion ? (
           // 减少动画模式：使用简单 CSS
@@ -1081,14 +1187,41 @@ function App() {
       </div>
 
       <Suspense fallback={null}>
-        <AiChatWidget entities={entities} callService={callService} isHaConnected={isConnected} haToken={haConfig.token} />
+        <AiChatWidget
+          entities={entities}
+          callService={callService}
+          isHaConnected={isConnected}
+          haToken={haConfig.token}
+          openSignal={aiOpenSignal}
+          entitlements={licenseEntitlements}
+          onOpenLicense={() => openSettingsAt('license')}
+        />
       </Suspense>
       <Toaster />
+
+      <MobileBottomNav
+        onHome={() => {
+          setSelectedRoom('常用');
+          const scrollArea = document.querySelector('[data-haui-scroll-area]');
+          scrollArea?.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onRooms={() => document.getElementById('haui-rooms')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        onAi={() => {
+          if (!licenseEntitlements.canUseAi) {
+            openSettingsAt('license');
+            toast.info('请先导入授权码启用 AI 功能');
+            return;
+          }
+          setAiOpenSignal((value) => value + 1);
+        }}
+        onCameras={() => openSettingsAt('cameras')}
+        onSettings={() => setSettingsOpen(true)}
+      />
 
       {/* 版本号显示 - 底部居中，提高 z-index 确保显示 */}
       <div className="fixed bottom-1 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
         <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide select-none">
-          HAUI v{import.meta.env.VITE_APP_VERSION || '5.1.8'}
+          HAUI v{import.meta.env.VITE_APP_VERSION || '5.4.0'}
         </span>
       </div>
 

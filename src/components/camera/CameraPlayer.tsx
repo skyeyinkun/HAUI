@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Maximize2, X, AlertTriangle } from 'lucide-react';
+import { Maximize2, X, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { EzvizStreamPlayer } from './EzvizStreamPlayer';
 import { HaHlsPlayer } from './HaHlsPlayer';
 import { Go2RtcPlayer } from './Go2RtcPlayer';
 import { CameraConfig } from './types';
+import { getApiUrl } from '@/utils/sync';
 
 interface CameraPlayerProps {
     config: CameraConfig;
@@ -13,6 +14,8 @@ interface CameraPlayerProps {
 export const CameraPlayer: React.FC<CameraPlayerProps> = ({ config, onRemove }) => {
     // hover 时显示顶层的把手栏跟控制按钮
     const [isHovered, setIsHovered] = useState(false);
+    const [privacyUnlocked, setPrivacyUnlocked] = useState(!config.privacyMode);
+    const haHlsUrl = config.url || (config.entityId ? getApiUrl(`/ha-api/api/camera_proxy_stream/${config.entityId}`) : '');
 
     const handleFullscreen = () => {
         // 利用标准 DOM API 向整个父容器请求全屏
@@ -77,21 +80,35 @@ export const CameraPlayer: React.FC<CameraPlayerProps> = ({ config, onRemove }) 
 
             {/* 实况流播放区 (强制填充满 flex-1 并置于底面) */}
             <div className="flex-1 w-full relative z-0">
-                {config.type === 'ezviz' && config.accessToken && config.url && (
+                {config.privacyMode && !privacyUnlocked && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-neutral-950 text-white">
+                        <ShieldCheck className="mb-3 h-8 w-8 text-white/70" />
+                        <div className="text-sm font-semibold">隐私模式已开启</div>
+                        <button
+                            type="button"
+                            onClick={() => setPrivacyUnlocked(true)}
+                            className="mt-4 rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#040415] transition-opacity hover:opacity-90"
+                        >
+                            显示画面
+                        </button>
+                    </div>
+                )}
+
+                {config.type === 'ezviz' && config.accessToken && config.url && privacyUnlocked && (
                     <EzvizStreamPlayer cameraId={config.id} url={config.url} accessToken={config.accessToken} />
                 )}
                 
-                {config.type === 'ha-hls' && config.url && (
-                    <HaHlsPlayer url={config.url} />
+                {config.type === 'ha-hls' && haHlsUrl && privacyUnlocked && (
+                    <HaHlsPlayer url={haHlsUrl} muted={config.mutedByDefault !== false} />
                 )}
 
                 {/* RTSP 流通过 go2rtc 代理播放（WebRTC 优先，HLS 回退） */}
-                {config.type === 'rtsp' && config.go2rtcUrl && config.streamName && (
+                {config.type === 'rtsp' && config.go2rtcUrl && config.streamName && privacyUnlocked && (
                     <Go2RtcPlayer go2rtcUrl={config.go2rtcUrl} streamName={config.streamName} />
                 )}
                 
                 {/* 各种无参数错误状态呈现 */}
-                {(!config.url && config.type !== 'rtsp') && (
+                {((config.type === 'ha-hls' && !haHlsUrl) || (config.type === 'ezviz' && !config.url)) && (
                     <div className="flex flex-col items-center justify-center w-full h-full text-red-500 text-sm bg-black absolute top-0 left-0">
                         <AlertTriangle size={32} className="opacity-70 mb-2" />
                         <span className="opacity-80">当前设备的串流基础参数或 URL 丢失/错误</span>

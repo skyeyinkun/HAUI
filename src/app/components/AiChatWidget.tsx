@@ -7,7 +7,7 @@ import {
     Eraser, PanelRight, PinOff, Mic, Volume2, Keyboard, ArrowUp, VolumeX, Pause, Play, BrainCircuit
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo, useDragControls, Variants } from 'motion/react';
-import { useAiChat, Message } from '@/hooks/useAiChat';
+import { AiActionConfirmRequest, useAiChat, Message } from '@/hooks/useAiChat';
 import { HassEntities } from 'home-assistant-js-websocket';
 import { AiCallService } from '@/services/ai-tools-executor';
 import AiSettingsModal from './AiSettingsModal';
@@ -15,6 +15,8 @@ import { useIsMobile } from '@/app/components/ui/use-mobile';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import AgentConsole from './AgentConsole';
+import { LicenseEntitlements } from '@/features/license/license-policy';
+import { toast } from 'sonner';
 
 // 样式辅助函数
 function classNames(...classes: (string | undefined | null | false)[]) {
@@ -378,6 +380,9 @@ interface AiChatWidgetProps {
     callService?: AiCallService;
     isHaConnected?: boolean;
     haToken?: string;
+    openSignal?: number;
+    entitlements?: LicenseEntitlements;
+    onOpenLicense?: () => void;
 }
 
 type ViewMode = 'floating' | 'sidebar' | 'minimized';
@@ -521,13 +526,35 @@ function VoiceMenu({
     );
 }
 
-export default function AiChatWidget({ entities, callService, isHaConnected = false, haToken }: AiChatWidgetProps) {
+export default function AiChatWidget({
+    entities,
+    callService,
+    isHaConnected = false,
+    haToken,
+    openSignal = 0,
+    entitlements,
+    onOpenLicense,
+}: AiChatWidgetProps) {
     // UI 状态
     const [viewMode, setViewMode] = useState<ViewMode>('floating');
     const [isVisible, setIsVisible] = useState(false);
     const [view, setView] = useState<'chat' | 'settings' | 'agent'>('chat');
     const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+    const [confirmRequest, setConfirmRequest] = useState<AiActionConfirmRequest | null>(null);
     const isMobile = useIsMobile();
+    const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+
+    useEffect(() => {
+        if (openSignal > 0) {
+            if (entitlements && !entitlements.canUseAi) {
+                onOpenLicense?.();
+                return;
+            }
+            setIsVisible(true);
+            setView('chat');
+            setViewMode('floating');
+        }
+    }, [openSignal, entitlements, onOpenLicense]);
 
     // TTS 朗读 Hook
     const {
@@ -570,6 +597,19 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
         setVoiceStatus('idle');
     }, []);
 
+    const handleConfirmAction = useCallback((request: AiActionConfirmRequest) => {
+        setConfirmRequest(request);
+        return new Promise<boolean>((resolve) => {
+            confirmResolverRef.current = resolve;
+        });
+    }, []);
+
+    const resolveConfirmAction = useCallback((value: boolean) => {
+        confirmResolverRef.current?.(value);
+        confirmResolverRef.current = null;
+        setConfirmRequest(null);
+    }, []);
+
     // AI 对话 Hook
     const {
         messages, inputValue, setInputValue, isLoading,
@@ -581,6 +621,8 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
         isVoiceMode: false,
         onAiReplyDone: handleAiReplyDone,
         onError: handleAiError,
+        onConfirmAction: handleConfirmAction,
+        onConfigSaveError: (message) => toast.warning(message),
     });
 
     // sendMessageRef 让 handleVoiceSpeechEnd 能调用最新的 sendMessage
@@ -693,7 +735,13 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
                 exit={{ scale: 0, opacity: 0 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setIsVisible(true)}
+                onClick={() => {
+                    if (entitlements && !entitlements.canUseAi) {
+                        onOpenLicense?.();
+                        return;
+                    }
+                    setIsVisible(true);
+                }}
                 className="fixed bottom-8 right-24 z-50 w-12 h-12 rounded-full flex items-center justify-center text-white cursor-pointer group"
             >
                 {/* 1. 外围泛光扩散层 - 模拟流体呼吸感 */}
@@ -849,7 +897,17 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
                                 <button onClick={() => setView('settings')} className="p-1.5 hover:bg-gray-100 hover:text-[#334155] rounded-full transition-colors" title="模型配置">
                                     <Settings className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => setView('agent')} className="p-1.5 hover:bg-gray-100 hover:text-[#334155] rounded-full transition-colors" title="Agent 控制台">
+                                <button
+                                    onClick={() => {
+                                        if (entitlements && !entitlements.canUseAgent) {
+                                            onOpenLicense?.();
+                                            return;
+                                        }
+                                        setView('agent');
+                                    }}
+                                    className="p-1.5 hover:bg-gray-100 hover:text-[#334155] rounded-full transition-colors"
+                                    title="Agent 控制台"
+                                >
                                     <BrainCircuit className="w-4 h-4" />
                                 </button>
                                 <VoiceMenu
@@ -921,7 +979,10 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
                         ) : view === 'settings' ? (
                             <AiSettingsModal
                                 onClose={() => setView('chat')}
-                                onSave={(cfg) => { handleSaveConfig(cfg); setView('chat'); }}
+                                onSave={async (cfg) => {
+                                    await handleSaveConfig(cfg);
+                                    setView('chat');
+                                }}
                                 initialConfig={config}
                                 onDragStart={(e) => { if (viewMode === 'floating') dragControls.start(e); }}
                             />
@@ -933,6 +994,36 @@ export default function AiChatWidget({ entities, callService, isHaConnected = fa
                             />
                         )}
                         </div>
+
+                        {confirmRequest && (
+                            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm">
+                                <div className="w-full max-w-[320px] rounded-[20px] bg-white p-5 shadow-2xl">
+                                    <h3 className="text-[16px] font-semibold text-[#040415]">{confirmRequest.title}</h3>
+                                    <p className="mt-2 text-[13px] leading-relaxed text-gray-500">{confirmRequest.description}</p>
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {confirmRequest.targetNames.map((name) => (
+                                            <span key={name} className="rounded-full bg-gray-100 px-3 py-1 text-[12px] font-medium text-[#334155]">{name}</span>
+                                        ))}
+                                    </div>
+                                    <div className="mt-5 grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => resolveConfirmAction(false)}
+                                            className="rounded-[14px] border border-gray-200 bg-white px-4 py-3 text-[13px] font-semibold text-gray-500 transition-colors hover:bg-gray-50"
+                                        >
+                                            取消
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => resolveConfirmAction(true)}
+                                            className="rounded-[14px] bg-[#040415] px-4 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
+                                        >
+                                            确认执行
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

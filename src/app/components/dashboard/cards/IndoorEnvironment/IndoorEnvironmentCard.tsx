@@ -58,6 +58,7 @@ export function IndoorEnvironmentCard(props: IndoorEnvironmentCardProps) {
   return (
     <ConfigurableEntityCard
       cardId={props.cardId || "indoor_environment"}
+      variant="indoor_environment"
       defaultConfig={mergedConfig}
       haEntities={props.haEntities}
       onRefresh={props.onRefresh}

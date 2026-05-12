@@ -469,8 +469,9 @@ export default function RemoteControlModal({ isOpen, onClose, device, callServic
     return nameMap[p] || '遥控器';
   };
 
-  // 动态标题：设备名 + 当前类型
-  const dynamicTitle = `${device.name.replace(/遥控.*$/, '').trim()}${getProfileTypeName(profile)}遥控`;
+  const hasRemoteSuffix = /遥控|remote/i.test(device.name);
+  const baseDeviceName = device.name.replace(/遥控.*$/, '').trim();
+  const dynamicTitle = hasRemoteSuffix ? device.name : `${baseDeviceName}${getProfileTypeName(profile)}遥控`;
 
   return (
     <AnimatePresence>

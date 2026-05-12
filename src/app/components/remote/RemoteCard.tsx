@@ -9,6 +9,7 @@ import * as Icons from 'lucide-react';
 import { createRemoteInputController, RemoteKeyCode } from '@/utils/remote-input';
 import { cn } from '@/app/components/ui/utils';
 import { ICON_PROPS, ICON_SIZES, ICON_STROKE_WIDTH } from '@/styles/icon-constants';
+import { safeLocalStorage } from '@/utils/safe-storage';
 import './RemoteCard.css';
 
 interface RemoteCardProps {
@@ -51,7 +52,7 @@ function XIcon({ className }: { className?: string }) {
 export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommon, onToggleCommon }: RemoteCardProps) {
   const [activeProfile, setActiveProfile] = useState<RemoteProfile>(() => {
     if (typeof window === 'undefined') return 'tv';
-    const saved = localStorage.getItem(`remote_profile_${device.id}`);
+    const saved = safeLocalStorage.getItem(`remote_profile_${device.id}`);
     if (saved === 'tv' || saved === 'stb' || saved === 'speaker') return saved;
     return 'tv';
   });
@@ -61,13 +62,13 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
 
   // 加载全局和配置文件特定的映射
   useEffect(() => {
-    const saved = localStorage.getItem(`remote_profile_${device.id}`);
+    const saved = safeLocalStorage.getItem(`remote_profile_${device.id}`);
     if (saved === 'tv' || saved === 'stb' || saved === 'speaker') setActiveProfile(saved);
   }, [device.id]);
 
   useEffect(() => {
     const loadGlobal = () => {
-      const saved = localStorage.getItem(`remote_global_${device.id}`);
+      const saved = safeLocalStorage.getItem(`remote_global_${device.id}`);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -83,7 +84,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
 
   useEffect(() => {
     const loadMappings = () => {
-      const savedMap = localStorage.getItem(`remote_map_${device.id}_${activeProfile}`);
+      const savedMap = safeLocalStorage.getItem(`remote_map_${device.id}_${activeProfile}`);
       if (savedMap) {
         try {
           const parsed = JSON.parse(savedMap);
@@ -102,7 +103,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
   }, [device.id, activeProfile]);
 
   useEffect(() => {
-    localStorage.setItem(`remote_profile_${device.id}`, activeProfile);
+    safeLocalStorage.setItem(`remote_profile_${device.id}`, activeProfile);
   }, [activeProfile, device.id]);
 
   // 获取显示文本和图标的工具函数
@@ -279,6 +280,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
               <div className="absolute inset-0 rounded-full overflow-hidden">
                 {/* 上 */}
                 <button
+                  aria-label="上"
                   className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 flex justify-center pt-1 hover:bg-white/5 active:bg-white/10 active:text-green-400 transition-colors"
                   style={{ clipPath: 'polygon(50% 50%, 0 0, 100% 0)' }}
                   {...keyProps('up')}
@@ -287,6 +289,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
                 </button>
                 {/* 右 */}
                 <button
+                  aria-label="右"
                   className="absolute top-1/2 right-0 -translate-y-1/2 h-full w-1/2 flex items-center justify-end pr-1 hover:bg-white/5 active:bg-white/10 active:text-green-400 transition-colors"
                   style={{ clipPath: 'polygon(0 50%, 100% 0, 100% 100%)' }}
                   {...keyProps('right')}
@@ -295,6 +298,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
                 </button>
                 {/* 下 */}
                 <button
+                  aria-label="下"
                   className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-1/2 flex justify-center items-end pb-1 hover:bg-white/5 active:bg-white/10 active:text-green-400 transition-colors"
                   style={{ clipPath: 'polygon(50% 50%, 100% 100%, 0 100%)' }}
                   {...keyProps('down')}
@@ -303,6 +307,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
                 </button>
                 {/* 左 */}
                 <button
+                  aria-label="左"
                   className="absolute top-1/2 left-0 -translate-y-1/2 h-full w-1/2 flex items-center justify-start pl-1 hover:bg-white/5 active:bg-white/10 active:text-green-400 transition-colors"
                   style={{ clipPath: 'polygon(100% 50%, 0 100%, 0 0)' }}
                   {...keyProps('left')}
@@ -314,6 +319,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
               {/* 中心OK */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <button
+                  aria-label="确认"
                   className="w-[22px] h-[22px] rounded-full bg-background shadow-md border border-white/5 flex items-center justify-center pointer-events-auto hover:bg-accent hover:scale-105 active:scale-95 active:border-green-500 transition-all z-10"
                   {...keyProps('ok')}
                 >

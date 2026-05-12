@@ -78,7 +78,7 @@ export function RoomManagementTab({ rooms, onUpdateRooms }: RoomManagementTabPro
             style={{ backgroundImage: 'linear-gradient(135deg, #3c3c41 0%, #2d2d30 100%)' }}
           >
             <Plus className="w-4 h-4" />
-            新增房间区域
+            新增房间
           </button>
         </div>
 

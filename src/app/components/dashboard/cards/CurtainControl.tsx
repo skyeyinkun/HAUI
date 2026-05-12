@@ -59,8 +59,7 @@ export function CurtainControl({
             } else if (!isWaitingForUpdate.current) {
                 // 只在非等待状态下同步，避免回跳
                 const targetPosition = device.position || 0;
-                // 只有当值真正变化时才更新，避免不必要的渲染
-                setLocalPosition(prev => Math.abs(prev - targetPosition) > 1 ? targetPosition : prev);
+                setLocalPosition(prev => prev !== targetPosition ? targetPosition : prev);
             }
         }
     }, [device.position, isDragging]);
@@ -69,27 +68,7 @@ export function CurtainControl({
     const handleCurtainDrag = useCallback((clientX: number) => {
         if (!curtainContainerRef.current || !dragStartInfo) return;
         const rect = curtainContainerRef.current.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        
-        // 计算从拖拽起始点的位移量
-        const deltaX = clientX - dragStartInfo.startX;
-        // 将位移转换为百分比变化（基于容器宽度的一半）
-        const deltaPercent = (deltaX / (rect.width / 2)) * 100;
-        
-        // 判断拖拽方向：基于鼠标相对于中心的位置
-        const isOnLeftSide = dragStartInfo.startX < centerX;
-        
-        // 根据拖拽侧边和方向计算新位置
-        // 左侧拖动：向左（负值）= 打开，向右（正值）= 关闭
-        // 右侧拖动：向右（正值）= 打开，向左（负值）= 关闭
-        let newPos: number;
-        if (isOnLeftSide) {
-            // 左侧：向左拖 = 打开（增加位置）
-            newPos = dragStartInfo.startPos - deltaPercent;
-        } else {
-            // 右侧：向右拖 = 打开（增加位置）
-            newPos = dragStartInfo.startPos + deltaPercent;
-        }
+        let newPos = ((clientX - rect.left) / rect.width) * 100;
         
         // 限制范围 0-100
         newPos = Math.max(0, Math.min(100, newPos));
@@ -231,6 +210,7 @@ export function CurtainControl({
                 {/* 指针事件全区域绑定，rounded 样式与内部视觉一致 */}
                 <div
                     ref={curtainContainerRef}
+                    data-testid="curtain-position-control"
                     className="w-full h-full relative overflow-hidden rounded-[12px] cursor-col-resize touch-none select-none group/curtain bg-gradient-to-b from-white/95 to-slate-50/90 dark:from-slate-800/60 dark:to-slate-900/50"
                     onPointerDown={handleCurtainPointerDown}
                     onPointerMove={handleCurtainPointerMove}

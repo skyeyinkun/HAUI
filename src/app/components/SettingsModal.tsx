@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Cpu, Users, Camera, ShieldCheck, FileClock } from 'lucide-react';
+import { X, Save, Server, Link, User as UserIcon, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Check, Trash2, Plus, Layout, Upload, Image as ImageIcon, Cpu, Users, Camera, ShieldCheck, FileClock, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { HAConfig } from '@/types/home-assistant';
 import { sanitizeToken, isValidTokenFormat } from '@/utils/ha-connection';
@@ -12,6 +12,7 @@ import { DeviceDiscoveryPanel } from './settings/DeviceDiscoveryPanel';
 import { CameraManagementTab } from './settings/CameraManagementTab';
 import { LicenseSettingsPanel } from './settings/LicenseSettingsPanel';
 import { BackupRestorePanel } from './settings/BackupRestorePanel';
+import { DeliveryStatusPanel } from './settings/DeliveryStatusPanel';
 import { Scene } from '@/types/dashboard';
 import { useSettingsWindowSize } from '@/hooks/useSettingsWindowSize';
 
@@ -40,8 +41,8 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose, devices, users, scenes = [], rooms = [], onUpdateUsers, onUpdateDevices, onUpdateScenes, onUpdateRooms, onSave, initialConfig, defaultTab, isConnected = false, fetchStatesRest, areas, devicesRegistry, entitiesRegistry }: SettingsModalProps) {
   const windowSize = useSettingsWindowSize();
-  type SettingsTab = 'connection' | 'devices' | 'users' | 'rooms' | 'cameras' | 'backup' | 'license';
-  const [activeTab, setActiveTab] = useState<SettingsTab>('connection');
+  type SettingsTab = 'delivery' | 'connection' | 'devices' | 'users' | 'rooms' | 'cameras' | 'backup' | 'license';
+  const [activeTab, setActiveTab] = useState<SettingsTab>('delivery');
   const [config, setConfig] = useState<HAConfig>(initialConfig);
 
   const [showToken, setShowToken] = useState(false);
@@ -77,10 +78,15 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
         // 主连接已建立，无需再次验证，直接置绿
         setVerifyStatus('success');
         setIsVerifying(false);
-      } else if (isValidTokenFormat(sanitizeToken(initialConfig.token))) {
-        // 主连接未就绪，触发一次验证验证 token
-        setVerifyStatus('idle');
-        runVerify(initialConfig.token, initialConfig.localUrl, initialConfig.publicUrl);
+      } else if (initialConfig.token) {
+        const cleanedInitialToken = sanitizeToken(initialConfig.token);
+        if (cleanedInitialToken && isValidTokenFormat(cleanedInitialToken)) {
+          // 主连接未就绪，触发一次验证验证 token
+          setVerifyStatus('idle');
+          runVerify(initialConfig.token, initialConfig.localUrl, initialConfig.publicUrl);
+        } else {
+          setVerifyStatus('idle');
+        }
       } else {
         setVerifyStatus('idle');
       }
@@ -91,7 +97,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
   // defaultTab 切换
   useEffect(() => {
     if (isOpen && defaultTab) {
-      const validTabs = ['connection', 'devices', 'users', 'rooms', 'cameras', 'backup', 'license'];
+      const validTabs = ['delivery', 'connection', 'devices', 'users', 'rooms', 'cameras', 'backup', 'license'];
       if (validTabs.includes(defaultTab)) {
         setActiveTab(defaultTab as any);
       }
@@ -203,13 +209,14 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
   if (!isOpen) return null;
 
   const tabs: Array<{ key: SettingsTab; label: string; group: string; icon: typeof Link }> = [
-    { key: 'connection', label: '连接配置', group: '基础', icon: Link },
-    { key: 'devices', label: '设备管理', group: '空间', icon: Cpu },
-    { key: 'rooms', label: '房间管理', group: '空间', icon: Layout },
-    { key: 'users', label: '人员管理', group: '空间', icon: Users },
+    { key: 'delivery', label: '交付状态', group: '总览', icon: ClipboardCheck },
+    { key: 'devices', label: '设备管理', group: '日常', icon: Cpu },
+    { key: 'rooms', label: '房间管理', group: '日常', icon: Layout },
+    { key: 'users', label: '人员管理', group: '日常', icon: Users },
     { key: 'cameras', label: '摄像头', group: '体验', icon: Camera },
-    { key: 'backup', label: '备份恢复', group: '体验', icon: FileClock },
-    { key: 'license', label: '授权', group: '商业', icon: ShieldCheck },
+    { key: 'backup', label: '备份恢复', group: '交付', icon: FileClock },
+    { key: 'license', label: '授权', group: '交付', icon: ShieldCheck },
+    { key: 'connection', label: 'HA 连接', group: '高级', icon: Link },
   ];
 
   return (
@@ -234,6 +241,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
                   <span className="hidden md:inline text-[11px] font-semibold text-gray-300">{tab.group}</span>
                 )}
                 <button
+                  data-testid={`settings-tab-${tab.key}`}
                   onClick={() => setActiveTab(tab.key)}
                   className={`py-3 md:py-4 px-2 md:px-3 font-medium text-xs md:text-sm transition-colors relative whitespace-nowrap flex items-center gap-1.5 ${activeTab === tab.key ? 'text-[#040415]' : 'text-gray-400'}`}
                 >
@@ -250,9 +258,28 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
 
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col bg-gray-50/50">
+          {activeTab === 'delivery' && (
+            <DeliveryStatusPanel
+              isConnected={isConnected}
+              verifyStatus={verifyStatus}
+              config={config}
+              devices={localDevices}
+              rooms={localRooms}
+              cameras={localCameras}
+              onOpenTab={(tab) => setActiveTab(tab)}
+            />
+          )}
+
           {activeTab === 'connection' && (
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
               <div className="space-y-6 max-w-2xl mx-auto">
+                <div className="rounded-[18px] border border-gray-100 bg-white p-4 text-[12px] leading-relaxed text-gray-500 shadow-sm">
+                  <div className="mb-1 flex items-center gap-2 text-[14px] font-semibold text-[#040415]">
+                    <Link className="h-4 w-4 text-[#334155]" />
+                    高级连接配置
+                  </div>
+                  普通 HA Add-on 部署通常会通过 Ingress 代理访问。只有独立网页、PWA 或公网访问场景，才需要手动调整地址和长期访问令牌。
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Server className="w-4 h-4" />
@@ -475,7 +502,7 @@ export default function SettingsModal({ isOpen, onClose, devices, users, scenes 
             </div>
           )}
           {activeTab === 'rooms' && <RoomManagementTab rooms={localRooms} onUpdateRooms={setLocalRooms} />}
-          {activeTab === 'cameras' && <CameraManagementTab cameras={localCameras} onUpdateCameras={setLocalCameras} />}
+          {activeTab === 'cameras' && <CameraManagementTab cameras={localCameras} onUpdateCameras={setLocalCameras} entitiesRegistry={entitiesRegistry} />}
           {activeTab === 'backup' && <BackupRestorePanel />}
           {activeTab === 'license' && <LicenseSettingsPanel />}
         </div>

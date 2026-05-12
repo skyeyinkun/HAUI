@@ -2,12 +2,28 @@
  * @vitest-environment jsdom
  */
 import { render, screen, fireEvent } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RoomManagementTab } from '../RoomManagementTab';
 import { DEFAULT_ROOMS } from '@/types/room';
+import type { Room } from '@/types/room';
 
 describe('RoomManagementTab', () => {
   const mockOnUpdateRooms = vi.fn();
+
+  function ControlledRooms({ initialRooms = [] }: { initialRooms?: Room[] }) {
+    const [rooms, setRooms] = useState(initialRooms);
+
+    return (
+      <RoomManagementTab
+        rooms={rooms}
+        onUpdateRooms={(nextRooms) => {
+          mockOnUpdateRooms(nextRooms);
+          setRooms(nextRooms);
+        }}
+      />
+    );
+  }
 
   beforeEach(() => {
     mockOnUpdateRooms.mockClear();
@@ -26,23 +42,18 @@ describe('RoomManagementTab', () => {
   });
 
   it('allows adding a new room', async () => {
-    render(
-      <RoomManagementTab 
-        rooms={[]} 
-        onUpdateRooms={mockOnUpdateRooms} 
-      />
-    );
+    render(<ControlledRooms />);
 
     // Open form
     const addBtn = screen.getAllByText('新增房间').find(el => el.tagName === 'BUTTON');
     fireEvent.click(addBtn!);
     
-    // Fill form
-    const input = await screen.findByPlaceholderText('例如：主卧');
+    // Rename the inline-created room
+    const input = await screen.findByDisplayValue('新房间');
     fireEvent.change(input, { target: { value: '游戏室' } });
     
-    // Submit
-    fireEvent.click(screen.getByText('确认添加'));
+    // Save
+    fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(mockOnUpdateRooms).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ name: '游戏室', type: 'other' })

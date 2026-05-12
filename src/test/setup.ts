@@ -3,6 +3,36 @@ import * as matchers from "@testing-library/jest-dom/matchers"
 
 expect.extend(matchers)
 
+const localStorageMock = (() => {
+  let store = new Map<string, string>()
+  return {
+    get length() {
+      return store.size
+    },
+    key: vi.fn((index: number) => Array.from(store.keys())[index] ?? null),
+    getItem: vi.fn((key: string) => store.get(String(key)) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store.set(String(key), String(value))
+    }),
+    removeItem: vi.fn((key: string) => {
+      store.delete(String(key))
+    }),
+    clear: vi.fn(() => {
+      store = new Map()
+    }),
+  }
+})()
+
+Object.defineProperty(window, "localStorage", {
+  configurable: true,
+  value: localStorageMock,
+})
+
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  value: localStorageMock,
+})
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({

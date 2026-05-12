@@ -347,6 +347,38 @@ function createBackupName() {
     return `haui-backup-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
 }
 
+function restoreBackupPayload(payload) {
+    if (!payload || payload.product !== 'HAUI' || !payload.storage || typeof payload.storage !== 'object') {
+        return { ok: false, status: 400, error: '备份文件格式不正确' };
+    }
+
+    ensureConfig();
+    const rollbackDir = getBackupDir();
+    fs.mkdirSync(rollbackDir, { recursive: true });
+    fs.writeFileSync(path.join(rollbackDir, `rollback-before-restore-${Date.now()}.json`), JSON.stringify(createBackupPayload(), null, 2));
+    fs.writeFileSync(getConfigFile(), JSON.stringify(payload.storage, null, 2));
+    if (payload.aiConfig && typeof payload.aiConfig === 'object') {
+        fs.writeFileSync(getAiConfigFile(), JSON.stringify(payload.aiConfig, null, 2));
+    }
+    if (payload.license?.license) {
+        const verification = verifySignedLicense(payload.license.license);
+        if (verification.ok) {
+            fs.writeFileSync(getLicenseFile(), JSON.stringify(payload.license, null, 2));
+        }
+    }
+    return { ok: true };
+}
+
+function getSafeBackupFile(name) {
+    if (!name || typeof name !== 'string' || path.basename(name) !== name || !name.endsWith('.json')) {
+        return null;
+    }
+    const backupDir = path.resolve(getBackupDir());
+    const file = path.resolve(backupDir, name);
+    if (!file.startsWith(`${backupDir}${path.sep}`)) return null;
+    return file;
+}
+
 app.get('/api/backup/export', requireProFeature('pro'), (_req, res) => {
     const backup = createBackupPayload();
     res.setHeader('Content-Type', 'application/json');
@@ -387,30 +419,54 @@ app.get('/api/backup/list', requireProFeature('pro'), (_req, res) => {
 
 app.post('/api/backup/restore', requireProFeature('pro'), (req, res) => {
     try {
-        const payload = req.body;
-        if (!payload || payload.product !== 'HAUI' || !payload.storage || typeof payload.storage !== 'object') {
-            return res.status(400).json({ error: '备份文件格式不正确' });
-        }
-
-        ensureConfig();
-        const rollbackDir = getBackupDir();
-        fs.mkdirSync(rollbackDir, { recursive: true });
-        fs.writeFileSync(path.join(rollbackDir, `rollback-before-restore-${Date.now()}.json`), JSON.stringify(createBackupPayload(), null, 2));
-        fs.writeFileSync(getConfigFile(), JSON.stringify(payload.storage, null, 2));
-        if (payload.aiConfig && typeof payload.aiConfig === 'object') {
-            fs.writeFileSync(getAiConfigFile(), JSON.stringify(payload.aiConfig, null, 2));
-        }
-        if (payload.license?.license) {
-            const verification = verifySignedLicense(payload.license.license);
-            if (verification.ok) {
-                fs.writeFileSync(getLicenseFile(), JSON.stringify(payload.license, null, 2));
-            }
-        }
+        const result = restoreBackupPayload(req.body);
+        if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
         res.json({ ok: true });
     } catch (e) {
         console.error('[HAUI] 备份恢复失败:', e.message);
         res.status(500).json({ error: e.message });
     }
+});
+
+app.post('/api/backup/restore-server', requireProFeature('pro'), (req, res) => {
+    try {
+        const file = getSafeBackupFile(req.body?.name);
+        if (!file || !fs.existsSync(file)) {
+            return res.status(404).json({ error: '未找到指定服务器备份' });
+        }
+        const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const result = restoreBackupPayload(payload);
+        if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
+        res.json({ ok: true });
+    } catch (e) {
+        console.error('[HAUI] 服务器备份恢复失败:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/system/status', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const addonPackage = readJsonFile(path.join(__dirname, 'package.json'), {});
+    const indexFile = path.join(__dirname, 'dist', 'index.html');
+    const swFile = path.join(__dirname, 'dist', 'sw.js');
+    const statIso = (file) => {
+        try {
+            return fs.existsSync(file) ? fs.statSync(file).mtime.toISOString() : null;
+        } catch (_) {
+            return null;
+        }
+    };
+
+    res.json({
+        product: 'HAUI',
+        version: addonPackage.version || process.env.HAUI_VERSION || 'unknown',
+        frontendVersion: addonPackage.version || process.env.VITE_APP_VERSION || 'unknown',
+        addonVersion: addonPackage.version || 'unknown',
+        indexUpdatedAt: statIso(indexFile),
+        serviceWorkerUpdatedAt: statIso(swFile),
+        cachePolicy: 'index/sw/manifest no-store, hashed assets immutable',
+        host: 'home-assistant-addon',
+    });
 });
 
 // 萤石云 API 代理：隐藏 AppKey/AppSecret，避免前端直接暴露，同时解决跨域问题
@@ -882,8 +938,18 @@ app.use((_req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
+export {
+    app,
+    getSafeBackupFile,
+    getLicenseStatus,
+    restoreBackupPayload,
+    createBackupPayload,
+};
+
 const PORT = 8099;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[HAUI] 服务已启动，监听端口 ${PORT}`);
-    console.log(`[HAUI] 持久化配置文件: ${getConfigFile()}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`[HAUI] 服务已启动，监听端口 ${PORT}`);
+        console.log(`[HAUI] 持久化配置文件: ${getConfigFile()}`);
+    });
+}

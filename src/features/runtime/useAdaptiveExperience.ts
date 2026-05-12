@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { safeLocalStorage } from '@/utils/safe-storage';
 
 export type RuntimeHost = 'ha-panel' | 'app-shell' | 'standalone';
 export type ViewportClass = 'phone' | 'tablet' | 'desktop' | 'wall';
@@ -34,7 +35,14 @@ function detectHost(): RuntimeHost {
 
 function getViewport(width: number, height: number): ViewportClass {
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const manualWallMode = safeLocalStorage.getItem('haui_wall_mode');
   if (params?.get('haui_mode') === 'wall') return 'wall';
+  if (manualWallMode === '1') return 'wall';
+  if (manualWallMode === '0') {
+    if (width < 768) return 'phone';
+    if (width < 1180) return 'tablet';
+    return 'desktop';
+  }
   if (width >= 1440 && height >= 820) return 'wall';
   if (width < 768) return 'phone';
   if (width < 1180) return 'tablet';
@@ -67,11 +75,13 @@ export function useAdaptiveExperience(): AdaptiveExperience {
     const displayMode = window.matchMedia?.('(display-mode: standalone)');
 
     window.addEventListener('resize', handleResize);
+    window.addEventListener('haui-wall-mode-change', handleResize);
     displayMode?.addEventListener?.('change', handleResize);
     handleResize();
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('haui-wall-mode-change', handleResize);
       displayMode?.removeEventListener?.('change', handleResize);
     };
   }, []);

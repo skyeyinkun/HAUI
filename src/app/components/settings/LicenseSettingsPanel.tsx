@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle, Copy, KeyRound, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Copy, FileText, KeyRound, ShieldCheck, Trash2, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { activateLicense, clearLicense, getLicenseStatus, saveLicense } from '@/features/license/license-storage';
 import { getMachineCode, saveMachineCodeOverride } from '@/features/license/machine-id';
@@ -157,7 +157,7 @@ export function LicenseSettingsPanel() {
                 className="shrink-0 rounded-[12px] bg-white px-3 py-2 text-[12px] font-semibold text-[#334155] shadow-sm transition-colors hover:bg-gray-100"
               >
                 <Copy className="mr-1 inline h-3.5 w-3.5" />
-                复制
+                复制给服务商
               </button>
             </div>
           </div>
@@ -183,6 +183,27 @@ export function LicenseSettingsPanel() {
         </div>
 
         <div className="rounded-[20px] border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-[#334155]" />
+            <h4 className="text-[15px] font-semibold text-[#040415]">销售与维护规则</h4>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-[14px] bg-gray-50 p-3">
+              <p className="text-[12px] font-semibold text-[#040415]">单实例授权</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-500">授权绑定当前 HAUI 机器码，换实例需要重新生成。</p>
+            </div>
+            <div className="rounded-[14px] bg-gray-50 p-3">
+              <p className="text-[12px] font-semibold text-[#040415]">基础控制不锁</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-500">开关灯、状态查看等日常控制不应因授权失效中断。</p>
+            </div>
+            <div className="rounded-[14px] bg-gray-50 p-3">
+              <p className="text-[12px] font-semibold text-[#040415]">维护期更新</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-500">建议按 1 年维护期交付，不承诺终身免费更新。</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[20px] border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-[#334155]" />
             <h4 className="text-[15px] font-semibold text-[#040415]">导入授权码</h4>
@@ -190,7 +211,7 @@ export function LicenseSettingsPanel() {
           <textarea
             value={licenseInput}
             onChange={(event) => setLicenseInput(event.target.value)}
-            placeholder="粘贴你生成的授权码或授权文件内容"
+            placeholder="粘贴服务商提供的授权码或授权文件内容"
             className="min-h-[136px] w-full resize-none rounded-[16px] border border-gray-200 bg-gray-50 px-4 py-3 font-mono text-[12px] text-[#040415] outline-none transition-all focus:border-[#334155] focus:bg-white focus:ring-2 focus:ring-gray-100"
           />
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -225,6 +246,14 @@ export function LicenseSettingsPanel() {
             </div>
           </div>
         )}
+
+        <div className="rounded-[20px] border border-gray-100 bg-white p-5 text-[12px] leading-relaxed text-gray-500 shadow-sm">
+          <div className="mb-2 flex items-center gap-2 text-[15px] font-semibold text-[#040415]">
+            <FileText className="h-4 w-4 text-[#334155]" />
+            隐私和官方关系
+          </div>
+          HAUI 是面向 Home Assistant 生态的第三方面板，不代表 Home Assistant 官方背书。AI Key 和摄像头画面默认应保存在用户自己的环境中，摄像头不走开发者云端。
+        </div>
       </div>
     </div>
   );

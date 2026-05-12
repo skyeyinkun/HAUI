@@ -10,6 +10,7 @@ import { IconPickerPopover } from '@/app/components/dashboard/IconPickerPopover'
 
 interface ConfigurableEntityCardProps {
   cardId: string;
+  variant?: 'indoor_environment' | 'sensor_status';
   defaultConfig: CardConfig;
   haEntities: HassEntities;
   onRefresh?: () => Promise<void>;
@@ -212,17 +213,18 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
     }
   };
 
+  const refreshKind = props.variant ?? props.cardId;
   const refreshTestId =
-    props.cardId === 'indoor_environment'
+    refreshKind === 'indoor_environment'
       ? 'refresh-indoor-environment'
-      : props.cardId === 'sensor_status'
+      : refreshKind === 'sensor_status'
         ? 'refresh-sensor-status'
         : undefined;
 
   const refreshTitle = (() => {
     if (!refreshError) return '点击刷新 Home Assistant 数据';
-    if (props.cardId === 'indoor_environment') return `室内环境刷新失败：${refreshError}`;
-    if (props.cardId === 'sensor_status') return `传感器刷新失败：${refreshError}`;
+    if (refreshKind === 'indoor_environment') return `室内环境刷新失败：${refreshError}`;
+    if (refreshKind === 'sensor_status') return `传感器刷新失败：${refreshError}`;
     return `刷新失败：${refreshError}`;
   })();
 
@@ -280,12 +282,12 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
             <button
               type="button"
               onClick={handleRefresh}
-              className="w-6 h-6 rounded-full bg-accent/50 border border-white/5 flex items-center justify-center hover:bg-accent/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-8 h-8 rounded-full bg-accent/50 border border-white/5 flex items-center justify-center hover:bg-accent/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={isRefreshing}
               title={refreshTitle}
               data-testid={refreshTestId}
             >
-              {isRefreshing ? <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />}
+              {isRefreshing ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" /> : <RefreshCw className="w-4 h-4 text-muted-foreground" />}
             </button>
           )}
           {/* 设置按钮 - 打开配置面板 */}

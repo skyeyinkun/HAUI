@@ -67,11 +67,7 @@ export function CameraWidget({ widget, updateWidget, isEditing, haConfig }: Came
     // 如果已选择摄像头，渲染播放器
     return (
         <div className="w-full h-full rounded-[16px] overflow-hidden relative shadow-sm border border-border/40 group bg-black">
-            <CameraPlayer 
-                config={selectedCamera} 
-                // 卡片模式下不提供内部移除功能，统一使用 Dashboard 的编辑模式来移除组件
-                onRemove={() => {}} 
-            />
+            <CameraPlayer config={selectedCamera} />
             {/* 在编辑模式下，或者当鼠标悬浮时提供重新配置选项，使用极简右上角按钮 */}
             <div className={`absolute top-2 right-10 z-20 transition-opacity duration-300 ${isEditing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                 <div className="relative">

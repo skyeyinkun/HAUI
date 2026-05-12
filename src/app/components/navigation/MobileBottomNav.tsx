@@ -1,13 +1,5 @@
 import { Camera, Home, LayoutGrid, Settings, Sparkles } from 'lucide-react';
 
-interface MobileBottomNavProps {
-  onHome: () => void;
-  onRooms: () => void;
-  onAi: () => void;
-  onCameras: () => void;
-  onSettings: () => void;
-}
-
 const items = [
   { key: 'home', label: '首页', icon: Home },
   { key: 'rooms', label: '房间', icon: LayoutGrid },
@@ -16,7 +8,17 @@ const items = [
   { key: 'settings', label: '设置', icon: Settings },
 ] as const;
 
+interface MobileBottomNavProps {
+  activeKey?: typeof items[number]['key'];
+  onHome: () => void;
+  onRooms: () => void;
+  onAi: () => void;
+  onCameras: () => void;
+  onSettings: () => void;
+}
+
 export function MobileBottomNav({
+  activeKey = 'home',
   onHome,
   onRooms,
   onAi,
@@ -36,15 +38,19 @@ export function MobileBottomNav({
       <div className="mx-auto grid max-w-[520px] grid-cols-5 px-2 pt-2">
         {items.map((item) => {
           const Icon = item.icon;
+          const isActive = activeKey === item.key;
           return (
             <button
               key={item.key}
               type="button"
               onClick={handlers[item.key]}
-              className="flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[14px] text-[11px] font-medium text-[rgba(4,4,21,0.55)] transition-colors active:bg-accent"
+              className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[14px] text-[11px] font-medium transition-colors active:bg-accent ${
+                isActive ? 'bg-gray-100 text-[#040415]' : 'text-[rgba(4,4,21,0.55)]'
+              }`}
+              aria-current={isActive ? 'page' : undefined}
               aria-label={item.label}
             >
-              <Icon className="h-5 w-5 text-[#334155]" />
+              <Icon className={`h-5 w-5 ${isActive ? 'text-[#040415]' : 'text-[#334155]'}`} />
               <span>{item.label}</span>
             </button>
           );

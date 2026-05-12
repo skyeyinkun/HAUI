@@ -1,4 +1,5 @@
-                                              import { useState } from 'react';
+import { useState } from 'react';
+import { safeLocalStorage } from '@/utils/safe-storage';
 
 interface WindowSize {
   width: number;
@@ -34,7 +35,7 @@ function clampSize(size: WindowSize): WindowSize {
 export function useSettingsWindowSize() {
   const [size, _setSize] = useState<WindowSize>(() => {
     // 1. Try to load from local storage
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = safeLocalStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -65,7 +66,7 @@ export function useSettingsWindowSize() {
     const initialSize = clampSize({ width: targetW, height: targetH });
     
     // Save immediately as per "record that size... next launch directly reuse"
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initialSize));
+    safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(initialSize));
     
     return initialSize;
   });

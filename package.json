@@ -2,7 +2,7 @@
   "name": "haui-dashboard",
   "private": true,
   "description": "Home Assistant Add-on first smart home dashboard with AI, camera, PWA, wall panel, offline Pro licensing, and backup restore.",
-  "version": "5.4.0",
+  "version": "5.12.0",
   "type": "module",
   "scripts": {
     "build": "vite build",
@@ -12,6 +12,8 @@
     "dev:force": "vite --force",
     "preview": "vite preview",
     "test:e2e": "cypress run",
+    "pretest:addon": "npm --prefix addon install --ignore-scripts --no-audit --no-fund",
+    "test:addon": "node --test addon/*.test.mjs",
     "test:unit-disabled": "vitest",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
@@ -125,12 +127,12 @@
     "svgo": "^4.0.0",
     "tailwindcss": "4.1.12",
     "typescript": "^5.9.3",
-    "vite": "6.3.5",
+    "vite": "6.4.2",
     "vitest": "^4.0.18"
   },
   "pnpm": {
     "overrides": {
-      "vite": "6.3.5"
+      "vite": "6.4.2"
     }
   }
 }

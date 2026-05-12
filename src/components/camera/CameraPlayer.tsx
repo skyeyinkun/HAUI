@@ -8,7 +8,7 @@ import { getApiUrl } from '@/utils/sync';
 
 interface CameraPlayerProps {
     config: CameraConfig;
-    onRemove: (id: string) => void;
+    onRemove?: (id: string) => void;
 }
 
 export const CameraPlayer: React.FC<CameraPlayerProps> = ({ config, onRemove }) => {
@@ -16,6 +16,9 @@ export const CameraPlayer: React.FC<CameraPlayerProps> = ({ config, onRemove }) 
     const [isHovered, setIsHovered] = useState(false);
     const [privacyUnlocked, setPrivacyUnlocked] = useState(!config.privacyMode);
     const haHlsUrl = config.url || (config.entityId ? getApiUrl(`/ha-api/api/camera_proxy_stream/${config.entityId}`) : '');
+    const missingRtspConfig = config.type === 'rtsp' && (!config.go2rtcUrl || !config.streamName);
+    const missingEzvizConfig = config.type === 'ezviz' && (!config.url || !config.accessToken);
+    const missingHaConfig = config.type === 'ha-hls' && !haHlsUrl;
 
     const handleFullscreen = () => {
         // 利用标准 DOM API 向整个父容器请求全屏
@@ -67,14 +70,15 @@ export const CameraPlayer: React.FC<CameraPlayerProps> = ({ config, onRemove }) 
                     >
                         <Maximize2 size={13} />
                     </button>
-                    {/* 关闭并销毁该窗口进程 (触发 Dashboard onRemove, 然后引发 unmount 释放该子视频内存) */}
-                    <button 
-                        onClick={() => onRemove(config.id)} 
-                        className="p-1.5 hover:bg-red-600/80 rounded-md backdrop-blur-md transition-all cursor-pointer border border-transparent hover:border-red-400"
-                        title="从监控面板移除"
-                    >
-                        <X size={13} />
-                    </button>
+                    {onRemove && (
+                        <button
+                            onClick={() => onRemove(config.id)}
+                            className="p-1.5 hover:bg-red-600/80 rounded-md backdrop-blur-md transition-all cursor-pointer border border-transparent hover:border-red-400"
+                            title="从监控面板移除"
+                        >
+                            <X size={13} />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -108,10 +112,17 @@ export const CameraPlayer: React.FC<CameraPlayerProps> = ({ config, onRemove }) 
                 )}
                 
                 {/* 各种无参数错误状态呈现 */}
-                {((config.type === 'ha-hls' && !haHlsUrl) || (config.type === 'ezviz' && !config.url)) && (
-                    <div className="flex flex-col items-center justify-center w-full h-full text-red-500 text-sm bg-black absolute top-0 left-0">
+                {(missingHaConfig || missingEzvizConfig || missingRtspConfig) && (
+                    <div className="flex flex-col items-center justify-center w-full h-full text-red-400 text-sm bg-black absolute top-0 left-0 p-4 text-center">
                         <AlertTriangle size={32} className="opacity-70 mb-2" />
-                        <span className="opacity-80">当前设备的串流基础参数或 URL 丢失/错误</span>
+                        <span className="font-semibold">摄像头配置不完整</span>
+                        <span className="mt-1 max-w-[260px] text-xs text-neutral-400">
+                            {config.type === 'rtsp'
+                                ? '请补充 go2rtc 地址和流名称。'
+                                : config.type === 'ezviz'
+                                    ? '请确认萤石云 URL 和 AccessToken。'
+                                    : '请配置 HA camera 实体或 HLS 地址。'}
+                        </span>
                     </div>
                 )}
             </div>

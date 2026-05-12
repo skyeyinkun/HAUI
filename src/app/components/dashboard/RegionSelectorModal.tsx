@@ -17,6 +17,7 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { Region } from "@/utils/regions";
 import { getCityCoords } from "@/services/city-coords";
+import { locationService } from "@/services/LocationService";
 import { Loader2 } from "lucide-react";
 import { logger } from "@/utils/logger";
 import { toast } from "sonner";
@@ -121,7 +122,12 @@ export function RegionSelectorModal({
     if (province && city && district) {
       try {
         setFetchingCoords(true);
-        const coords = await getCityCoords(district.code);
+        const resolved = await locationService.resolveCoordinates({
+          provinceName: province.name,
+          cityName: city.name,
+          districtName: district.name,
+        });
+        const coords = resolved?.coords || await getCityCoords(district.code);
         if (coords) {
           onSelect({
             province,

@@ -32,6 +32,29 @@ const getLogLevel = (): LogLevel => {
 
 const currentLevel = getLogLevel();
 
+const SENSITIVE_PATTERNS: Array<[RegExp, string]> = [
+  [/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]'],
+  [/(access[_-]?token|api[_-]?key|app[_-]?secret|token|authorization)["':=\s]+([^"',\s}]+)/gi, '$1=[REDACTED]'],
+  [/(HAUI-MACHINE-)[A-Z0-9-]+/g, '$1[REDACTED]'],
+];
+
+const redact = (value: unknown): unknown => {
+  if (typeof value === 'string') {
+    return SENSITIVE_PATTERNS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
+  }
+  if (!value || typeof value !== 'object') return value;
+  try {
+    return JSON.parse(JSON.stringify(value, (_key, nested) => {
+      if (typeof nested === 'string') return redact(nested);
+      return nested;
+    }));
+  } catch {
+    return '[Unserializable]';
+  }
+};
+
+const redactArgs = (args: unknown[]) => args.map(redact);
+
 /**
  * 日志工具对象
  */
@@ -41,7 +64,7 @@ export const logger = {
    */
   debug: (message: string, ...args: unknown[]): void => {
     if (currentLevel <= LogLevel.DEBUG) {
-      console.debug(`[HAUI] ${message}`, ...args);
+      console.debug(`[HAUI] ${redact(message)}`, ...redactArgs(args));
     }
   },
 
@@ -50,7 +73,7 @@ export const logger = {
    */
   info: (message: string, ...args: unknown[]): void => {
     if (currentLevel <= LogLevel.INFO) {
-      console.info(`[HAUI] ${message}`, ...args);
+      console.info(`[HAUI] ${redact(message)}`, ...redactArgs(args));
     }
   },
 
@@ -59,7 +82,7 @@ export const logger = {
    */
   warn: (message: string, ...args: unknown[]): void => {
     if (currentLevel <= LogLevel.WARN) {
-      console.warn(`[HAUI] ${message}`, ...args);
+      console.warn(`[HAUI] ${redact(message)}`, ...redactArgs(args));
     }
   },
 
@@ -68,7 +91,7 @@ export const logger = {
    */
   error: (message: string, ...args: unknown[]): void => {
     if (currentLevel <= LogLevel.ERROR) {
-      console.error(`[HAUI] ${message}`, ...args);
+      console.error(`[HAUI] ${redact(message)}`, ...redactArgs(args));
     }
   },
 };

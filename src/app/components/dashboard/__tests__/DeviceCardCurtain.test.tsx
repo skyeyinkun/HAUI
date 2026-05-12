@@ -102,17 +102,16 @@ describe('DeviceCard Curtain Control', () => {
       />
     );
 
-    const elements = screen.getAllByText('50%');
-    const curtainArea = elements[0].parentElement?.parentElement;
+    const curtainArea = screen.getByTestId('curtain-position-control');
     expect(curtainArea).toBeInTheDocument();
 
     // Simulate Drag
-    fireEvent.pointerDown(curtainArea!, { clientX: 100, pointerId: 1 }); // 50%
-    fireEvent.pointerMove(curtainArea!, { clientX: 150, pointerId: 1 }); // 75%
+    fireEvent.pointerDown(curtainArea, { clientX: 100, pointerId: 1 }); // 50%
+    fireEvent.pointerMove(curtainArea, { clientX: 150, pointerId: 1 }); // 75%
     
     expect(screen.getAllByText('75%')[0]).toBeInTheDocument();
     
-    fireEvent.pointerUp(curtainArea!, { pointerId: 1 });
+    fireEvent.pointerUp(curtainArea, { pointerId: 1 });
     
     expect(mockOnPositionChange).toHaveBeenCalledWith(1, 75);
   });
@@ -127,13 +126,12 @@ describe('DeviceCard Curtain Control', () => {
       />
     );
 
-    const elements = screen.getAllByText('50%');
-    const curtainArea = elements[0].parentElement?.parentElement;
+    const curtainArea = screen.getByTestId('curtain-position-control');
 
     // Drag to 80%
-    fireEvent.pointerDown(curtainArea!, { clientX: 100, pointerId: 1 });
-    fireEvent.pointerMove(curtainArea!, { clientX: 160, pointerId: 1 }); // 80%
-    fireEvent.pointerUp(curtainArea!, { pointerId: 1 });
+    fireEvent.pointerDown(curtainArea, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(curtainArea, { clientX: 160, pointerId: 1 }); // 80%
+    fireEvent.pointerUp(curtainArea, { pointerId: 1 });
 
     expect(screen.getAllByText('80%')[0]).toBeInTheDocument();
     expect(mockOnPositionChange).toHaveBeenCalledWith(1, 80);
@@ -162,13 +160,12 @@ describe('DeviceCard Curtain Control', () => {
       />
     );
 
-    const elements = screen.getAllByText('50%');
-    const curtainArea = elements[0].parentElement?.parentElement;
+    const curtainArea = screen.getByTestId('curtain-position-control');
 
     // Drag to 80%
-    fireEvent.pointerDown(curtainArea!, { clientX: 100, pointerId: 1 });
-    fireEvent.pointerMove(curtainArea!, { clientX: 160, pointerId: 1 }); // 80%
-    fireEvent.pointerUp(curtainArea!, { pointerId: 1 });
+    fireEvent.pointerDown(curtainArea, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(curtainArea, { clientX: 160, pointerId: 1 }); // 80%
+    fireEvent.pointerUp(curtainArea, { pointerId: 1 });
 
     // Simulate correct backend update (80%)
     rerender(
@@ -204,13 +201,12 @@ describe('DeviceCard Curtain Control', () => {
       />
     );
 
-    const elements = screen.getAllByText('50%');
-    const curtainArea = elements[0].parentElement?.parentElement;
+    const curtainArea = screen.getByTestId('curtain-position-control');
 
     // Drag to 80%
-    fireEvent.pointerDown(curtainArea!, { clientX: 100, pointerId: 1 });
-    fireEvent.pointerMove(curtainArea!, { clientX: 160, pointerId: 1 }); // 80%
-    fireEvent.pointerUp(curtainArea!, { pointerId: 1 });
+    fireEvent.pointerDown(curtainArea, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(curtainArea, { clientX: 160, pointerId: 1 }); // 80%
+    fireEvent.pointerUp(curtainArea, { pointerId: 1 });
 
     expect(screen.getAllByText('80%')[0]).toBeInTheDocument();
 
@@ -262,13 +258,12 @@ describe('DeviceCard Curtain Control', () => {
       />
     );
 
-    const elements = screen.getAllByText('50%');
-    const curtainArea = elements[0].parentElement?.parentElement;
+    const curtainArea = screen.getByTestId('curtain-position-control');
     
     // Drag to 80%
-    fireEvent.pointerDown(curtainArea!, { clientX: 100, pointerId: 1 });
-    fireEvent.pointerMove(curtainArea!, { clientX: 160, pointerId: 1 }); // 80%
-    fireEvent.pointerUp(curtainArea!, { pointerId: 1 });
+    fireEvent.pointerDown(curtainArea, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(curtainArea, { clientX: 160, pointerId: 1 }); // 80%
+    fireEvent.pointerUp(curtainArea, { pointerId: 1 });
     
     expect(mockOnPositionChange).toHaveBeenCalledTimes(1);
     

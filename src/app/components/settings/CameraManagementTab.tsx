@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, Trash2, X, Camera, Settings2, Globe, ShieldCheck, PlayCircle, VolumeX } from 'lucide-react';
 import { CameraConfig } from '@/components/camera/types';
 import { toast } from 'sonner';
@@ -7,11 +7,22 @@ import { getApiUrl, readApiError } from '@/utils/sync';
 interface CameraManagementTabProps {
   cameras: CameraConfig[];
   onUpdateCameras: (cameras: CameraConfig[]) => void;
+  entitiesRegistry?: any[];
 }
 
-export function CameraManagementTab({ cameras, onUpdateCameras }: CameraManagementTabProps) {
+export function CameraManagementTab({ cameras, onUpdateCameras, entitiesRegistry = [] }: CameraManagementTabProps) {
   const [cameraDeleteId, setCameraDeleteId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
+
+  const cameraEntityOptions = useMemo(() => {
+    return entitiesRegistry
+      .filter((entry) => typeof entry?.entity_id === 'string' && entry.entity_id.startsWith('camera.'))
+      .map((entry) => ({
+        entityId: String(entry.entity_id),
+        name: String(entry.name || entry.original_name || entry.entity_id),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+  }, [entitiesRegistry]);
 
   const handleAddCamera = () => {
     const newCamera: CameraConfig = {
@@ -136,6 +147,28 @@ export function CameraManagementTab({ cameras, onUpdateCameras }: CameraManageme
                         <ShieldCheck className="w-3 h-3" />
                         HA 实体 ID
                       </label>
+                      {camera.type === 'ha-hls' && cameraEntityOptions.length > 0 && (
+                        <select
+                          value={camera.entityId || ''}
+                          onChange={(e) => {
+                            const entityId = e.target.value;
+                            const selected = cameraEntityOptions.find((item) => item.entityId === entityId);
+                            handleUpdateCamera(camera.id, {
+                              entityId,
+                              url: '',
+                              name: camera.name.startsWith('新摄像头') && selected?.name ? selected.name : camera.name,
+                            });
+                          }}
+                          className="mb-2 w-full text-[13px] bg-white border border-gray-100 focus:border-blue-100 focus:ring-4 focus:ring-blue-50/50 rounded-xl px-3 py-2 outline-none transition-all"
+                        >
+                          <option value="">从 Home Assistant 选择摄像头...</option>
+                          {cameraEntityOptions.map((entity) => (
+                            <option key={entity.entityId} value={entity.entityId}>
+                              {entity.name} · {entity.entityId}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       <input
                         type="text"
                         value={camera.entityId || ''}

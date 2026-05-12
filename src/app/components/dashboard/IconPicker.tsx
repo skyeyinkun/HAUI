@@ -31,7 +31,7 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                     type="text"
-                    placeholder="Search icons (English/Chinese)..."
+                    placeholder="Search icons..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full pl-8 pr-8 py-1.5 text-sm bg-accent/50 rounded-md border border-transparent focus:border-primary focus:outline-none transition-colors text-foreground placeholder:text-muted-foreground/50"

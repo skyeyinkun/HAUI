@@ -33,6 +33,27 @@ export default defineConfig({
         globals: {
           'ezuikit-js': 'EZUIKit',
         },
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@mui/') || id.includes('@emotion/')) return 'vendor-mui';
+            if (id.includes('@radix-ui/')) return 'vendor-radix';
+            if (id.includes('recharts')) return 'vendor-charts';
+            if (id.includes('hls.js')) return 'vendor-video';
+            if (id.includes('motion')) return 'vendor-motion';
+            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) return 'vendor-react';
+          }
+          const normalized = id.replace(/\\/g, '/');
+          if (normalized.includes('/src/components/camera/')) return 'camera';
+          if (normalized.includes('/src/app/components/settings/')) return 'settings';
+          if (normalized.includes('/src/app/components/remote/')) return 'remote';
+          if (
+            normalized.includes('/src/app/components/Ai') ||
+            normalized.includes('/src/services/ai') ||
+            normalized.includes('/src/hooks/useAiChat')
+          ) {
+            return 'ai';
+          }
+        },
       },
     },
   },
@@ -80,6 +101,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: "./src/test/setup.ts",
+    exclude: ["node_modules/**", "dist/**", "addon/**/*.test.mjs"],
   },
 })
 

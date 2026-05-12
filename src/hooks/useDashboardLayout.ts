@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import { WIDGET_REGISTRY } from '@/app/components/dashboard/widgetRegistry';
+import { safeLocalStorage } from '@/utils/safe-storage';
 
 export type WidgetType = 'weather' | 'indoor' | 'energy' | 'sensor_status' | 'logs' | 'camera';
 
@@ -29,17 +30,12 @@ export function useDashboardLayout() {
   const { dashboardEditing: isEditing, setDashboardEditing: setIsEditing } = useUIStore();
   const [isInitialized, setIsInitialized] = useState(false);
   useEffect(() => {
-    const initLayout = async () => {
-      // 1. 尝试从服务端同步最新数据
-      const { syncFromServer } = await import('@/utils/sync');
-      await syncFromServer();
-
-      // 2. 读取本地（可能是刚同步下来的）数据并加载
-      loadLocalLayout();
-    };
+    let isActive = true;
 
     const loadLocalLayout = () => {
-      const saved = localStorage.getItem('ha_dashboard_layout');
+      if (!isActive) return;
+
+      const saved = safeLocalStorage.getItem('ha_dashboard_layout');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -58,8 +54,18 @@ export function useDashboardLayout() {
       setIsInitialized(true);
     };
 
-    // 初始化加载
-    initLayout();
+    const initLayout = async () => {
+      loadLocalLayout();
+
+      try {
+        const { syncFromServer } = await import('@/utils/sync');
+        await syncFromServer();
+      } finally {
+        loadLocalLayout();
+      }
+    };
+
+    void initLayout();
 
     // 4. 监听全局同步完成事件，实现无刷新对齐
     const handleSyncComplete = () => {
@@ -69,13 +75,14 @@ export function useDashboardLayout() {
     window.addEventListener('haui-sync-complete', handleSyncComplete);
 
     return () => {
+      isActive = false;
       window.removeEventListener('haui-sync-complete', handleSyncComplete);
     };
   }, []);
 
   const saveLayout = (newLayout: DashboardWidget[]) => {
     setLayout(newLayout);
-    localStorage.setItem('ha_dashboard_layout', JSON.stringify(newLayout));
+    safeLocalStorage.setItem('ha_dashboard_layout', JSON.stringify(newLayout));
     // 触发云同步，避免刷新被服务端旧配置覆盖
     import('@/utils/sync').then(({ syncToServer }) => syncToServer());
   };

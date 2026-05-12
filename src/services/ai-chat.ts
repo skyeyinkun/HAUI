@@ -161,9 +161,13 @@ export async function chatStream(
         const decoder = new TextDecoder();
         let buffer = '';
 
-        while (true) {
+        let streamOpen = true;
+        while (streamOpen) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+                streamOpen = false;
+                continue;
+            }
             buffer += decoder.decode(value, { stream: true });
             const chunks = buffer.split('\n\n');
             buffer = chunks.pop() || '';

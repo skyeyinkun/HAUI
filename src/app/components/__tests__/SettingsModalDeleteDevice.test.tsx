@@ -82,7 +82,7 @@ describe('SettingsModal delete device', () => {
     );
 
     // 1. Go to Devices tab
-    fireEvent.click(screen.getByText('设备管理'));
+    fireEvent.click(screen.getByTestId('settings-tab-devices'));
     expect(screen.getByText('水浸')).toBeInTheDocument();
 
     // 2. Open Editor

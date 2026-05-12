@@ -256,6 +256,7 @@
   padding-top: 1.25rem;
   padding-left: 2rem;
   padding-right: 2rem;
+  animation: haui-wall-drift 180s steps(4, end) infinite;
 }
 
 .haui-wall-mode .haui-device-grid {
@@ -273,4 +274,22 @@
 
 .haui-ha-panel-mode {
   min-height: 100vh;
+}
+
+@keyframes haui-wall-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(1px, 0, 0);
+  }
+  50% {
+    transform: translate3d(1px, 1px, 0);
+  }
+  75% {
+    transform: translate3d(0, 1px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
 }

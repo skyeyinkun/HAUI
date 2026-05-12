@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, FileClock, RotateCcw, ShieldAlert, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiUrl, readApiError, syncFromServer } from '@/utils/sync';
@@ -14,6 +14,8 @@ export function BackupRestorePanel() {
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [confirmRestoreName, setConfirmRestoreName] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<{ name: string; payload: unknown } | null>(null);
 
   const loadBackups = async () => {
     setLoading(true);
@@ -96,9 +98,34 @@ export function BackupRestorePanel() {
     try {
       const text = await file.text();
       const payload = JSON.parse(text);
-      await restoreBackup(payload);
+      setPendingImport({ name: file.name, payload });
     } catch {
       toast.error('备份文件不是有效 JSON');
+    }
+  };
+
+  useEffect(() => {
+    void loadBackups();
+  }, []);
+
+  const restoreServerBackup = async (backup: BackupInfo) => {
+    setRestoring(true);
+    try {
+      const res = await fetch(getApiUrl('/api/backup/restore-server'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: backup.name }),
+      });
+      if (!res.ok) throw new Error(await readApiError(res, '服务器备份恢复失败'));
+      await syncFromServer(true);
+      setConfirmRestoreName(null);
+      toast.success('服务器备份已恢复，请刷新页面确认配置');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '服务器备份恢复失败';
+      toast.error(message);
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -161,6 +188,39 @@ export function BackupRestorePanel() {
             <ShieldAlert className="mr-1 inline h-4 w-4" />
             恢复会覆盖当前配置。建议先下载一份当前备份，再导入旧文件。
           </div>
+
+          {pendingImport && (
+            <div className="mt-4 rounded-[16px] border border-amber-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[#040415]">确认导入备份</p>
+                  <p className="mt-1 truncate font-mono text-[12px] text-gray-500">{pendingImport.name}</p>
+                  <p className="mt-1 text-[12px] text-amber-700">恢复前后端会自动创建回滚快照，但当前页面配置会被覆盖。</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const payload = pendingImport.payload;
+                      setPendingImport(null);
+                      void restoreBackup(payload);
+                    }}
+                    disabled={restoring}
+                    className="rounded-[12px] bg-[#040415] px-4 py-2 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    确认导入
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingImport(null)}
+                    className="rounded-[12px] bg-gray-100 px-3 py-2 text-[12px] font-semibold text-[#334155] transition-colors hover:bg-gray-200"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-[20px] border border-gray-100 bg-white p-5 shadow-sm">
@@ -174,7 +234,35 @@ export function BackupRestorePanel() {
                     {new Date(backup.updatedAt).toLocaleString()} · {(backup.size / 1024).toFixed(1)} KB
                   </p>
                 </div>
-                <RotateCcw className="h-4 w-4 shrink-0 text-gray-300" />
+                {confirmRestoreName === backup.name ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => restoreServerBackup(backup)}
+                      disabled={restoring}
+                      className="rounded-[10px] bg-[#040415] px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      确认恢复
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRestoreName(null)}
+                      className="rounded-[10px] bg-white px-2 py-1.5 text-[12px] font-semibold text-gray-500 transition-colors hover:bg-gray-100"
+                    >
+                      取消
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRestoreName(backup.name)}
+                    disabled={restoring}
+                    className="flex shrink-0 items-center gap-1 rounded-[10px] bg-white px-3 py-2 text-[12px] font-semibold text-[#334155] shadow-sm transition-colors hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    恢复
+                  </button>
+                )}
               </div>
             ))}
             {backups.length === 0 && (

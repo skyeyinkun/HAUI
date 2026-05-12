@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react
 import { useLongPress } from '@/hooks/useLongPress';
 import { useUIStore } from '@/store/uiStore';
 import { useDataStore } from '@/store/dataStore';
-import { Home, Settings, Moon, Activity, Tv, Book, Users, Coffee, DoorOpen } from 'lucide-react';
+import { Home, Settings, Moon, Activity, Tv, Book, Users, Coffee, DoorOpen, ScanLine, Camera } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Toaster } from '@/app/components/ui/sonner';
 import { toast } from 'sonner';
@@ -40,6 +40,7 @@ import { useAdaptiveExperience } from '@/features/runtime/useAdaptiveExperience'
 import { MobileBottomNav } from '@/app/components/navigation/MobileBottomNav';
 import { getLicenseEntitlements, LicenseEntitlements } from '@/features/license/license-policy';
 import { getApiUrl, readApiError } from '@/utils/sync';
+import { SetupGuidePanel } from '@/app/components/onboarding/SetupGuidePanel';
 
 // 按需加载重型组件
 const SettingsModal = React.lazy(() => import('./components/SettingsModal'));
@@ -48,6 +49,9 @@ const RemoteControlModal = React.lazy(() => import('./components/remote/RemoteCo
 const LogHistoryModal = React.lazy(() => import('./components/LogHistoryModal'));
 const ApiLogModal = React.lazy(() => import('./components/ApiLogModal'));
 const AiChatWidget = React.lazy(() => import('./components/AiChatWidget'));
+const CameraMonitorPanel = React.lazy(() =>
+  import('@/components/camera/CameraMonitorPanel').then((module) => ({ default: module.CameraMonitorPanel }))
+);
 
 // 加载占位符组件
 const ModalSkeleton = () => (
@@ -55,6 +59,19 @@ const ModalSkeleton = () => (
     <div className="bg-card rounded-lg p-8 animate-pulse">
       <div className="w-64 h-4 bg-muted rounded mb-4" />
       <div className="w-48 h-4 bg-muted rounded" />
+    </div>
+  </div>
+);
+
+const CameraPanelSkeleton = () => (
+  <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
+    <div className="shrink-0 border-b border-gray-100 bg-white/90 px-6 py-4">
+      <div className="h-5 w-36 animate-pulse rounded bg-gray-100" />
+    </div>
+    <div className="grid flex-1 grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="aspect-video animate-pulse rounded-[20px] bg-gray-100" />
+      ))}
     </div>
   </div>
 );
@@ -94,19 +111,13 @@ function ProGateBanner({
   entitlements: LicenseEntitlements;
   onOpenLicense: () => void;
 }) {
-  if (entitlements.isPro && !entitlements.updatesExpired) return null;
+  if (!entitlements.isPro || !entitlements.updatesExpired) return null;
 
-  const copy = entitlements.isPro
-    ? {
-        title: 'Pro 授权已激活，维护期已到期',
-        description: '当前版本可继续使用，新版本更新需要续维护。',
-        action: '查看授权',
-      }
-    : {
-        title: '当前为 Free 模式',
-        description: 'AI、Agent、墙屏等交付功能需要导入授权码后启用。',
-        action: '导入授权',
-      };
+  const copy = {
+    title: 'Pro 授权已激活，维护期已到期',
+    description: '当前版本可继续使用，新版本更新需要续维护。',
+    action: '查看授权',
+  };
 
   return (
     <div data-haui-license-banner className="mx-auto mb-4 flex max-w-[2400px] items-center justify-between gap-3 rounded-[18px] border border-gray-100 bg-white/90 px-4 py-3 text-[#040415] shadow-sm backdrop-blur-xl">
@@ -122,6 +133,48 @@ function ProGateBanner({
         {copy.action}
       </button>
     </div>
+  );
+}
+
+function WallPanelOverlay({ enabled }: { enabled: boolean }) {
+  const [offset, setOffset] = useState(0);
+  const [dimmed, setDimmed] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) {
+      setOffset(0);
+      setDimmed(false);
+      return;
+    }
+
+    const driftTimer = window.setInterval(() => {
+      setOffset((value) => (value + 1) % 4);
+    }, 90000);
+    const updateDim = () => {
+      const hour = new Date().getHours();
+      setDimmed(hour >= 22 || hour < 7);
+    };
+    updateDim();
+    const dimTimer = window.setInterval(updateDim, 60000);
+
+    return () => {
+      window.clearInterval(driftTimer);
+      window.clearInterval(dimTimer);
+    };
+  }, [enabled]);
+
+  if (!enabled) return null;
+
+  return (
+    <div
+      data-haui-wall-overlay
+      className={`pointer-events-none fixed inset-0 z-[55] transition-opacity duration-700 ${dimmed ? 'opacity-25' : 'opacity-0'}`}
+      style={{
+        backgroundColor: '#000',
+        transform: `translate(${offset}px, ${offset % 2 === 0 ? 0 : offset}px)`,
+      }}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -173,6 +226,8 @@ function App() {
   const [selectedRoom, setSelectedRoom] = useState<string>('常用');
   const [sceneCooldown, setSceneCooldown] = useState(false);
   const [aiOpenSignal, setAiOpenSignal] = useState(0);
+  const [mainView, setMainView] = useState<'home' | 'cameras'>('home');
+  const [mobileActiveKey, setMobileActiveKey] = useState<'home' | 'rooms' | 'ai' | 'cameras' | 'settings'>('home');
   const experience = useAdaptiveExperience();
   const [licenseEntitlements, setLicenseEntitlements] = useState<LicenseEntitlements>(() => getLicenseEntitlements());
 
@@ -855,6 +910,8 @@ function App() {
     ? (isEditingCommon ? devices : devices.filter(d => d.isCommon))
     : devices.filter(d => d.room === selectedRoom);
 
+  const shouldShowSetupGuide = !isConnected || !haConfig.token || devices.length === 0 || rooms.length === 0;
+
   const containerModeClass = [
     experience.isPhone ? 'haui-phone-mode' : '',
     experience.isTablet ? 'haui-tablet-mode' : '',
@@ -871,6 +928,7 @@ function App() {
     >
       {/* 全局断线状态提示 - 添加延迟显示避免闪烁 */}
       <ConnectionStatusBanner isConnected={isConnected} hasToken={Boolean(haConfig.token)} />
+      <WallPanelOverlay enabled={experience.isWallPanel && licenseEntitlements.canUseWallPanel} />
       {/* 使用 Suspense 包裹懒加载的 Modal 组件 */}
       <Suspense fallback={<ModalSkeleton />}>
         <SettingsModal
@@ -935,32 +993,59 @@ function App() {
         />
       </Suspense>
 
-      {/* Scrollable Content Area */}
-      <div data-haui-scroll-area className="flex-1 overflow-y-auto w-full" {...onDashboardLongPress}>
-        {/* Main Content */}
-        <div className="w-full max-w-[2400px] mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 haui-dashboard-shell">
-          <ProGateBanner
-            entitlements={licenseEntitlements}
-            onOpenLicense={() => openSettingsAt('license')}
-          />
-
-          {/* Header */}
-          <Header
-            weather={weather}
-            formattedTime={formattedTime}
-            formattedDate={formattedDate}
-            users={users}
-            haConfig={haConfig}
-            isConnected={isConnected}
-            connectionType={connectionType}
-            onRefresh={() => {
-              void refreshEntities?.().catch(() => { });
+      {mainView === 'cameras' ? (
+        <Suspense fallback={<CameraPanelSkeleton />}>
+          <CameraMonitorPanel
+            cameras={haConfig.cameras || []}
+            onBack={() => {
+              setMainView('home');
+              setMobileActiveKey('home');
             }}
-            latency={latency}
+            onOpenSettings={() => openSettingsAt('cameras')}
           />
+        </Suspense>
+      ) : (
+        /* Scrollable Content Area */
+        <div data-haui-scroll-area className="flex-1 overflow-y-auto w-full" {...onDashboardLongPress}>
+          {/* Main Content */}
+          <div className="w-full max-w-[2400px] mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 haui-dashboard-shell">
+            <ProGateBanner
+              entitlements={licenseEntitlements}
+              onOpenLicense={() => openSettingsAt('license')}
+            />
+
+            {/* Header */}
+            <Header
+              weather={weather}
+              formattedTime={formattedTime}
+              formattedDate={formattedDate}
+              users={users}
+              haConfig={haConfig}
+              isConnected={isConnected}
+              connectionType={connectionType}
+              onRefresh={() => {
+                void refreshEntities?.().catch(() => { });
+              }}
+              latency={latency}
+            />
+
+            {shouldShowSetupGuide && (
+              <SetupGuidePanel
+                isConnected={isConnected}
+                hasToken={Boolean(haConfig.token)}
+                deviceCount={devices.length}
+                roomCount={rooms.length}
+                isPro={licenseEntitlements.isPro}
+                onOpenConnection={() => openSettingsAt('connection')}
+                onOpenDevices={() => openSettingsAt('devices')}
+                onOpenRooms={() => openSettingsAt('rooms')}
+                onOpenBackup={() => openSettingsAt('backup')}
+                onOpenLicense={() => openSettingsAt('license')}
+              />
+            )}
 
           {/* Statistics Panel - Smaller */}
-          <StatisticsPanel
+            <StatisticsPanel
             weather={weather}
             weatherLoading={weatherLoading}
             weatherError={weatherError}
@@ -980,9 +1065,9 @@ function App() {
             onRegionClick={() => setRegionModalOpen(true)}
             onToggleLight={toggleDevice}
             haConfig={haConfig}
-          />
+            />
 
-          <RegionSelectorModal
+            <RegionSelectorModal
             open={regionModalOpen}
             onOpenChange={setRegionModalOpen}
             onSelect={(r) => {
@@ -996,10 +1081,10 @@ function App() {
               });
             }}
             defaultRegion={selectedRegion}
-          />
+            />
 
           {/* Scene & Room Tabs */}
-          <div id="haui-rooms" className="flex items-center justify-between mb-6 scroll-mt-6">
+            <div id="haui-rooms" className="flex items-center justify-between mb-6 scroll-mt-6">
             <div className="flex gap-2 overflow-x-auto pb-2 flex-1 scrollbar-hide items-center">
               {/* Scenes */}
               {scenes.map((scene) => {
@@ -1076,10 +1161,10 @@ function App() {
                 </button>
               </div>
             )}
-          </div>
+            </div>
 
           {/* Devices Grid - Optimized for larger cards (125% size) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 pb-28 md:pb-24 haui-device-grid">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 pb-28 md:pb-24 haui-device-grid">
             {filteredDevices.map((device) => (
               <CardErrorBoundary key={device.id}>
                 <DeviceCard
@@ -1099,12 +1184,47 @@ function App() {
                 />
               </CardErrorBoundary>
             ))}
+              {filteredDevices.length === 0 && (
+                <div className="col-span-2 rounded-[22px] border border-dashed border-gray-200 bg-white p-6 text-center shadow-sm sm:col-span-3 md:col-span-4 lg:col-span-6 xl:col-span-8 2xl:col-span-10">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-50">
+                    <ScanLine className="h-7 w-7 text-gray-300" />
+                  </div>
+                  <h3 className="mt-3 text-[16px] font-semibold text-[#040415]">当前没有可显示设备</h3>
+                  <p className="mx-auto mt-1 max-w-[360px] text-[13px] leading-relaxed text-gray-500">
+                    请在系统设置中连接 Home Assistant，并扫描添加常用设备。
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => openSettingsAt('devices')}
+                    className="mt-4 rounded-[14px] bg-[#040415] px-5 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
+                  >
+                    扫描设备
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Bottom Floating Controls */}
       <div className="fixed bottom-8 right-8 z-50 hidden md:flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => {
+            if (!licenseEntitlements.canUseCameraGrid) {
+              openSettingsAt('license');
+              toast.info('请先导入授权码启用监控面板');
+              return;
+            }
+            setMainView('cameras');
+            setMobileActiveKey('cameras');
+          }}
+          aria-label="打开监控面板"
+          className="w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer bg-[#0F172A]/90 text-white/90 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
+        >
+          <Camera className="w-5 h-5 text-indigo-300 group-hover:text-indigo-200 transition-colors" />
+        </button>
         {/* Settings Button (Direct Access) - 支持减少动画模式 */}
         {reduceMotion ? (
           // 减少动画模式：使用简单 CSS
@@ -1200,28 +1320,53 @@ function App() {
       <Toaster />
 
       <MobileBottomNav
+        activeKey={settingsOpen ? 'settings' : mobileActiveKey}
         onHome={() => {
+          setMainView('home');
+          setMobileActiveKey('home');
           setSelectedRoom('常用');
-          const scrollArea = document.querySelector('[data-haui-scroll-area]');
-          scrollArea?.scrollTo({ top: 0, behavior: 'smooth' });
+          setTimeout(() => {
+            const scrollArea = document.querySelector('[data-haui-scroll-area]');
+            scrollArea?.scrollTo({ top: 0, behavior: 'smooth' });
+          }, 0);
         }}
-        onRooms={() => document.getElementById('haui-rooms')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        onRooms={() => {
+          setMainView('home');
+          setMobileActiveKey('rooms');
+          setTimeout(() => {
+            document.getElementById('haui-rooms')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 0);
+        }}
         onAi={() => {
           if (!licenseEntitlements.canUseAi) {
             openSettingsAt('license');
+            setMobileActiveKey('settings');
             toast.info('请先导入授权码启用 AI 功能');
             return;
           }
+          setMobileActiveKey('ai');
           setAiOpenSignal((value) => value + 1);
         }}
-        onCameras={() => openSettingsAt('cameras')}
-        onSettings={() => setSettingsOpen(true)}
+        onCameras={() => {
+          if (!licenseEntitlements.canUseCameraGrid) {
+            openSettingsAt('license');
+            setMobileActiveKey('settings');
+            toast.info('请先导入授权码启用监控面板');
+            return;
+          }
+          setMainView('cameras');
+          setMobileActiveKey('cameras');
+        }}
+        onSettings={() => {
+          setMobileActiveKey('settings');
+          setSettingsOpen(true);
+        }}
       />
 
       {/* 版本号显示 - 底部居中，提高 z-index 确保显示 */}
       <div className="fixed bottom-1 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
         <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide select-none">
-          HAUI v{import.meta.env.VITE_APP_VERSION || '5.4.0'}
+          HAUI v{import.meta.env.VITE_APP_VERSION || '5.12.0'}
         </span>
       </div>
 

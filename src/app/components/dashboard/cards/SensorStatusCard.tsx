@@ -73,6 +73,7 @@ export function SensorStatusCard(props: SensorStatusCardProps) {
   return (
     <ConfigurableEntityCard
       cardId={props.cardId || "sensor_status"}
+      variant="sensor_status"
       defaultConfig={mergedConfig}
       haEntities={props.haEntities}
       onRefresh={props.onRefresh}

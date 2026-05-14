@@ -1,8 +1,9 @@
 import { SignedLicense } from './license-types';
+import { DEFAULT_HAUI_LICENSE_PUBLIC_KEY } from './default-public-key';
 
 const LICENSE_PRODUCT = 'HAUI';
 const LICENSE_ALGORITHM = 'ECDSA_P256_SHA256';
-const PUBLIC_KEY_PEM = import.meta.env.VITE_HAUI_LICENSE_PUBLIC_KEY || '';
+const PUBLIC_KEY_PEM = import.meta.env.VITE_HAUI_LICENSE_PUBLIC_KEY || DEFAULT_HAUI_LICENSE_PUBLIC_KEY;
 
 export function canonicalStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -62,7 +63,7 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
 
 async function verifySignature(license: SignedLicense): Promise<boolean> {
   if (!PUBLIC_KEY_PEM.trim()) {
-    throw new Error('未配置授权公钥，请先设置 VITE_HAUI_LICENSE_PUBLIC_KEY');
+    throw new Error('授权公钥未配置');
   }
 
   const publicKey = await crypto.subtle.importKey(

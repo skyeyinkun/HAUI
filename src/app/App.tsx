@@ -41,6 +41,7 @@ import { MobileBottomNav } from '@/app/components/navigation/MobileBottomNav';
 import { getLicenseEntitlements, LicenseEntitlements } from '@/features/license/license-policy';
 import { getApiUrl, readApiError } from '@/utils/sync';
 import { SetupGuidePanel } from '@/app/components/onboarding/SetupGuidePanel';
+import { LicenseSettingsPanel } from '@/app/components/settings/LicenseSettingsPanel';
 
 // 按需加载重型组件
 const SettingsModal = React.lazy(() => import('./components/SettingsModal'));
@@ -111,27 +112,37 @@ function ProGateBanner({
   entitlements: LicenseEntitlements;
   onOpenLicense: () => void;
 }) {
-  if (!entitlements.isPro || !entitlements.updatesExpired) return null;
+  void entitlements;
+  void onOpenLicense;
+  return null;
+}
 
-  const copy = {
-    title: 'Pro 授权已激活，维护期已到期',
-    description: '当前版本可继续使用，新版本更新需要续维护。',
-    action: '查看授权',
-  };
-
+function LicenseRequiredScreen({ experience }: { experience: ReturnType<typeof useAdaptiveExperience> }) {
   return (
-    <div data-haui-license-banner className="mx-auto mb-4 flex max-w-[2400px] items-center justify-between gap-3 rounded-[18px] border border-gray-100 bg-white/90 px-4 py-3 text-[#040415] shadow-sm backdrop-blur-xl">
-      <div className="min-w-0">
-        <p className="truncate text-[13px] font-semibold">{copy.title}</p>
-        <p className="mt-0.5 text-[12px] text-gray-500">{copy.description}</p>
+    <div
+      data-haui-host={experience.host}
+      data-haui-viewport={experience.viewport}
+      className="flex h-screen flex-col overflow-hidden bg-background text-foreground"
+    >
+      <header className="shrink-0 border-b border-gray-100 bg-white/95 px-4 py-4 shadow-sm">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-[20px] font-semibold text-[#040415]">HAUI - 智能家庭中枢</h1>
+            <p className="mt-1 text-[12px] text-gray-500">请先完成系统授权</p>
+          </div>
+        </div>
+      </header>
+      <main className="min-h-0 flex-1 overflow-y-auto bg-gray-50/60">
+        <div className="mx-auto max-w-3xl py-4 md:py-8">
+          <LicenseSettingsPanel />
+        </div>
+      </main>
+      <Toaster />
+      <div className="fixed bottom-1 left-1/2 z-[60] -translate-x-1/2 pointer-events-none">
+        <span className="select-none text-[10px] font-medium tracking-wide text-muted-foreground/50">
+          HAUI v{import.meta.env.VITE_APP_VERSION || '5.14.0'}
+        </span>
       </div>
-      <button
-        type="button"
-        onClick={onOpenLicense}
-        className="shrink-0 rounded-[12px] bg-[#040415] px-3 py-2 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
-      >
-        {copy.action}
-      </button>
     </div>
   );
 }
@@ -223,13 +234,69 @@ function RemoteAuditScreen() {
 }
 
 function App() {
+  const experience = useAdaptiveExperience();
+  const [licenseEntitlements, setLicenseEntitlements] = useState<LicenseEntitlements>(() => getLicenseEntitlements());
+
+  const refreshLicenseEntitlements = useCallback(() => {
+    setLicenseEntitlements(getLicenseEntitlements());
+  }, []);
+
+  useEffect(() => {
+    const handleLicenseChange = (event: Event) => {
+      const detail = (event as CustomEvent<LicenseEntitlements>).detail;
+      if (detail?.status) {
+        setLicenseEntitlements(detail);
+        return;
+      }
+      refreshLicenseEntitlements();
+    };
+    window.addEventListener('haui-license-change', handleLicenseChange);
+    window.addEventListener('storage', handleLicenseChange);
+
+    fetch(getApiUrl('/api/license/status'), { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await readApiError(res, '授权状态读取失败'));
+        return res.json();
+      })
+      .then((status) => {
+        if (status?.active && status?.payload) {
+          const serverEntitlements = getLicenseEntitlements({
+            edition: status.edition,
+            active: true,
+            message: status.message,
+            payload: status.payload,
+            machineCode: status.machineCode,
+          });
+          setLicenseEntitlements(serverEntitlements);
+          window.dispatchEvent(new CustomEvent('haui-license-change', { detail: serverEntitlements }));
+          return;
+        }
+        setLicenseEntitlements(getLicenseEntitlements());
+      })
+      .catch(() => {
+        setLicenseEntitlements(getLicenseEntitlements());
+      });
+
+    return () => {
+      window.removeEventListener('haui-license-change', handleLicenseChange);
+      window.removeEventListener('storage', handleLicenseChange);
+    };
+  }, [refreshLicenseEntitlements]);
+
+  if (!licenseEntitlements.isPro) {
+    return <LicenseRequiredScreen experience={experience} />;
+  }
+
+  return <AuthorizedApp licenseEntitlements={licenseEntitlements} />;
+}
+
+function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEntitlements }) {
   const [selectedRoom, setSelectedRoom] = useState<string>('常用');
   const [sceneCooldown, setSceneCooldown] = useState(false);
   const [aiOpenSignal, setAiOpenSignal] = useState(0);
   const [mainView, setMainView] = useState<'home' | 'cameras'>('home');
   const [mobileActiveKey, setMobileActiveKey] = useState<'home' | 'rooms' | 'ai' | 'cameras' | 'settings'>('home');
   const experience = useAdaptiveExperience();
-  const [licenseEntitlements, setLicenseEntitlements] = useState<LicenseEntitlements>(() => getLicenseEntitlements());
 
   // 安全确认对话框状态
   const [secureConfirmOpen, setSecureConfirmOpen] = useState(false);
@@ -257,49 +324,6 @@ function App() {
     dashboardEditing, setDashboardEditing
   } = useUIStore();
   const openSettingsAt = useUIStore((state) => state.openSettingsAt);
-
-  const refreshLicenseEntitlements = useCallback(() => {
-    setLicenseEntitlements(getLicenseEntitlements());
-  }, []);
-
-  useEffect(() => {
-    const handleLicenseChange = (event: Event) => {
-      const detail = (event as CustomEvent<LicenseEntitlements>).detail;
-      if (detail?.status) {
-        setLicenseEntitlements(detail);
-        return;
-      }
-      refreshLicenseEntitlements();
-    };
-    window.addEventListener('haui-license-change', handleLicenseChange);
-    window.addEventListener('storage', handleLicenseChange);
-
-    fetch(getApiUrl('/api/license/status'), { credentials: 'include' })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(await readApiError(res, '授权状态读取失败'));
-        return res.json();
-      })
-      .then((status) => {
-        if (status?.active && status?.payload) {
-          // 后端授权状态足以控制 Pro 入口；前端 localStorage 缺失时也刷新 UI。
-          const serverEntitlements = getLicenseEntitlements({
-            edition: status.edition,
-            active: true,
-            message: status.message,
-            payload: status.payload,
-            machineCode: status.machineCode,
-          });
-          setLicenseEntitlements(serverEntitlements);
-          window.dispatchEvent(new CustomEvent('haui-license-change', { detail: serverEntitlements }));
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      window.removeEventListener('haui-license-change', handleLicenseChange);
-      window.removeEventListener('storage', handleLicenseChange);
-    };
-  }, [refreshLicenseEntitlements]);
 
   const isEditingCommon = dashboardEditing;
   const setIsEditingCommon = setDashboardEditing;
@@ -919,6 +943,10 @@ function App() {
     experience.isHaPanel ? 'haui-ha-panel-mode' : '',
   ].filter(Boolean).join(' ');
 
+  if (!licenseEntitlements.isPro) {
+    return <LicenseRequiredScreen experience={experience} />;
+  }
+
   return (
     <div
       data-testid="dashboard-container"
@@ -1366,7 +1394,7 @@ function App() {
       {/* 版本号显示 - 底部居中，提高 z-index 确保显示 */}
       <div className="fixed bottom-1 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
         <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide select-none">
-          HAUI v{import.meta.env.VITE_APP_VERSION || '5.12.0'}
+          HAUI v{import.meta.env.VITE_APP_VERSION || '5.14.0'}
         </span>
       </div>
 

@@ -3,10 +3,6 @@ import { verifyLicenseInput } from './license-verifier';
 
 const LICENSE_STORAGE_KEY = 'haui_pro_license';
 
-function getTodayDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function getStoredLicense(): StoredLicense | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -24,20 +20,16 @@ export function getLicenseStatus(): LicenseStatus {
     return {
       edition: 'free',
       active: false,
-      message: '未激活 Pro 授权',
+      message: '系统未授权',
     };
   }
 
   const payload = stored.license.payload;
-  const updatesExpired = payload.updatesUntil < getTodayDate();
-
   return {
     edition: payload.edition,
     active: payload.edition === 'pro',
     payload,
-    message: updatesExpired
-      ? 'Pro 已激活，更新维护期已到期'
-      : 'Pro 已激活，更新维护期内',
+    message: '系统已授权',
   };
 }
 

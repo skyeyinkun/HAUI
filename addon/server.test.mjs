@@ -34,7 +34,7 @@ describe('HAUI Add-on API', () => {
     assert.equal(Object.prototype.hasOwnProperty.call(payload, 'HAUI_LICENSE_PUBLIC_KEY'), false);
   });
 
-  it('keeps server backup restore behind Pro authorization', async () => {
+  it('keeps server backup restore behind HAUI authorization', async () => {
     const response = await fetch(`${baseUrl}/api/backup/restore-server`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -43,7 +43,16 @@ describe('HAUI Add-on API', () => {
 
     assert.equal(response.status, 402);
     const payload = await response.json();
-    assert.match(payload.error, /Pro/);
+    assert.match(payload.error, /授权/);
+  });
+
+  it('blocks HA API proxy before activation', async () => {
+    const response = await fetch(`${baseUrl}/ha-api/api/states`);
+    assert.equal(response.status, 402);
+
+    const payload = await response.json();
+    assert.equal(payload.error, '系统未授权');
+    assert.equal(typeof payload.machineCode, 'string');
   });
 });
 

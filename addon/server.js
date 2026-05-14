@@ -15,6 +15,10 @@ const BACKUP_DIR_NAME = 'backups';
 // AI 配置独立存储，避免与面板数据混淆
 const AI_CONFIG_FILE_NAME = 'haui_ai_config.json';
 const INSTALL_ID_FILE_NAME = 'haui_install_id';
+const DEFAULT_LICENSE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEuZo0V6xDaIWCHnIYawR2B46F4u6q
+pM0ITabLwiVRmoOnChWTUQTX7WhXDwskuU/KfDpQplllG/p2OS90lj+Nqw==
+-----END PUBLIC KEY-----`;
 
 // 兼容本地开发时没有 /data 目录的情况
 const LOCAL_DATA_DIR = path.join(__dirname, '.data');
@@ -110,7 +114,7 @@ function getPublicKeyPem() {
     if (envKey && envKey.trim()) return envKey.replace(/\\n/g, '\n');
     const publicKeyFile = path.join(getDataDir(), 'license-public.pem');
     if (fs.existsSync(publicKeyFile)) return fs.readFileSync(publicKeyFile, 'utf8');
-    return '';
+    return DEFAULT_LICENSE_PUBLIC_KEY;
 }
 
 function verifySignedLicense(license) {
@@ -132,7 +136,7 @@ function verifySignedLicense(license) {
 
     const publicKey = getPublicKeyPem();
     if (!publicKey) {
-        return { ok: false, error: 'Add-on 未配置授权公钥' };
+        return { ok: false, error: '授权公钥不可用' };
     }
 
     try {
@@ -156,7 +160,7 @@ function readStoredLicense() {
 function getLicenseStatus() {
     const stored = readStoredLicense();
     if (!stored?.license) {
-        return { active: false, edition: 'free', message: '未激活 Pro 授权' };
+        return { active: false, edition: 'free', message: '系统未授权' };
     }
 
     const verification = verifySignedLicense(stored.license);
@@ -172,7 +176,7 @@ function getLicenseStatus() {
         payload,
         activatedAt: stored.activatedAt,
         updatesExpired: payload.updatesUntil < today,
-        message: payload.updatesUntil < today ? 'Pro 已激活，维护期已到期' : 'Pro 已激活，维护期内',
+        message: '系统已授权',
     };
 }
 
@@ -180,7 +184,7 @@ function requireProFeature(feature) {
     return (req, res, next) => {
         const status = getLicenseStatus();
         if (!status.active) {
-            return res.status(402).json({ error: '此功能需要 HAUI Pro 授权', feature, license: status });
+            return res.status(402).json({ error: '此功能需要 HAUI 授权', feature, license: status });
         }
 
         const features = new Set((status.payload?.features || []).map((item) => String(item).toLowerCase()));
@@ -190,6 +194,24 @@ function requireProFeature(feature) {
 
         next();
     };
+}
+
+function requireActivated(req, res, next) {
+    const pathname = req.path || '';
+    const method = req.method || 'GET';
+    const isLicenseStatus = method === 'GET' && pathname === '/api/license/status';
+    const isLicenseActivate = method === 'POST' && pathname === '/api/license/activate';
+    const isSystemStatus = method === 'GET' && pathname === '/api/system/status';
+    if (isLicenseStatus || isLicenseActivate || isSystemStatus) return next();
+
+    if (pathname.startsWith('/api/') || pathname.startsWith('/ha-api/')) {
+        const status = getLicenseStatus();
+        if (!status.active) {
+            return res.status(402).json({ error: '系统未授权', license: status, machineCode: getMachineCode() });
+        }
+    }
+
+    next();
 }
 
 function readAiConfig() {
@@ -204,6 +226,7 @@ function readAiConfig() {
 
 // 允许较大的 body（摄像头配置、用户头像 Base64、布局信息均可能较大）
 app.use(express.json({ limit: '20mb' }));
+app.use(requireActivated);
 
 // ─── /ha-api 代理：将前端 REST 请求转发到 HA Core API ────────────────────────
 // 在 HA Add-on 中，HA Core 可通过 http://supervisor/core 访问

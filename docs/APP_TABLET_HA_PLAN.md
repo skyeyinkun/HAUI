@@ -4,7 +4,7 @@
 
 采用 `HA 内嵌面板优先，App 化兼容，平板墙屏重点优化` 路线。默认销售交付建议仍是 Home Assistant Add-on，因为它能直接出现在 HA 左侧边栏，部署成本最低，也能复用 HA 的登录态和局域网环境。
 
-当前 5.12.0 状态：第一阶段和第二阶段已按 Add-on 优先路线落地，原生 Android/iOS 第三阶段暂不做。正式销售建议交付 Add-on + PWA + 平板墙屏方案。
+当前 5.14.0 状态：第一阶段和第二阶段已按 Add-on 优先路线落地，原生 Android/iOS 第三阶段暂不做。正式销售建议交付 Add-on + PWA + 平板墙屏方案。
 
 ## 已落地阶段
 
@@ -95,8 +95,10 @@ yinkun_ui:
 生成授权码：
 
 ```bash
-node scripts/generate-license.mjs --machine=HAUI-MACHINE-XXXX-XXXX-XXXX --buyer="客户名" --updatesUntil=2027-05-04
+node generate-license.mjs --machine=HAUI-MACHINE-XXXX-XXXX-XXXX --buyer="客户名" --updatesUntil=2027-05-04 --licenseId=HAUI-20260513-0001
 ```
+
+授权码生成工具应保存在开发者本机私有目录，例如 `HAUI-License-Tools`，不要随 HAUI 项目或客户交付包发布。客户只拿到 Add-on 运行包、公钥配置和绑定机器码的授权码。
 
 ## 风险和边界
 

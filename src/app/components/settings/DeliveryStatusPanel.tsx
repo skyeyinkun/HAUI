@@ -127,7 +127,7 @@ export function DeliveryStatusPanel({
     },
     {
       title: '授权状态',
-      description: entitlements.isPro ? 'Pro 功能已激活。' : '基础控制可用，高级功能需导入授权。',
+      description: entitlements.isPro ? '系统已授权。' : '系统未授权，请先导入授权码。',
       ok: entitlements.isPro,
       action: '授权',
       tab: 'license' as const,
@@ -271,7 +271,7 @@ export function DeliveryStatusPanel({
             </div>
             <div className="mt-4 space-y-3 text-[12px] leading-relaxed text-gray-500">
               <p>HAUI 是第三方面板，不代表 Home Assistant 官方背书。</p>
-              <p>基础开关灯、状态查看不应受授权影响；AI、监控多画面、墙屏和备份可作为 Pro 交付能力。</p>
+              <p>系统必须完成授权后才能进入使用。AI 成本、摄像头画面和 HA Token 默认保存在用户自己的环境中。</p>
               <p>AI 成本建议使用用户自己的 API Key；摄像头画面默认走本地代理、go2rtc 或厂商通道。</p>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">

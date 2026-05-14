@@ -133,6 +133,8 @@ skills/
 *.log
 dist/
 addon/dist/
+customer-packages/
+release-packages/
 
 # Python
 __pycache__/

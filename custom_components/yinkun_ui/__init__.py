@@ -66,4 +66,4 @@ class HAUIDashboardView(HomeAssistantView):
 
     async def get(self, request):
         """Serve status."""
-        return self.json({"status": "ok", "version": "5.14.0"})
+        return self.json({"status": "ok", "version": "5.15.0"})

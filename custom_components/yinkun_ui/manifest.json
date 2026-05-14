@@ -1,7 +1,7 @@
 {
   "domain": "yinkun_ui",
   "name": "HAUI Dashboard",
-  "version": "5.14.0",
+  "version": "5.15.0",
   "documentation": "https://github.com/skyeyinkun/HAUI",
   "dependencies": ["frontend"],
   "codeowners": [],

@@ -1,6 +1,6 @@
 # HAUI Pro 离线授权流程
 
-适用版本：HAUI 5.14.0+
+适用版本：HAUI 5.15.0+
 
 ## 目标
 
@@ -23,7 +23,7 @@ node generate-license.mjs --initKeys=1
 会生成：
 
 - `license-private.pem`：私钥，只保存在开发者本机，不能提交。
-- `license-public.pem`：公钥。5.14.0 后可内置默认公钥，也可部署时填入 Add-on 配置项 `HAUI_LICENSE_PUBLIC_KEY` 覆盖。
+- `license-public.pem`：公钥。5.15.0 后可内置默认公钥，也可部署时填入 Add-on 配置项 `HAUI_LICENSE_PUBLIC_KEY` 覆盖。
 
 ## 交付流程
 

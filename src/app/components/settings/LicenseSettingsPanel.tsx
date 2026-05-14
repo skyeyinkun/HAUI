@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle, Copy, KeyRound, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { activateLicense, getLicenseStatus, getStoredLicense, saveLicense } from '@/features/license/license-storage';
+import { activateLicense, getLicenseStatus, saveLicense } from '@/features/license/license-storage';
 import { getMachineCode, saveMachineCodeOverride } from '@/features/license/machine-id';
 import { LicenseStatus } from '@/features/license/license-types';
 import { getApiUrl, readApiError } from '@/utils/sync';
 import { parseLicenseInput } from '@/features/license/license-verifier';
+
+type AddonActivationError = Error & { serverRejected?: boolean };
 
 export function LicenseSettingsPanel() {
   const [machineCode, setMachineCode] = useState('');
@@ -54,11 +56,20 @@ export function LicenseSettingsPanel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ license }),
     });
-    if (!res.ok) throw new Error(await readApiError(res, '授权激活失败'));
+    if (!res.ok) {
+      const error = new Error(await readApiError(res, '授权激活失败')) as AddonActivationError;
+      error.serverRejected = res.status >= 400 && res.status < 500;
+      throw error;
+    }
 
-    saveLicense(license);
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      throw new Error('Add-on 授权接口不可用');
+    }
+
     const data = await res.json();
     const nextStatus = data?.license || getLicenseStatus();
+    saveLicense(license);
     setStatus(nextStatus);
     return nextStatus as LicenseStatus;
   };
@@ -76,29 +87,14 @@ export function LicenseSettingsPanel() {
     setActivating(true);
     try {
       try {
-        const nextStatus = await activateLicense(licenseInput, machineCode);
+        const nextStatus = await activateViaAddon();
         setStatus(nextStatus);
-        const stored = getStoredLicense();
-        if (stored?.license) {
-          const res = await fetch(getApiUrl('/api/license/activate'), {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ license: stored.license }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data?.license) setStatus(data.license);
-          } else {
-            toast.warning(await readApiError(res, '本地授权已激活，但同步到 Add-on 失败'));
-          }
-        }
       } catch (error) {
-        if (error instanceof Error && error.message.includes('授权公钥')) {
-          await activateViaAddon();
-        } else {
+        if ((error as AddonActivationError)?.serverRejected) {
           throw error;
         }
+        const nextStatus = await activateLicense(licenseInput, machineCode);
+        setStatus(nextStatus);
       }
       setLicenseInput('');
       window.dispatchEvent(new Event('haui-license-change'));

@@ -1,7 +1,7 @@
 # HAUI Dashboard 使用说明书
 
 ## 版本信息
-- **当前版本**: 5.14.0
+- **当前版本**: 5.15.0
 - **更新日期**: 2026年5月4日
 - **适用平台**: Home Assistant Add-on / HA 内嵌面板 / PWA / 平板墙屏 / 独立部署
 
@@ -22,9 +22,9 @@
 
 ## 快速开始
 
-### 5.14.0 使用重点
+### 5.15.0 使用重点
 
-HAUI 5.14.0 推荐按 **Home Assistant Add-on 优先，PWA 和平板墙屏兼容** 的方式使用：
+HAUI 5.15.0 推荐按 **Home Assistant Add-on 优先，PWA 和平板墙屏兼容** 的方式使用：
 
 - 普通用户从 Home Assistant 左侧栏进入 HAUI，不需要单独安装原生 App。
 - 手机和平板可通过浏览器的 **添加到主屏幕** 方式作为 PWA 使用。
@@ -50,7 +50,7 @@ HAUI 5.14.0 推荐按 **Home Assistant Add-on 优先，PWA 和平板墙屏兼容
 4. 从桌面图标进入后，HAUI 会以近似 App 的独立窗口运行。
 
 说明：
-- 当前 5.14.0 不包含 Android APK、iOS TestFlight 或 App Store 原生包。
+- 当前 5.15.0 不包含 Android APK、iOS TestFlight 或 App Store 原生包。
 - PWA 依赖浏览器和 Home Assistant 访问地址，离线后无法控制真实设备。
 
 #### 方式三：独立部署 / 本地开发
@@ -118,7 +118,7 @@ npm run build:addon
 - 门锁解锁、安防解除、重启、全域通配符控制等高风险操作会被阻止
 - 支持 Agent 控制台，用于三通道模型配置、提案审批、Workspace 文档、长期记忆、心跳任务、工具状态和审计日志
 
-#### 5.14.0 交付注意
+#### 5.15.0 交付注意
 - AI 设置保存会等待后端确认，保存失败会显示真实错误。
 - Ingress 环境下优先使用 `/api/ai/chat` 后端代理，减少 API Key 暴露在浏览器端。
 - 用户也可以在 Add-on 配置中填写 AI 参数，作为远程部署时的统一兜底配置。

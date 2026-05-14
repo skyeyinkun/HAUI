@@ -1,6 +1,6 @@
 {
   "name": "haui-dashboard",
-  "version": "5.14.0",
+  "version": "5.15.0",
   "type": "module",
   "description": "HAUI Home Assistant Add-on backend for storage, licensing, AI proxy, camera proxy, and backup restore.",
   "main": "index.js",

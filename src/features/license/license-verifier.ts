@@ -37,6 +37,64 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return buffer;
 }
 
+function trimDerInteger(bytes: Uint8Array): Uint8Array {
+  let start = 0;
+  while (start < bytes.length - 1 && bytes[start] === 0) start += 1;
+  return bytes.slice(start);
+}
+
+function leftPad32(bytes: Uint8Array): Uint8Array {
+  const trimmed = trimDerInteger(bytes);
+  if (trimmed.length > 32) throw new Error('授权签名格式不正确');
+  const output = new Uint8Array(32);
+  output.set(trimmed, 32 - trimmed.length);
+  return output;
+}
+
+function readDerLength(bytes: Uint8Array, offset: number): { length: number; offset: number } {
+  const first = bytes[offset];
+  if (first === undefined) throw new Error('授权签名格式不正确');
+  if (first < 0x80) return { length: first, offset: offset + 1 };
+
+  const lengthBytes = first & 0x7f;
+  if (lengthBytes < 1 || lengthBytes > 2 || offset + lengthBytes >= bytes.length) {
+    throw new Error('授权签名格式不正确');
+  }
+
+  let length = 0;
+  for (let index = 0; index < lengthBytes; index += 1) {
+    length = (length << 8) | bytes[offset + 1 + index];
+  }
+  return { length, offset: offset + 1 + lengthBytes };
+}
+
+function derEcdsaSignatureToRaw(signature: Uint8Array): Uint8Array {
+  if (signature.length === 64) return signature;
+  if (signature[0] !== 0x30) throw new Error('授权签名格式不正确');
+
+  const sequenceLength = readDerLength(signature, 1);
+  let offset = sequenceLength.offset;
+  if (offset + sequenceLength.length !== signature.length) throw new Error('授权签名格式不正确');
+
+  if (signature[offset] !== 0x02) throw new Error('授权签名格式不正确');
+  const rLength = readDerLength(signature, offset + 1);
+  offset = rLength.offset;
+  const r = signature.slice(offset, offset + rLength.length);
+  offset += rLength.length;
+
+  if (signature[offset] !== 0x02) throw new Error('授权签名格式不正确');
+  const sLength = readDerLength(signature, offset + 1);
+  offset = sLength.offset;
+  const s = signature.slice(offset, offset + sLength.length);
+  offset += sLength.length;
+  if (offset !== signature.length) throw new Error('授权签名格式不正确');
+
+  const raw = new Uint8Array(64);
+  raw.set(leftPad32(r), 0);
+  raw.set(leftPad32(s), 32);
+  return raw;
+}
+
 function base64UrlToText(value: string): string {
   return new TextDecoder().decode(base64UrlToBytes(value));
 }
@@ -75,7 +133,7 @@ async function verifySignature(license: SignedLicense): Promise<boolean> {
   );
 
   const data = new TextEncoder().encode(canonicalStringify(license.payload));
-  const signature = base64UrlToBytes(license.signature);
+  const signature = derEcdsaSignatureToRaw(base64UrlToBytes(license.signature));
 
   return crypto.subtle.verify(
     { name: 'ECDSA', hash: 'SHA-256' },

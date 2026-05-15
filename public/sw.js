@@ -1,4 +1,4 @@
-const APP_VERSION = '5.15.0';
+const APP_VERSION = '5.15.15';
 const CACHE_NAME = `haui-shell-${APP_VERSION}`;
 const SHELL_URLS = ['/', '/manifest.webmanifest'];
 

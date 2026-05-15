@@ -140,7 +140,7 @@ function LicenseRequiredScreen({ experience }: { experience: ReturnType<typeof u
       <Toaster />
       <div className="fixed bottom-1 left-1/2 z-[60] -translate-x-1/2 pointer-events-none">
         <span className="select-none text-[10px] font-medium tracking-wide text-muted-foreground/50">
-          HAUI v{import.meta.env.VITE_APP_VERSION || '5.15.0'}
+          HAUI v{import.meta.env.VITE_APP_VERSION || '5.15.15'}
         </span>
       </div>
     </div>
@@ -1339,7 +1339,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
       {/* 版本号显示 - 底部居中，提高 z-index 确保显示 */}
       <div className="fixed bottom-1 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
         <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide select-none">
-          HAUI v{import.meta.env.VITE_APP_VERSION || '5.15.0'}
+          HAUI v{import.meta.env.VITE_APP_VERSION || '5.15.15'}
         </span>
       </div>
 

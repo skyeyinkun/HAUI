@@ -33,8 +33,8 @@ export function CameraWidget({ widget, updateWidget, isEditing, haConfig }: Came
     // 如果未选择摄像头，展示配置界面
     if (!selectedCamera) {
         return (
-            <div className="w-full h-full bg-card rounded-[16px] border shadow-sm flex flex-col items-center justify-center p-4 text-center group transition-colors">
-                <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mb-3">
+            <div className="haui-soft-card w-full h-full rounded-[24px] flex flex-col items-center justify-center p-4 text-center group transition-colors">
+                <div className="haui-icon-disc w-12 h-12 rounded-full text-foreground flex items-center justify-center mb-3">
                     <Camera size={24} />
                 </div>
                 {availableCameras.length > 0 ? (
@@ -43,7 +43,7 @@ export function CameraWidget({ widget, updateWidget, isEditing, haConfig }: Came
                         <p className="text-xs text-muted-foreground mb-4">请选择要在该卡片中显示的摄像头</p>
                         <div className="relative w-full max-w-[200px]">
                             <select 
-                                className="w-full bg-accent text-accent-foreground text-sm rounded-md px-3 py-2 outline-none appearance-none cursor-pointer border-r-8 border-transparent"
+                                className="haui-pill w-full text-accent-foreground text-sm rounded-full px-3 py-2 outline-none appearance-none cursor-pointer border-r-8 border-transparent"
                                 onChange={handleSelectCamera}
                                 defaultValue=""
                             >
@@ -66,7 +66,7 @@ export function CameraWidget({ widget, updateWidget, isEditing, haConfig }: Came
 
     // 如果已选择摄像头，渲染播放器
     return (
-        <div className="w-full h-full rounded-[16px] overflow-hidden relative shadow-sm border border-border/40 group bg-black">
+        <div className="w-full h-full rounded-[24px] overflow-hidden relative shadow-sm border border-white/60 group bg-black">
             <CameraPlayer config={selectedCamera} />
             {/* 在编辑模式下，或者当鼠标悬浮时提供重新配置选项，使用极简右上角按钮 */}
             <div className={`absolute top-2 right-10 z-20 transition-opacity duration-300 ${isEditing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>

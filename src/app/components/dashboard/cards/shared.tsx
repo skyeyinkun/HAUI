@@ -53,7 +53,7 @@ export function SquareToggle({ isOn, size = 'normal' }: { isOn: boolean; size?: 
 
   return (
     <div
-      className={`${containerSize} rounded-full flex items-center justify-center transition-all ${isOn ? 'bg-success' : 'bg-neutral-200 dark:bg-neutral-700'}`}
+      className={`${containerSize} rounded-full flex items-center justify-center transition-all ${isOn ? 'bg-primary' : 'bg-neutral-200 dark:bg-neutral-700'}`}
     >
       <div className={`${knobSize} rounded-full bg-white shadow-sm transition-all transform ${isOn ? 'translate-x-0' : 'scale-90'}`}>
         <img
@@ -153,13 +153,11 @@ export function DynamicCurtainIcon({ position = 0, color }: { position?: number;
 }
 
 export function DeviceIcon({ icon, isOn, value }: { icon: string; isOn: boolean; type: string; value?: number }) {
-  // 开启：绿色，关闭：白色（深色背景下统一白色）
-  const iconColor = isOn ? 'var(--success)' : 'white';
+  const iconColor = isOn ? 'var(--foreground)' : 'rgba(4, 4, 4, 0.48)';
 
   return (
     <div
-      className="w-[32px] h-[32px] shrink-0 aspect-square rounded-[12px] flex items-center justify-center shadow-[0px_0px_12px_0px_rgba(0,0,0,0.08)]"
-      style={{ backgroundImage: "linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" }}
+      className="haui-icon-disc w-[32px] h-[32px] shrink-0 aspect-square rounded-full flex items-center justify-center"
     >
       {icon === 'remote' && (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24">
@@ -226,7 +224,7 @@ export function DeviceIcon({ icon, isOn, value }: { icon: string; isOn: boolean;
         icon !== 'motion' && (
           <CustomIcon
             name={icon || ''}
-            className={`w-5 h-5 ${isOn ? 'text-success' : 'text-white'}`}
+            className={`w-5 h-5 ${isOn ? 'text-foreground' : 'text-muted-foreground'}`}
           />
         )}
     </div>
@@ -333,9 +331,8 @@ export function DeviceCardWrapper({ children, className, onClick, isEditing, isC
     <div
       role="button"
       tabIndex={isEditing ? -1 : 0}
-      className={`relative aspect-square rounded-[16px] p-3 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 flex flex-col ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:scale-105 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none'
+      className={`haui-soft-card relative aspect-square rounded-[24px] p-3 overflow-hidden transition-all duration-200 flex flex-col ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:-translate-y-0.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none'
         } ${className}`}
-      style={{ backgroundColor: "var(--card)" }}
       onClick={onClick}
       onKeyDown={handleKeyDown}
     >

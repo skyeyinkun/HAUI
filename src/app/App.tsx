@@ -952,7 +952,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
       data-testid="dashboard-container"
       data-haui-host={experience.host}
       data-haui-viewport={experience.viewport}
-      className={`h-screen bg-background text-foreground relative transition-colors duration-300 flex flex-col overflow-hidden ${containerModeClass}`}
+      className={`haui-app-surface h-screen bg-background text-foreground relative transition-colors duration-300 flex flex-col overflow-hidden ${containerModeClass}`}
     >
       {/* 全局断线状态提示 - 添加延迟显示避免闪烁 */}
       <ConnectionStatusBanner isConnected={isConnected} hasToken={Boolean(haConfig.token)} />
@@ -1112,8 +1112,8 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
             />
 
           {/* Scene & Room Tabs */}
-            <div id="haui-rooms" className="flex items-center justify-between mb-6 scroll-mt-6">
-            <div className="flex gap-2 overflow-x-auto pb-2 flex-1 scrollbar-hide items-center">
+            <div id="haui-rooms" className="haui-glass-panel flex items-center justify-between gap-3 mb-6 scroll-mt-6 rounded-[32px] p-2">
+            <div className="flex min-w-0 gap-2 overflow-x-auto flex-1 scrollbar-hide items-center">
               {/* Scenes */}
               {scenes.map((scene) => {
                 const IconMap: Record<string, any> = {
@@ -1134,10 +1134,10 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
                     onClick={() => toggleScene(scene.id)}
                     disabled={sceneCooldown}
                     className={`
-                        relative flex items-center gap-1.5 px-3 py-2 rounded-[14px] transition-all shrink-0 border
+                        relative flex items-center gap-1.5 px-3 py-2 rounded-full transition-all shrink-0 border
                         ${scene.isActive
-                        ? "bg-primary text-primary-foreground border-transparent shadow-md"
-                        : "bg-white dark:bg-card border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"}
+                        ? "haui-pill-active font-semibold"
+                        : "haui-pill text-muted-foreground hover:text-foreground"}
                       `}
                   >
                     <Icon className={`w-4 h-4 ${scene.isActive ? 'animate-pulse' : ''}`} />
@@ -1152,11 +1152,10 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
               {/* Common Room */}
               <button
                 onClick={() => setSelectedRoom('常用')}
-                className={`px-5 py-2 rounded-[14px] font-['SF_Pro_Display',sans-serif] text-[14px] transition-all whitespace-nowrap ${selectedRoom === '常用'
-                  ? "shadow-[0px_0px_24px_0px_rgba(0,0,0,0.12)] text-white font-semibold"
-                  : "bg-white text-[rgba(4,4,21,0.6)]"
+                className={`px-5 py-2 rounded-full font-['SF_Pro_Display',sans-serif] text-[14px] transition-all whitespace-nowrap ${selectedRoom === '常用'
+                  ? "haui-pill-active font-semibold"
+                  : "haui-pill text-[rgba(4,4,4,0.58)] hover:text-[#050505]"
                   }`}
-                style={selectedRoom === '常用' ? { backgroundImage: "linear-gradient(163.817deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" } : {}}
               >
                 常用
               </button>
@@ -1165,11 +1164,10 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
                 <button
                   key={room.id}
                   onClick={() => setSelectedRoom(room.name)}
-                  className={`px-5 py-2 rounded-[14px] font-['SF_Pro_Display',sans-serif] text-[14px] transition-all whitespace-nowrap ${selectedRoom === room.name
-                    ? "shadow-[0px_0px_24px_0px_rgba(0,0,0,0.12)] text-white font-semibold"
-                    : "bg-white text-[rgba(4,4,21,0.6)]"
+                  className={`px-5 py-2 rounded-full font-['SF_Pro_Display',sans-serif] text-[14px] transition-all whitespace-nowrap ${selectedRoom === room.name
+                    ? "haui-pill-active font-semibold"
+                    : "haui-pill text-[rgba(4,4,4,0.58)] hover:text-[#050505]"
                     }`}
-                  style={selectedRoom === room.name ? { backgroundImage: "linear-gradient(163.817deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" } : {}}
                 >
                   {room.name}
                 </button>
@@ -1177,12 +1175,12 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
             </div>
 
             {selectedRoom === '常用' && (
-              <div className="pb-2 shrink-0 ml-4">
+              <div className="shrink-0">
                 <button
                   onClick={() => setIsEditingCommon(!isEditingCommon)}
-                  className={`px-4 py-2 rounded-[14px] text-[14px] font-medium transition-all ${isEditingCommon
+                  className={`px-4 py-2 rounded-full text-[14px] font-medium transition-all ${isEditingCommon
                     ? "bg-red-50 text-red-500 ring-1 ring-red-200"
-                    : "bg-accent text-muted-foreground hover:bg-accent/80"
+                    : "haui-pill text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {isEditingCommon ? '完成' : '管理'}
@@ -1213,8 +1211,8 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
               </CardErrorBoundary>
             ))}
               {filteredDevices.length === 0 && (
-                <div className="col-span-2 rounded-[22px] border border-dashed border-gray-200 bg-white p-6 text-center shadow-sm sm:col-span-3 md:col-span-4 lg:col-span-6 xl:col-span-8 2xl:col-span-10">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-50">
+                <div className="haui-glass-panel col-span-2 rounded-[32px] border border-dashed border-white/70 p-6 text-center sm:col-span-3 md:col-span-4 lg:col-span-6 xl:col-span-8 2xl:col-span-10">
+                  <div className="haui-icon-disc mx-auto flex h-14 w-14 items-center justify-center rounded-full">
                     <ScanLine className="h-7 w-7 text-gray-300" />
                   </div>
                   <h3 className="mt-3 text-[16px] font-semibold text-[#040415]">当前没有可显示设备</h3>
@@ -1224,7 +1222,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
                   <button
                     type="button"
                     onClick={() => openSettingsAt('devices')}
-                    className="mt-4 rounded-[14px] bg-[#040415] px-5 py-3 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
+                    className="haui-pill-active mt-4 rounded-full px-5 py-3 text-[13px] font-semibold transition-opacity hover:opacity-90"
                   >
                     扫描设备
                   </button>
@@ -1249,9 +1247,9 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
             setMobileActiveKey('cameras');
           }}
           aria-label="打开监控面板"
-          className="w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer bg-[#0F172A]/90 text-white/90 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
+          className="haui-floating-action w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200"
         >
-          <Camera className="w-5 h-5 text-indigo-300 group-hover:text-indigo-200 transition-colors" />
+          <Camera className="w-5 h-5 text-white transition-colors" />
         </button>
         {/* Settings Button (Direct Access) - 支持减少动画模式 */}
         {reduceMotion ? (
@@ -1259,9 +1257,9 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
           <button
             onClick={() => setSettingsOpen(true)}
             aria-label="打开系统设置"
-            className="w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer bg-[#0F172A]/90 text-white/90 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
+            className="haui-floating-action w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200"
           >
-            <Settings className="w-5 h-5 text-indigo-300 group-hover:text-indigo-200 transition-colors" />
+            <Settings className="w-5 h-5 text-white transition-colors" />
           </button>
         ) : (
           // 完整动画模式
@@ -1274,61 +1272,8 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
             whileTap={{ scale: 0.95 }}
             className="w-12 h-12 rounded-full flex items-center justify-center z-20 relative group cursor-pointer"
           >
-            {/* 1. 外围泛光扩散层 */}
-            <motion.div 
-              className="absolute inset-[-4px] rounded-full opacity-40 blur-[15px] pointer-events-none"
-              animate={{ 
-                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                  scale: [1, 1.1, 1]
-              }}
-              transition={{ duration: 6, ease: "easeInOut", repeat: Infinity }}
-              style={{
-                  backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
-                  backgroundSize: "200% 100%"
-              }}
-            />
-            
-            {/* 2. 实体流光边框 */}
-            <motion.div 
-              className="absolute inset-[0px] rounded-full opacity-100 pointer-events-none p-[1.5px] overflow-hidden"
-            >
-              <motion.div 
-                  className="w-full h-full rounded-full"
-                  animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
-                  transition={{ duration: 4, ease: "linear", repeat: Infinity }}
-                  style={{
-                      backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
-                      backgroundSize: "200% 100%"
-                  }}
-              />
-            </motion.div>
-            
-            {/* 3. 多重水波纹效果 */}
-            {[0, 1].map((index) => (
-              <motion.div 
-                key={index}
-                className="absolute inset-0 rounded-full border border-indigo-400/30 pointer-events-none"
-                initial={{ scale: 1, opacity: 0.5 }}
-                animate={{ scale: 2.5, opacity: 0 }}
-                transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeOut",
-                    delay: index * 1.5
-                }}
-              />
-            ))}
-
-            {/* 4. 按钮主体 */}
-            <div className="relative z-10 w-[calc(100%-3px)] h-[calc(100%-3px)] rounded-full flex items-center justify-center transition-all duration-500 !bg-[#0F172A]/90 backdrop-blur-2xl text-white/90 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden">
-              <Settings className="w-5 h-5 text-indigo-300 drop-shadow-[0_0_8px_rgba(165,180,252,0.8)] group-hover:scale-110 transition-transform duration-300" />
-              
-              {/* 内部微光扫过 */}
-              <motion.div 
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full"
-                  animate={{ translateX: ["100%", "-100%"] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear", delay: 1 }}
-              />
+            <div className="haui-floating-action relative z-10 h-full w-full rounded-full flex items-center justify-center transition-all duration-300">
+              <Settings className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
             </div>
           </motion.button>
         )}

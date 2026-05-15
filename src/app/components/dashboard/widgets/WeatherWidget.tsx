@@ -38,16 +38,15 @@ export function WeatherWidget({
   return (
     <div
       onClick={onRegionClick}
-      className="bg-card rounded-[16px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] p-3 flex flex-row items-center justify-between relative group border-0 h-[100px] shrink-0 overflow-hidden cursor-pointer hover:bg-accent/5 transition-colors"
+      className="haui-soft-card rounded-[24px] p-3 flex flex-row items-center justify-between relative group h-[100px] shrink-0 overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-all"
     >
       {/* Left: Current Weather */}
       <div className="flex flex-col justify-between h-full z-10 w-auto min-w-[140px] shrink-0 pr-2 md:pr-4">
         <div className="flex items-center gap-2">
           <div
-            className="w-6 h-6 rounded-[8px] flex items-center justify-center shadow-[0px_0px_12px_0px_rgba(0,0,0,0.08)]"
-            style={{ backgroundImage: "linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" }}
+            className="haui-icon-disc w-6 h-6 rounded-full flex items-center justify-center"
           >
-            {weather ? React.createElement(getWeatherIcon(weather.weatherCode), { className: "w-3 h-3 text-white" }) : <Cloud className="w-3 h-3 text-white" />}
+            {weather ? React.createElement(getWeatherIcon(weather.weatherCode), { className: "w-3 h-3 text-foreground" }) : <Cloud className="w-3 h-3 text-foreground" />}
           </div>
           <div className="flex flex-col min-w-0">
             <span className="font-['SF_Pro_Display',sans-serif] text-[12px] text-foreground font-semibold truncate leading-tight">

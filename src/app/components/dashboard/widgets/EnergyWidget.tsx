@@ -5,14 +5,13 @@ export function EnergyWidget() {
   const { energy } = useHomeStatistics();
 
   return (
-    <div className="bg-card rounded-[16px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] p-3 flex flex-row items-center justify-between relative group border-0 h-[100px]">
+    <div className="haui-soft-card rounded-[24px] p-3 flex flex-row items-center justify-between relative group h-[100px]">
       <div className="flex flex-col justify-between h-full z-10">
         <div className="flex items-center gap-2">
           <div
-            className="w-6 h-6 rounded-[8px] flex items-center justify-center shadow-[0px_0px_12px_0px_rgba(0,0,0,0.08)]"
-            style={{ backgroundImage: "linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" }}
+            className="haui-icon-disc w-6 h-6 rounded-full flex items-center justify-center"
           >
-            <Zap className="w-3 h-3 text-white" />
+            <Zap className="w-3 h-3 text-foreground" />
           </div>
           <span className="font-['SF_Pro_Display',sans-serif] text-[12px] text-muted-foreground">能源</span>
         </div>

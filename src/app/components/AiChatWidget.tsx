@@ -742,65 +742,10 @@ export default function AiChatWidget({
                     }
                     setIsVisible(true);
                 }}
-                className="fixed bottom-8 right-24 z-50 w-12 h-12 rounded-full flex items-center justify-center text-white cursor-pointer group"
+                className="haui-floating-action fixed bottom-8 right-24 z-50 hidden w-12 h-12 rounded-full text-white cursor-pointer group items-center justify-center md:flex"
             >
-                {/* 1. 外围泛光扩散层 - 模拟流体呼吸感 */}
-                <motion.div 
-                    className="absolute inset-[-4px] rounded-full opacity-40 blur-[15px] pointer-events-none"
-                    animate={{ 
-                        backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                        scale: [1, 1.1, 1]
-                    }}
-                    transition={{ duration: 6, ease: "easeInOut", repeat: Infinity }}
-                    style={{
-                        backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
-                        backgroundSize: "200% 100%"
-                    }}
-                />
-                
-                {/* 2. 实体流光边框 - 与窗口渐变同步 */}
-                <motion.div 
-                    className="absolute inset-[0px] rounded-full opacity-100 pointer-events-none p-[1.5px] overflow-hidden"
-                >
-                    <motion.div 
-                        className="w-full h-full rounded-full"
-                        animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
-                        transition={{ duration: 4, ease: "linear", repeat: Infinity }}
-                        style={{
-                            backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
-                            backgroundSize: "200% 100%"
-                        }}
-                    />
-                </motion.div>
-                
-                {/* 3. 多重水波纹动力学效果 */}
-                {[0, 1].map((index) => (
-                    <motion.div 
-                        key={index}
-                        className="absolute inset-0 rounded-full border border-indigo-400/30 pointer-events-none"
-                        initial={{ scale: 1, opacity: 0.5 }}
-                        animate={{ scale: 2.5, opacity: 0 }}
-                        transition={{ 
-                            duration: 3, 
-                            repeat: Infinity, 
-                            ease: "easeOut",
-                            delay: index * 1.5
-                        }}
-                    />
-                ))}
-                
-                {/* 4. 按钮主体 - 极简深空黑屏效果 */}
-                <div 
-                    className="relative z-10 w-[calc(100%-3px)] h-[calc(100%-3px)] rounded-full flex items-center justify-center transition-all duration-500 !bg-[#0F172A]/90 backdrop-blur-2xl text-white/90 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden"
-                >
-                    <Sparkles className="w-5 h-5 text-indigo-300 drop-shadow-[0_0_8px_rgba(165,180,252,0.8)] group-hover:scale-110 transition-transform duration-300" />
-                    
-                    {/* 内部微光扫过效果 */}
-                    <motion.div 
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full"
-                        animate={{ translateX: ["100%", "-100%"] }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "linear", delay: 1 }}
-                    />
+                <div className="relative z-10 flex h-full w-full items-center justify-center rounded-full">
+                    <Sparkles className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
                 </div>
             </motion.button>
         );
@@ -830,29 +775,17 @@ export default function AiChatWidget({
                         )}
                         style={viewMode === 'floating' ? { touchAction: "none" } : undefined}
                     >
-                        {/* 流光泛光背景效应（广域模糊扩散层） */}
+                        {/* 浮窗外层柔光 */}
                         {viewMode === 'floating' && (
                             <motion.div 
-                                className="absolute inset-[0px] -z-20 rounded-[inherit] opacity-80 blur-[15px] pointer-events-none"
-                                animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
-                                transition={{ duration: 7, ease: "linear", repeat: Infinity }}
-                                style={{
-                                    backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
-                                    backgroundSize: "200% 100%"
-                                }}
+                                className="absolute inset-[0px] -z-20 rounded-[inherit] bg-black/10 opacity-80 blur-[18px] pointer-events-none"
                             />
                         )}
                         
-                        {/* 实体流光边框层（扩张 1px 的超清边线） */}
+                        {/* 实体玻璃边框层 */}
                         {viewMode === 'floating' && (
                             <motion.div 
-                                className="absolute inset-[-1.2px] -z-10 rounded-[21.2px] opacity-100 pointer-events-none"
-                                animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
-                                transition={{ duration: 7, ease: "linear", repeat: Infinity }}
-                                style={{
-                                    backgroundImage: "linear-gradient(90deg, #c084fc, #60a5fa, #2dd4bf, #f472b6, #c084fc)",
-                                    backgroundSize: "200% 100%"
-                                }}
+                                className="absolute inset-[-1.2px] -z-10 rounded-[21.2px] bg-white/80 opacity-100 pointer-events-none"
                             />
                         )}
 

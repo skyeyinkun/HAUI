@@ -43,10 +43,10 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
     };
 
     return (
-        <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4 md:gap-0">
+        <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-start">
             <div className="flex flex-col gap-0.5">
                 <div className="flex items-baseline gap-4">
-                    <div className="flex items-baseline gap-2 text-[rgba(4,4,21,0.6)]">
+                    <div className="haui-pill flex items-baseline gap-2 rounded-full px-3 py-1 text-[rgba(4,4,4,0.56)]">
                         <span className="font-['SF_Pro_Display',sans-serif] text-[13px] font-medium">{formattedDate}</span>
                         <span className="font-['SF_Pro_Display',sans-serif] text-[13px] font-medium">{formattedTime}</span>
                     </div>
@@ -54,15 +54,15 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
                 <div className="flex flex-col">
                     {weather && weather.forecast && weather.forecast.length > 1 ? (
                         <>
-                            <h1 className="font-['SF_Pro_Display',sans-serif] text-[22px] md:text-[28px] text-[#040415] tracking-[0.364px] leading-tight">
+                            <h1 className="font-['SF_Pro_Display',sans-serif] text-[26px] font-semibold leading-tight text-[#040404] md:text-[34px]">
                                 明天{weather.forecast[1].description}，{weather.forecast[1].minTemp}°C - {weather.forecast[1].maxTemp}°C
                             </h1>
-                            <div className="text-[14px] text-[rgba(4,4,21,0.6)] mt-0.5 font-normal">
+                            <div className="mt-1 text-[15px] font-normal text-[rgba(4,4,4,0.52)]">
                                 今天{weather.description}，<span className="font-light">气温{weather.temperature}°C</span>
                             </div>
                         </>
                     ) : (
-                        <h1 className="font-['SF_Pro_Display',sans-serif] text-[22px] md:text-[28px] text-[#040415] tracking-[0.364px]">
+                        <h1 className="font-['SF_Pro_Display',sans-serif] text-[26px] font-semibold text-[#040404] md:text-[34px]">
                             今天天气晴朗，<span className="font-light">气温适宜</span>
                         </h1>
                     )}
@@ -79,8 +79,8 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
                                 {user.online && (
                                     <div className="absolute inset-0 rounded-full animate-sensor-pulse ring-2 ring-[#65cf58]/50" />
                                 )}
-                                <div className={`relative rounded-full shadow-[0px_0px_20px_0px_rgba(0,0,0,0.12)] w-[48px] h-[48px] ring-2 transition-transform duration-300 group-hover:scale-105 group-hover:z-10 ${user.online ? 'ring-[#65cf58]' : 'ring-white'}`}>
-                                    <div className="absolute inset-0 rounded-full" style={{ backgroundImage: "linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)" }} />
+                                <div className={`relative h-[48px] w-[48px] rounded-full shadow-[0_14px_30px_rgba(0,0,0,0.12)] ring-2 transition-transform duration-300 group-hover:scale-105 group-hover:z-10 ${user.online ? 'ring-[#5fbf55]' : 'ring-white/80'}`}>
+                                    <div className="absolute inset-0 rounded-full bg-[#050505]" />
                                     <img alt={user.name} className="absolute inset-0 w-full h-full object-cover rounded-full" src={user.avatar} />
                                 </div>
                                 <span className="text-[12px] font-medium mt-1 text-foreground/80 bg-background/50 backdrop-blur-sm px-2 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity absolute -bottom-6 whitespace-nowrap z-20 pointer-events-none">{user.name}</span>
@@ -93,7 +93,7 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
                         <button
                             type="button"
                             onClick={toggleFullscreen}
-                            className="shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-accent/40 backdrop-blur-sm border border-white/5 shadow-sm transition-all hover:bg-accent/60"
+                            className="haui-pill shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition-all hover:text-foreground"
                             title={isFullscreen ? '退出全屏' : '全屏显示 (可隐藏外侧的 Home Assistant 边栏)'}
                         >
                             {isFullscreen ? (
@@ -106,13 +106,13 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
                             type="button"
                             onClick={onRefresh}
                             disabled={!isConnected}
-                            className="shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-accent/40 backdrop-blur-sm border border-white/5 shadow-sm transition-all hover:bg-accent/60 disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="haui-pill shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition-all hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                             title={isConnected ? '强制刷新 Home Assistant 状态' : '未连接到 Home Assistant'}
                         >
                             <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
                         </button>
                         {/* Network Type */}
-                        <div className="shrink-0 whitespace-nowrap flex items-center gap-1.5 bg-accent/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/5 shadow-sm transition-all hover:bg-accent/60 cursor-help" title="当前网络连接类型">
+                        <div className="haui-pill shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all cursor-help" title="当前网络连接类型">
                             {connectionType === 'Public' ? (
                                 <Globe className="w-3 h-3 text-blue-500" />
                             ) : (
@@ -124,7 +124,7 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
                         </div>
 
                         {/* API Status */}
-                        <div className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded-full border shadow-sm transition-all cursor-help ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`} title="Home Assistant API 连接状态">
+                        <div className={`haui-pill shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all cursor-help ${isConnected ? 'text-green-700' : 'text-red-600'}`} title="Home Assistant API 连接状态">
                             {isConnected ? (
                                 <Link2 className="w-3 h-3 text-green-600" />
                             ) : (
@@ -137,10 +137,7 @@ function HeaderInternal({ weather, formattedTime, formattedDate, users, haConfig
 
                         {/* Latency Indicator */}
                         {isConnected && latency !== undefined && latency !== null && (
-                            <div className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded-full border shadow-sm transition-all cursor-help ${latency < 100 ? 'bg-green-500/10 border-green-500/20' :
-                                latency < 300 ? 'bg-yellow-500/10 border-yellow-500/20' :
-                                    'bg-red-500/10 border-red-500/20'
-                                }`} title="WebSocket API 延迟">
+                            <div className="haui-pill shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all cursor-help" title="WebSocket API 延迟">
                                 <Activity className={`w-3 h-3 ${latency < 100 ? 'text-green-600' :
                                     latency < 300 ? 'text-yellow-600' :
                                         'text-red-500'

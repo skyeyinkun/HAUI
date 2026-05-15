@@ -229,7 +229,7 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
   })();
 
   return (
-    <div className="entity-card flex-1 bg-card rounded-[16px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] p-2.5 flex flex-col transition-colors duration-300 relative group overflow-hidden border-0 h-full w-full box-border">
+    <div className="haui-soft-card entity-card flex-1 rounded-[24px] p-2.5 flex flex-col transition-colors duration-300 relative group overflow-hidden h-full w-full box-border">
       {/* ===== 卡片头部：图标（可点击更换）、标题（可点击编辑）、刷新按钮、设置按钮 ===== */}
       <div className="flex items-center justify-between shrink-0 mb-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -242,11 +242,10 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
           >
             <button
               type="button"
-              className="w-6 h-6 rounded-[8px] flex items-center justify-center shadow-[0px_0px_12px_0px_rgba(0,0,0,0.08)] cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
-              style={{ backgroundImage: 'linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)' }}
+              className="haui-icon-disc w-6 h-6 rounded-full flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
               title="点击更换图标"
             >
-              <MainIcon className="w-3.5 h-3.5 text-white" />
+              <MainIcon className="w-3.5 h-3.5 text-foreground" />
             </button>
           </IconPickerPopover>
 
@@ -282,7 +281,7 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
             <button
               type="button"
               onClick={handleRefresh}
-              className="w-8 h-8 rounded-full bg-accent/50 border border-white/5 flex items-center justify-center hover:bg-accent/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="haui-pill w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={isRefreshing}
               title={refreshTitle}
               data-testid={refreshTestId}
@@ -294,7 +293,7 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
           <button
             type="button"
             onClick={handleSettingsOpen}
-            className="w-6 h-6 rounded-full bg-accent/50 border border-white/5 flex items-center justify-center hover:bg-accent/70 transition-colors group-hover:opacity-100"
+            className="haui-pill w-6 h-6 rounded-full flex items-center justify-center transition-colors group-hover:opacity-100"
             title="配置卡片"
           >
             <Settings className="w-3.5 h-3.5 text-muted-foreground" />

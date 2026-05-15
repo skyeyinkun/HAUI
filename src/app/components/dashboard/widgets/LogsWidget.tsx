@@ -11,15 +11,12 @@ interface LogsWidgetProps {
 
 export function LogsWidget({ logs, setLogModalOpen, clearLogs, logContainerRef }: LogsWidgetProps) {
   return (
-    <div className="bg-card rounded-[16px] shadow-[0px_0px_16px_0px_rgba(0,0,0,0.06)] p-3 flex flex-col gap-2 transition-colors duration-300 relative group aspect-auto h-full overflow-hidden box-border">
+    <div className="haui-soft-card rounded-[24px] p-3 flex flex-col gap-2 transition-colors duration-300 relative group aspect-auto h-full overflow-hidden box-border">
       {/* 头部：标题 */}
       <div className="flex items-center justify-between shrink-0 border-b border-border/50 pb-2">
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-accent/40 rounded-[10px] p-0.5">
-            <div
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] text-white"
-              style={{ backgroundImage: 'linear-gradient(140.848deg, rgb(60, 60, 65) 1.2863%, rgb(45, 45, 48) 103.1%)' }}
-            >
+          <div className="haui-pill flex items-center rounded-full p-0.5">
+            <div className="haui-pill-active flex items-center gap-1.5 rounded-full px-2.5 py-1.5">
               <FileText className="w-3.5 h-3.5" />
               <span className="text-[12px] font-medium">实时日志</span>
             </div>

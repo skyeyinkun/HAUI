@@ -34,24 +34,30 @@ export function MobileBottomNav({
   };
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 md:hidden border-t border-black/5 bg-white/90 backdrop-blur-2xl shadow-[0_-12px_32px_rgba(0,0,0,0.08)] haui-mobile-tabbar-safe">
-      <div className="mx-auto grid max-w-[520px] grid-cols-5 px-2 pt-2">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 pb-3 md:hidden haui-mobile-tabbar-safe">
+      <div className="haui-glass-panel pointer-events-auto mx-auto grid max-w-[520px] grid-cols-5 items-center rounded-[999px] px-3 py-2">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = activeKey === item.key;
+          const isPrimary = item.key === 'ai';
           return (
             <button
               key={item.key}
               type="button"
               onClick={handlers[item.key]}
-              className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[14px] text-[11px] font-medium transition-colors active:bg-accent ${
-                isActive ? 'bg-gray-100 text-[#040415]' : 'text-[rgba(4,4,21,0.55)]'
+              className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-full text-[11px] font-medium transition-all active:scale-95 ${
+                isPrimary
+                  ? 'mx-auto -mt-5 h-[68px] w-[68px] bg-[#050505] text-white shadow-[0_18px_34px_rgba(0,0,0,0.22)]'
+                  : isActive
+                    ? 'text-[#050505]'
+                    : 'text-[rgba(4,4,4,0.48)] hover:text-[#050505]'
               }`}
               aria-current={isActive ? 'page' : undefined}
               aria-label={item.label}
             >
-              <Icon className={`h-5 w-5 ${isActive ? 'text-[#040415]' : 'text-[#334155]'}`} />
-              <span>{item.label}</span>
+              <Icon className={`${isPrimary ? 'h-7 w-7 fill-white/10 stroke-[2.2]' : 'h-5 w-5'} ${isActive && !isPrimary ? 'text-[#050505]' : ''}`} />
+              {!isPrimary && <span>{item.label}</span>}
+              {isPrimary && <span className="sr-only">{item.label}</span>}
             </button>
           );
         })}

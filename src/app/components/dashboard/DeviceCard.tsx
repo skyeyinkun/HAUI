@@ -131,9 +131,8 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
         role="button"
         tabIndex={isEditing ? -1 : 0}
         aria-label={`${device.name}，${getSensorStateText()}`}
-        className={`relative aspect-square rounded-[16px] p-3 pb-10 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none'
+        className={`haui-soft-card relative aspect-square rounded-[24px] p-3 pb-10 flex flex-col gap-1.5 overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:-translate-y-0.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none'
           }`}
-        style={{ backgroundColor: 'var(--card)' }}
         onClick={!isEditing ? onClick : undefined}
         onKeyDown={handleSensorKeyDown}
       >
@@ -234,9 +233,8 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
       role="button"
       tabIndex={isEditing ? -1 : 0}
       aria-label={`${device.name}，${device.isOn ? '已开启' : '已关闭'}`}
-      className={`relative aspect-square rounded-[16px] p-3 flex flex-col gap-1.5 shadow-[0px_0px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:scale-105 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none'
+      className={`haui-soft-card relative aspect-square rounded-[24px] p-3 flex flex-col gap-1.5 overflow-hidden transition-all duration-200 ${isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98] animate-wiggle' : 'hover:-translate-y-0.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none'
         }`}
-      style={{ backgroundColor: 'var(--card)' }}
       onClick={!isEditing ? onClick : undefined}
       onKeyDown={handleDefaultKeyDown}
     >

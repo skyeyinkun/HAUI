@@ -166,8 +166,8 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
   return (
     <div
       className={cn(
-        "relative aspect-square rounded-[20px] shadow-sm overflow-hidden transition-all duration-200 flex flex-col bg-card border border-border/50",
-        isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:scale-[1.02] hover:shadow-md cursor-pointer',
+        "haui-soft-card relative aspect-square rounded-[24px] overflow-hidden transition-all duration-200 flex flex-col",
+        isEditing ? 'cursor-default ring-2 ring-primary/20 scale-[0.98]' : 'hover:-translate-y-0.5 cursor-pointer',
         "remote-card"
       )}
       onClick={!isEditing ? onClick : undefined}
@@ -211,8 +211,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
             {/* 电源图标容器，与其他设备卡片 DeviceIcon 尺寸对齐 (32px) */}
             {/* 遥控器按钮统一为白色图标，单次触发，无状态反馈 */}
             <div className={cn(
-              "w-[32px] h-[32px] shrink-0 rounded-[12px] flex items-center justify-center border transition-all duration-300",
-              "bg-neutral-800 border-white/5 text-white group-hover:bg-neutral-700"
+              "haui-icon-disc w-[32px] h-[32px] shrink-0 rounded-full flex items-center justify-center transition-all duration-300 text-foreground"
             )}>
               <LUCIDE_ICON_MAP.Power {...ICON_PROPS.remotePower} />
             </div>

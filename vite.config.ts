@@ -35,12 +35,19 @@ export default defineConfig({
         },
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            if (id.includes('@mdi/js')) return 'vendor-mdi';
+            if (id.includes('lucide-react')) return 'vendor-icons';
             if (id.includes('@mui/') || id.includes('@emotion/')) return 'vendor-mui';
             if (id.includes('@radix-ui/')) return 'vendor-radix';
             if (id.includes('recharts')) return 'vendor-charts';
             if (id.includes('hls.js')) return 'vendor-video';
             if (id.includes('motion')) return 'vendor-motion';
-            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) return 'vendor-react';
+            if (id.includes('react-dom')) return 'vendor-react';
+            if (id.includes('react-dnd') || id.includes('react-grid-layout') || id.includes('react-resizable')) return 'vendor-react-widgets';
+            if (id.includes('react-markdown') || id.includes('rehype') || id.includes('remark') || id.includes('micromark') || id.includes('unified')) return 'vendor-markdown';
+            if (id.includes('home-assistant-js-websocket')) return 'vendor-ha';
+            if (id.includes('react') || id.includes('scheduler')) return 'vendor-react';
+            if (id.includes('@tanstack/')) return 'vendor-tanstack';
           }
           const normalized = id.replace(/\\/g, '/');
           if (normalized.includes('/src/components/camera/')) return 'camera';

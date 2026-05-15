@@ -1,14 +1,13 @@
-import * as MdiIcons from '@mdi/js';
-import mdiMeta from '@/assets/mdi-meta.json';
+import { MDI_ICON_META, MDI_ICON_PATHS } from '@/assets/mdi-curated-icons';
 import { getEnglishKeywords } from './icon-search-mapper';
 
 interface MdiIconMeta {
     n: string; // name
-    a: string[]; // aliases
-    t: string[]; // tags
+    a: readonly string[]; // aliases
+    t: readonly string[]; // tags
 }
 
-const META = mdiMeta as MdiIconMeta[];
+const META: readonly MdiIconMeta[] = MDI_ICON_META;
 
 // HA 智能家居常用图标分类
 export const HA_ICON_CATEGORIES: Record<string, string[]> = {
@@ -98,12 +97,7 @@ export const HA_ICON_CATEGORIES: Record<string, string[]> = {
 
 export function getMdiIconPath(name: string): string | undefined {
     const cleanName = name.replace(/^mdi:/, '');
-    const pascalName = cleanName
-        .split('-')
-        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-        .join('');
-    const key = `mdi${pascalName}`;
-    return (MdiIcons as any)[key];
+    return MDI_ICON_PATHS[cleanName as keyof typeof MDI_ICON_PATHS];
 }
 
 export function searchMdiIcons(query: string, limit = 80): string[] {

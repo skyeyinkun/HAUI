@@ -1,6 +1,6 @@
 import { RemoteButtonConfig } from '@/types/remote';
-import * as Icons from 'lucide-react';
-import { LucideIcon, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { getLucideIcon } from '@/utils/lucide-icon-map';
 
 type RemoteKeySize = 'sm' | 'md' | 'lg' | 'rect';
 type RemoteKeyVariant = 'default' | 'power' | 'soft';
@@ -18,7 +18,7 @@ interface RemoteKeyProps {
 }
 
 export default function RemoteKey({ button, onClick, onDelete, isEditing, isReserved, size = 'md', variant = 'default', disabled, ariaLabel }: RemoteKeyProps) {
-  const IconComponent = (Icons[button.icon as keyof typeof Icons] as LucideIcon) || Icons.Circle;
+  const IconComponent = getLucideIcon(button.icon, 'Circle');
 
   const sizing =
     size === 'sm'
@@ -76,4 +76,3 @@ export default function RemoteKey({ button, onClick, onDelete, isEditing, isRese
     </div>
   );
 }
-

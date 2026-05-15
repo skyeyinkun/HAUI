@@ -1,15 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Device } from '@/types/device';
-import {
-  ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
-  Plus, Minus, Power, VolumeX,
-  Home, Menu, Undo2, Circle
-} from 'lucide-react';
-import * as Icons from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { createRemoteInputController, RemoteKeyCode } from '@/utils/remote-input';
 import { cn } from '@/app/components/ui/utils';
 import { ICON_PROPS, ICON_SIZES, ICON_STROKE_WIDTH } from '@/styles/icon-constants';
 import { safeLocalStorage } from '@/utils/safe-storage';
+import { LUCIDE_ICON_MAP, getLucideIcon } from '@/utils/lucide-icon-map';
 import './RemoteCard.css';
 
 interface RemoteCardProps {
@@ -25,10 +21,10 @@ import type { RemoteProfile } from '@/types/remote';
 type RemoteMappings = Record<string, { entity_id?: string; display_text?: string; icon?: string }>;
 
 // 遥控器设备配置文件
-const PROFILES: Array<{ id: RemoteProfile; label: string; icon: React.ComponentType<{ className?: string }>; configId: string }> = [
-  { id: 'tv', label: 'TV', icon: Icons.Tv, configId: 'profile_tv' },
-  { id: 'stb', label: '机顶盒', icon: Icons.LayoutGrid, configId: 'profile_stb' },
-  { id: 'speaker', label: '音响', icon: Icons.Speaker, configId: 'profile_speaker' },
+const PROFILES: Array<{ id: RemoteProfile; label: string; icon: LucideIcon; configId: string }> = [
+  { id: 'tv', label: 'TV', icon: LUCIDE_ICON_MAP.Tv, configId: 'profile_tv' },
+  { id: 'stb', label: '机顶盒', icon: LUCIDE_ICON_MAP.LayoutGrid, configId: 'profile_stb' },
+  { id: 'speaker', label: '音响', icon: LUCIDE_ICON_MAP.Speaker, configId: 'profile_speaker' },
 ];
 
 // 根据 profile 获取设备类型名称
@@ -117,10 +113,9 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
     const map = id.startsWith('profile_') ? globalMappings : mappings;
     const iconName = map?.[id]?.icon;
     if (iconName && iconName.trim()) {
-      const Icon = Icons[iconName as keyof typeof Icons] as React.ComponentType<{ className?: string }>;
-      if (Icon) return Icon;
+      return getLucideIcon(iconName, 'Circle');
     }
-    return FallbackIcon || Circle;
+    return FallbackIcon || LUCIDE_ICON_MAP.Circle;
   };
 
   // 红外发射控制器
@@ -140,7 +135,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
 
   // 通用圆形按钮组件
   const RoundBtn = ({ code, icon: Icon, label, size = 'normal', className = '' }: {
-    code: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; label: string;
+    code: string; icon: LucideIcon; label: string;
     size?: 'normal' | 'small'; className?: string;
   }) => (
     <button
@@ -187,7 +182,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
             "w-6 h-6 rounded-full flex items-center justify-center shadow-md transition-colors border border-white/10",
             isCommon ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
           )}>
-            {isCommon ? <XIcon className="w-3.5 h-3.5" /> : <Plus className="w-4 h-4" />}
+            {isCommon ? <XIcon className="w-3.5 h-3.5" /> : <LUCIDE_ICON_MAP.Plus className="w-4 h-4" />}
           </div>
         </div>
       )}
@@ -219,7 +214,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
               "w-[32px] h-[32px] shrink-0 rounded-[12px] flex items-center justify-center border transition-all duration-300",
               "bg-neutral-800 border-white/5 text-white group-hover:bg-neutral-700"
             )}>
-              <Power {...ICON_PROPS.remotePower} />
+              <LUCIDE_ICON_MAP.Power {...ICON_PROPS.remotePower} />
             </div>
 
             {/* 标题区域，根据当前 profile 显示对应的设备类型名称 */}
@@ -269,9 +264,9 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
 
           {/* ===== 左列：音量 ===== */}
           <div className="flex flex-col items-center justify-center gap-1.5 h-full">
-            <RoundBtn code="vol_up" icon={Plus} label="音量+" className="w-6.5 h-6.5" />
-            <RoundBtn code="mute" icon={VolumeX} label="静音" className="w-6.5 h-6.5" />
-            <RoundBtn code="vol_down" icon={Minus} label="音量-" className="w-6.5 h-6.5" />
+            <RoundBtn code="vol_up" icon={LUCIDE_ICON_MAP.Plus} label="音量+" className="w-6.5 h-6.5" />
+            <RoundBtn code="mute" icon={LUCIDE_ICON_MAP.VolumeX} label="静音" className="w-6.5 h-6.5" />
+            <RoundBtn code="vol_down" icon={LUCIDE_ICON_MAP.Minus} label="音量-" className="w-6.5 h-6.5" />
           </div>
 
           {/* ===== 中列：D-Pad ===== */}
@@ -285,7 +280,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
                   style={{ clipPath: 'polygon(50% 50%, 0 0, 100% 0)' }}
                   {...keyProps('up')}
                 >
-                  <ChevronUp {...ICON_PROPS.remoteDpad} />
+                  <LUCIDE_ICON_MAP.ChevronUp {...ICON_PROPS.remoteDpad} />
                 </button>
                 {/* 右 */}
                 <button
@@ -294,7 +289,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
                   style={{ clipPath: 'polygon(0 50%, 100% 0, 100% 100%)' }}
                   {...keyProps('right')}
                 >
-                  <ChevronRight {...ICON_PROPS.remoteDpad} />
+                  <LUCIDE_ICON_MAP.ChevronRight {...ICON_PROPS.remoteDpad} />
                 </button>
                 {/* 下 */}
                 <button
@@ -303,7 +298,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
                   style={{ clipPath: 'polygon(50% 50%, 100% 100%, 0 100%)' }}
                   {...keyProps('down')}
                 >
-                  <ChevronDown {...ICON_PROPS.remoteDpad} />
+                  <LUCIDE_ICON_MAP.ChevronDown {...ICON_PROPS.remoteDpad} />
                 </button>
                 {/* 左 */}
                 <button
@@ -312,7 +307,7 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
                   style={{ clipPath: 'polygon(100% 50%, 0 100%, 0 0)' }}
                   {...keyProps('left')}
                 >
-                  <ChevronLeft {...ICON_PROPS.remoteDpad} />
+                  <LUCIDE_ICON_MAP.ChevronLeft {...ICON_PROPS.remoteDpad} />
                 </button>
               </div>
 
@@ -331,9 +326,9 @@ export default function RemoteCard({ device, onClick, sendIR, isEditing, isCommo
 
           {/* ===== 右列：导航键 ===== */}
           <div className="flex flex-col items-center justify-center gap-1.5 h-full">
-            <RoundBtn code="menu" icon={Menu} label="菜单" className="w-6.5 h-6.5" />
-            <RoundBtn code="home" icon={Home} label="主页" className="w-6.5 h-6.5" />
-            <RoundBtn code="back" icon={Undo2} label="返回" className="w-6.5 h-6.5" />
+            <RoundBtn code="menu" icon={LUCIDE_ICON_MAP.Menu} label="菜单" className="w-6.5 h-6.5" />
+            <RoundBtn code="home" icon={LUCIDE_ICON_MAP.Home} label="主页" className="w-6.5 h-6.5" />
+            <RoundBtn code="back" icon={LUCIDE_ICON_MAP.Undo2} label="返回" className="w-6.5 h-6.5" />
           </div>
         </div>
 

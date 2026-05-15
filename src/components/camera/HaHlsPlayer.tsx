@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import Hls from 'hls.js';
+import Hls, { type ErrorData } from 'hls.js/light';
 
 interface HaHlsPlayerProps {
     url: string;
@@ -44,7 +44,7 @@ export const HaHlsPlayer: React.FC<HaHlsPlayerProps> = ({ url, muted = true }) =
                 });
                 
                 // 处理网络中断或者视频错误自动重连机制
-                hls.on(Hls.Events.ERROR, function (_event, data) {
+                hls.on(Hls.Events.ERROR, function (_event, data: ErrorData) {
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:

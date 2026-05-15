@@ -1,6 +1,6 @@
-import * as LucideIcons from 'lucide-react';
 import { getIconUrl } from '@/assets/icons';
 import { getMdiIconPath } from '@/utils/mdi-helpers';
+import { getLucideIcon } from '@/utils/lucide-icon-map';
 
 export type IconState = 'default' | 'active' | 'alarm';
 
@@ -68,6 +68,6 @@ export function CustomIcon({ name, className = '', state = 'default' }: CustomIc
   }
 
   // Fallback to Lucide Icons
-  const Icon = (LucideIcons as any)[name] || LucideIcons.HelpCircle;
+  const Icon = getLucideIcon(name, 'HelpCircle');
   return <Icon className={combinedClass} />;
 }

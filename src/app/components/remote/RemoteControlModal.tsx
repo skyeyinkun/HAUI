@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, LayoutGrid, Plus, Search, Settings2, Speaker, Tv, X } from 'lucide-react';
-import * as Icons from 'lucide-react';
 import { Device } from '@/types/device';
 import { DEFAULT_REMOTE_BUTTONS, RemoteButtonConfig } from '@/types/remote';
 import { HassEntities } from 'home-assistant-js-websocket';
@@ -10,6 +9,7 @@ import RemoteButton from './RemoteButton';
 import RemoteDPad from './RemoteDPad';
 import RemoteKey from './RemoteKey';
 import { logger } from '@/utils/logger';
+import { REMOTE_LUCIDE_ICON_NAMES, getLucideIcon } from '@/utils/lucide-icon-map';
 
 interface RemoteControlModalProps {
   isOpen: boolean;
@@ -30,18 +30,7 @@ const RESERVED_KEYS = new Set<string>([
   ...DIGIT_KEYS
 ]);
 
-const REMOTE_ICONS = [
-  // Navigation
-  'ChevronUp', 'ChevronDown', 'ChevronLeft', 'ChevronRight',
-  // Media
-  'Play', 'Pause', 'FastForward', 'Rewind', 'SkipBack', 'SkipForward', 'Square', // Stop
-  // Actions
-  'Power', 'PowerOff', 'Volume2', 'Volume1', 'VolumeX', 'Home', 'Menu', 'ArrowLeft', 'Settings', 'Search', 'Mic',
-  // Generic
-  'Circle', 'Triangle', 'Hexagon', 'Plus', 'Minus', 'Check', 'X',
-  // Remote Specific
-  'Import', 'Info', 'BookOpen', 'LogOut', 'MoreHorizontal', 'List', 'Grid', 'Tv', 'Speaker', 'Disc', 'Clapperboard', 'Youtube', 'Wrench'
-];
+const REMOTE_ICONS = REMOTE_LUCIDE_ICON_NAMES;
 
 import type { RemoteProfile } from '@/types/remote';
 type RemoteMappingValue = { entity_id?: string; display_text?: string; icon?: string };
@@ -547,9 +536,7 @@ export default function RemoteControlModal({ isOpen, onClose, device, callServic
                   { id: 'speaker' as const, label: profileLabelAc, icon: Speaker, mappingId: 'profile_speaker' },
                 ] as const).map((p) => {
                     const currentIconName = globalMappings?.[p.mappingId]?.icon;
-                    const DisplayIcon = currentIconName 
-                        ? (Icons[currentIconName as keyof typeof Icons] as React.ComponentType<any>) || p.icon 
-                        : p.icon;
+                    const DisplayIcon = currentIconName ? getLucideIcon(currentIconName, 'Circle') : p.icon;
 
                     return (
                       <div
@@ -745,8 +732,7 @@ export default function RemoteControlModal({ isOpen, onClose, device, callServic
                     <label className="text-xs font-medium text-muted-foreground">图标</label>
                     <div className="mt-1 grid grid-cols-6 gap-2 bg-accent/30 p-2 rounded-xl">
                       {REMOTE_ICONS.map((iconName) => {
-                        const IconComp = Icons[iconName as keyof typeof Icons] as React.ComponentType<any>;
-                        if (!IconComp) return null;
+                        const IconComp = getLucideIcon(iconName, 'Circle');
                         const isSelected = draftIcon === iconName;
                         return (
                           <button

@@ -1,9 +1,9 @@
 import React, { useRef } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import { RemoteButtonConfig } from '@/types/remote';
-import * as Icons from 'lucide-react';
-import { LucideIcon, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { ICON_PROPS, ICON_SIZES, ICON_STROKE_WIDTH } from '@/styles/icon-constants';
+import { getLucideIcon } from '@/utils/lucide-icon-map';
 
 interface RemoteButtonProps {
   button: RemoteButtonConfig;
@@ -46,7 +46,7 @@ export default function RemoteButton({ button, index, moveButton, onClick, onEdi
   }
 
   // Dynamic Icon
-  const IconComponent = (Icons[button.icon as keyof typeof Icons] as LucideIcon) || Icons.Circle;
+  const IconComponent = getLucideIcon(button.icon, 'Circle');
   const colorClass = 'text-current';
 
   const baseClass = [

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import Hls from 'hls.js';
+import Hls, { type ErrorData } from 'hls.js/light';
 import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 
 interface Go2RtcPlayerProps {
@@ -69,7 +69,7 @@ export const Go2RtcPlayer: React.FC<Go2RtcPlayerProps> = ({ go2rtcUrl, streamNam
                 if (mountedRef.current) setPlayerState('playing');
             });
 
-            hls.on(Hls.Events.ERROR, (_event, data) => {
+            hls.on(Hls.Events.ERROR, (_event, data: ErrorData) => {
                 if (data.fatal) {
                     switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:

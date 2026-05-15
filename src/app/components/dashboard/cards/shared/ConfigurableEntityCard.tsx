@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Loader2, Settings } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 import type { HassEntities } from 'home-assistant-js-websocket';
 import type { CardConfig } from '@/types/card-config';
 import { SensorTimestamp } from '@/app/components/dashboard/SensorTimestamp';
 import { CustomIcon } from './CustomIcon';
 import { CardSettingsPanel } from './CardSettingsPanel';
 import { IconPickerPopover } from '@/app/components/dashboard/IconPickerPopover';
+import { getLucideIcon } from '@/utils/lucide-icon-map';
 
 interface ConfigurableEntityCardProps {
   cardId: string;
@@ -197,7 +197,7 @@ export function ConfigurableEntityCard(props: ConfigurableEntityCardProps) {
     }
   }, [entitiesToShow.length, props.onHeightChange]);
 
-  const MainIcon = (LucideIcons as any)[activeConfig.icon || 'Activity'] || LucideIcons.Activity;
+  const MainIcon = getLucideIcon(activeConfig.icon, 'Activity');
 
   // ===== 刷新：调用 HA 后台获取最新状态 =====
   const handleRefresh = async () => {

@@ -1,6 +1,6 @@
 
 // @vitest-environment jsdom
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import AiChatWidget from '../AiChatWidget';
 import * as useMobileHook from '@/app/components/ui/use-mobile';
@@ -136,5 +136,33 @@ describe('AiChatWidget 布局测试', () => {
     expect(screen.getByText('AI 助手')).toBeTruthy();
     // 欢迎消息在页面中
     expect(screen.getAllByText(/AI 助手/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('通过 openSignal 打开后关闭不会因重新渲染再次弹出', async () => {
+    vi.spyOn(useMobileHook, 'useIsMobile').mockReturnValue(true);
+    const onVisibilityChange = vi.fn();
+
+    const { rerender } = render(
+      <AiChatWidget
+        entities={mockEntities}
+        openSignal={1}
+        onVisibilityChange={onVisibilityChange}
+      />
+    );
+
+    expect(screen.getByTestId('ai-widget-container')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '关闭 AI 助手' }));
+
+    await waitFor(() => expect(screen.queryByTestId('ai-widget-container')).toBeNull());
+    rerender(
+      <AiChatWidget
+        entities={mockEntities}
+        openSignal={1}
+        onVisibilityChange={onVisibilityChange}
+      />
+    );
+
+    await waitFor(() => expect(screen.queryByTestId('ai-widget-container')).toBeNull());
+    expect(onVisibilityChange).toHaveBeenCalledWith(false);
   });
 });

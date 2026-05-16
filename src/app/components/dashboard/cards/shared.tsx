@@ -336,24 +336,6 @@ export function DeviceCardWrapper({ children, className, onClick, isEditing, isC
       onClick={onClick}
       onKeyDown={handleKeyDown}
     >
-      {/* Background Pattern - Always Dark/Neutral (Default) */}
-      <div className="absolute left-[-27px] top-[-27px] w-[117px] h-[117px] pointer-events-none opacity-50">
-        <svg className="block w-full h-full" fill="none" viewBox="0 0 117 117">
-          <circle cx="58.5" cy="58.5" r="58.25" stroke="url(#paint0_dark)" strokeOpacity="0.1" strokeWidth="0.5" />
-          <circle cx="58.875" cy="58.875" r="43.625" stroke="url(#paint1_dark)" strokeOpacity="0.1" strokeWidth="0.5" />
-          <defs>
-            <linearGradient id="paint0_dark" x1="58.5" y1="0" x2="58.5" y2="117">
-              <stop stopColor="currentColor" />
-              <stop offset="1" stopColor="transparent" />
-            </linearGradient>
-            <linearGradient id="paint1_dark" x1="58.875" y1="15" x2="58.875" y2="102.75">
-              <stop stopColor="currentColor" />
-              <stop offset="1" stopColor="transparent" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-
       {/* Editing Overlay */}
       {isEditing && (
         <div

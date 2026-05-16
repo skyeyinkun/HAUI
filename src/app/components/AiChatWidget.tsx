@@ -383,6 +383,7 @@ interface AiChatWidgetProps {
     openSignal?: number;
     entitlements?: LicenseEntitlements;
     onOpenLicense?: () => void;
+    onVisibilityChange?: (visible: boolean) => void;
 }
 
 type ViewMode = 'floating' | 'sidebar' | 'minimized';
@@ -534,6 +535,7 @@ export default function AiChatWidget({
     openSignal = 0,
     entitlements,
     onOpenLicense,
+    onVisibilityChange,
 }: AiChatWidgetProps) {
     // UI 状态
     const [viewMode, setViewMode] = useState<ViewMode>('floating');
@@ -543,18 +545,32 @@ export default function AiChatWidget({
     const [confirmRequest, setConfirmRequest] = useState<AiActionConfirmRequest | null>(null);
     const isMobile = useIsMobile();
     const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+    const lastOpenSignalRef = useRef(0);
+
+    const openWidget = useCallback(() => {
+        setIsVisible(true);
+        setView('chat');
+        setViewMode('floating');
+        onVisibilityChange?.(true);
+    }, [onVisibilityChange]);
+
+    const closeWidget = useCallback(() => {
+        confirmResolverRef.current?.(false);
+        confirmResolverRef.current = null;
+        setConfirmRequest(null);
+        setIsVisible(false);
+        onVisibilityChange?.(false);
+    }, [onVisibilityChange]);
 
     useEffect(() => {
-        if (openSignal > 0) {
-            if (entitlements && !entitlements.canUseAi) {
-                onOpenLicense?.();
-                return;
-            }
-            setIsVisible(true);
-            setView('chat');
-            setViewMode('floating');
+        if (openSignal <= lastOpenSignalRef.current) return;
+        lastOpenSignalRef.current = openSignal;
+        if (entitlements && !entitlements.canUseAi) {
+            onOpenLicense?.();
+            return;
         }
-    }, [openSignal, entitlements, onOpenLicense]);
+        openWidget();
+    }, [openSignal, entitlements, onOpenLicense, openWidget]);
 
     // TTS 朗读 Hook
     const {
@@ -682,15 +698,19 @@ export default function AiChatWidget({
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'd') {
                 e.preventDefault();
-                setIsVisible(prev => !prev);
+                if (isVisible) {
+                    closeWidget();
+                } else {
+                    openWidget();
+                }
             }
             if (e.key === 'Escape' && isVisible && viewMode !== 'minimized') {
-                setIsVisible(false);
+                closeWidget();
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isVisible, viewMode]);
+    }, [closeWidget, isVisible, openWidget, viewMode]);
 
     // 发送消息时停止语音
     const handleSend = useCallback((textOverride?: string) => {
@@ -703,7 +723,7 @@ export default function AiChatWidget({
     // 拖拽关闭逻辑（移动端下滑关闭）
     const handleDragEnd = (_: any, info: PanInfo) => {
         if (isMobile && info.offset.y > 100) {
-            setIsVisible(false);
+            closeWidget();
         }
     };
 
@@ -740,12 +760,12 @@ export default function AiChatWidget({
                         onOpenLicense?.();
                         return;
                     }
-                    setIsVisible(true);
+                    openWidget();
                 }}
-                className="haui-floating-action fixed bottom-8 right-24 z-50 hidden w-12 h-12 rounded-full text-white cursor-pointer group items-center justify-center md:flex"
+                className="haui-ai-action-soft fixed bottom-8 right-24 z-50 hidden w-11 h-11 rounded-full text-white cursor-pointer group items-center justify-center md:flex"
             >
                 <div className="relative z-10 flex h-full w-full items-center justify-center rounded-full">
-                    <Sparkles className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
+                    <Sparkles className="h-[18px] w-[18px] text-white/90 transition-transform duration-300 group-hover:scale-105" />
                 </div>
             </motion.button>
         );
@@ -753,7 +773,7 @@ export default function AiChatWidget({
 
     return (
         <>
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" onExitComplete={() => onVisibilityChange?.(false)}>
                 {isVisible && (
                     <motion.div
                         data-testid="ai-widget-container"
@@ -872,7 +892,12 @@ export default function AiChatWidget({
                                     <Eraser className="w-4 h-4" />
                                 </button>
                                 <div className="w-px h-3 bg-gray-200 mx-0.5" />
-                                <button onClick={() => setIsVisible(false)} className="p-1.5 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors shrink-0">
+                                <button
+                                    onClick={closeWidget}
+                                    className="p-1.5 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors shrink-0"
+                                    aria-label="关闭 AI 助手"
+                                    title="关闭"
+                                >
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>

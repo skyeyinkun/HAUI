@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { executeHaTools } from '@/services/ai-tools-executor';
+import { executeHaTools, previewHaServiceToolCall } from '@/services/ai-tools-executor';
 
 const makeToolCall = (name: string, args: Record<string, unknown>, id = name) => ({
   id,
@@ -43,6 +43,17 @@ const entities: any = {
 };
 
 describe('executeHaTools', () => {
+  it('marks allowed single-entity controls as low risk for direct execution', () => {
+    const preview = previewHaServiceToolCall(entities, makeToolCall('call_ha_service', {
+      domain: 'light',
+      service: 'turn_off',
+      service_data: { entity_id: 'light.living_room' },
+    }));
+
+    expect(preview.riskLevel).toBe('low');
+    expect(preview.targetNames).toEqual(['客厅主灯']);
+  });
+
   it('finds entities by friendly name', async () => {
     const results = await executeHaTools(entities, [
       makeToolCall('find_entities', { query: '客厅', limit: 5 }),

@@ -150,40 +150,13 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
           </div>
         )}
 
-        <motion.div
-          className="absolute left-[-27px] top-[-27px] w-[117px] h-[117px] pointer-events-none opacity-50"
-          animate={isSensorActive ? { rotate: 360 } : {}}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        >
-          <svg className="block w-full h-full" fill="none" viewBox="0 0 117 117">
-            <circle
-              cx="58.5"
-              cy="58.5"
-              r="58.25"
-              stroke="url(#paint0_dark)"
-              strokeOpacity={isSensorActive ? 0.3 : 0.1}
-              strokeWidth="0.5"
-            />
-            <circle
-              cx="58.875"
-              cy="58.875"
-              r="43.625"
-              stroke="url(#paint1_dark)"
-              strokeOpacity={isSensorActive ? 0.3 : 0.1}
-              strokeWidth="0.5"
-            />
-            <defs>
-              <linearGradient id="paint0_dark" x1="58.5" y1="0" x2="58.5" y2="117">
-                <stop stopColor="currentColor" />
-                <stop offset="1" stopColor="transparent" />
-              </linearGradient>
-              <linearGradient id="paint1_dark" x1="58.875" y1="15" x2="58.875" y2="102.75">
-                <stop stopColor="currentColor" />
-                <stop offset="1" stopColor="transparent" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </motion.div>
+        {isSensorActive && (
+          <motion.div
+            className="absolute left-3 top-3 h-[32px] w-[32px] rounded-full border border-success/15 pointer-events-none"
+            animate={{ scale: [1, 1.08, 1], opacity: [0.35, 0.12, 0.35] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
 
         {/* 传感器卡片头部：图标 + 状态指示点 */}
         <div className="flex items-center justify-between relative z-10">
@@ -248,23 +221,6 @@ function DeviceCardInternal({ device, onToggle, onClick, nowMs: nowMsProp, isEdi
           </div>
         </div>
       )}
-
-      <div className="absolute left-[-27px] top-[-27px] w-[117px] h-[117px] pointer-events-none opacity-50">
-        <svg className="block w-full h-full" fill="none" viewBox="0 0 117 117">
-          <circle cx="58.5" cy="58.5" r="58.25" stroke="url(#paint0_dark)" strokeOpacity="0.1" strokeWidth="0.5" />
-          <circle cx="58.875" cy="58.875" r="43.625" stroke="url(#paint1_dark)" strokeOpacity="0.1" strokeWidth="0.5" />
-          <defs>
-            <linearGradient id="paint0_dark" x1="58.5" y1="0" x2="58.5" y2="117">
-              <stop stopColor="currentColor" />
-              <stop offset="1" stopColor="transparent" />
-            </linearGradient>
-            <linearGradient id="paint1_dark" x1="58.875" y1="15" x2="58.875" y2="102.75">
-              <stop stopColor="currentColor" />
-              <stop offset="1" stopColor="transparent" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
 
       {/* 头部区域：图标、名称、状态点 */}
       <div className="flex items-center justify-between relative z-10">

@@ -154,10 +154,12 @@ export function useAiChat({
 
     const confirmToolCalls = useCallback(async (toolCalls: any[]): Promise<boolean> => {
         const controlCalls = toolCalls.filter(toolCall => toolCall?.function?.name === 'call_ha_service');
-        if (controlCalls.length === 0 || !onConfirmAction) return true;
+        if (controlCalls.length === 0) return true;
 
         for (const toolCall of controlCalls) {
             const preview = previewHaServiceToolCall(entitiesRef.current, toolCall);
+            if (preview.riskLevel === 'low') continue;
+            if (!onConfirmAction) return false;
             const ok = await onConfirmAction({
                 title: '确认 AI 执行控制',
                 description: `AI 将调用 ${preview.domain}.${preview.service} 控制 ${preview.targetNames.join('、')}`,

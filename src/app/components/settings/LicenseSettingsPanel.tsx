@@ -6,6 +6,7 @@ import { getMachineCode, saveMachineCodeOverride } from '@/features/license/mach
 import { LicenseStatus } from '@/features/license/license-types';
 import { getApiUrl, readApiError } from '@/utils/sync';
 import { parseLicenseInput } from '@/features/license/license-verifier';
+import { copyTextToClipboard } from '@/utils/clipboard';
 
 type AddonActivationError = Error & { serverRejected?: boolean };
 
@@ -75,12 +76,12 @@ export function LicenseSettingsPanel() {
   };
 
   const copyMachineCode = async () => {
-    try {
-      await navigator.clipboard.writeText(machineCode);
+    const copied = await copyTextToClipboard(machineCode);
+    if (copied) {
       toast.success('机器码已复制');
-    } catch {
-      toast.error('复制失败，请手动复制机器码');
+      return;
     }
+    toast.error('复制失败，请长按或选中机器码手动复制');
   };
 
   const handleActivate = async () => {

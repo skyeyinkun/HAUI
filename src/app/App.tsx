@@ -1112,7 +1112,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
             />
 
           {/* Scene & Room Tabs */}
-            <div id="haui-rooms" className="haui-glass-panel flex items-center justify-between gap-3 mb-6 scroll-mt-6 rounded-[32px] p-2">
+            <div id="haui-rooms" className="haui-glass-panel haui-room-tabs flex items-center justify-between gap-3 mb-6 scroll-mt-6 rounded-[32px] p-2">
             <div className="flex min-w-0 gap-2 overflow-x-auto flex-1 scrollbar-hide items-center">
               {/* Scenes */}
               {scenes.map((scene) => {
@@ -1288,6 +1288,11 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
           openSignal={aiOpenSignal}
           entitlements={licenseEntitlements}
           onOpenLicense={() => openSettingsAt('license')}
+          onVisibilityChange={(visible) => {
+            if (!visible && mobileActiveKey === 'ai') {
+              setMobileActiveKey('home');
+            }
+          }}
         />
       </Suspense>
       <Toaster />
@@ -1317,6 +1322,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
             toast.info('请先导入授权码启用 AI 功能');
             return;
           }
+          if (mobileActiveKey === 'ai') return;
           setMobileActiveKey('ai');
           setAiOpenSignal((value) => value + 1);
         }}

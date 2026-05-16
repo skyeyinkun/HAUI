@@ -47,7 +47,7 @@ export function MobileBottomNav({
               onClick={handlers[item.key]}
               className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-full text-[11px] font-medium transition-all active:scale-95 ${
                 isPrimary
-                  ? 'mx-auto -mt-5 h-[68px] w-[68px] bg-[#050505] text-white shadow-[0_18px_34px_rgba(0,0,0,0.22)]'
+                  ? 'haui-ai-action-soft mx-auto -mt-3 h-[58px] w-[58px] text-white'
                   : isActive
                     ? 'text-[#050505]'
                     : 'text-[rgba(4,4,4,0.48)] hover:text-[#050505]'
@@ -55,7 +55,7 @@ export function MobileBottomNav({
               aria-current={isActive ? 'page' : undefined}
               aria-label={item.label}
             >
-              <Icon className={`${isPrimary ? 'h-7 w-7 fill-white/10 stroke-[2.2]' : 'h-5 w-5'} ${isActive && !isPrimary ? 'text-[#050505]' : ''}`} />
+              <Icon className={`${isPrimary ? 'h-6 w-6 fill-white/5 stroke-[2]' : 'h-5 w-5'} ${isActive && !isPrimary ? 'text-[#050505]' : ''}`} />
               {!isPrimary && <span>{item.label}</span>}
               {isPrimary && <span className="sr-only">{item.label}</span>}
             </button>

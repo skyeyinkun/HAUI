@@ -24,6 +24,7 @@ export interface ParsedServiceCall {
     domain: string;
     service: string;
     serviceData: HAServiceCallData;
+    riskLevel: 'low' | 'confirm';
 }
 
 // 安全白名单：仅允许低风险且可被单实体约束的控制。
@@ -154,6 +155,7 @@ function validateServiceCall(args: ToolArguments, entities: HassEntities): Parse
         domain,
         service,
         serviceData: serviceData as HAServiceCallData,
+        riskLevel: 'low',
     };
 }
 

@@ -243,48 +243,55 @@
 }
 
 .haui-glass-panel {
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow:
-    0 22px 58px rgba(0, 0, 0, 0.07),
+    0 14px 34px rgba(0, 0, 0, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(28px) saturate(1.12);
 }
 
 .haui-room-tabs {
-  box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.035),
-    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: none;
 }
 
 .haui-soft-card {
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.72);
   box-shadow:
-    0 18px 38px rgba(0, 0, 0, 0.065),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+    0 10px 26px rgba(0, 0, 0, 0.038),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(22px) saturate(1.08);
 }
 
 .haui-pill {
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  box-shadow: none;
   backdrop-filter: blur(20px) saturate(1.08);
+}
+
+.haui-room-pill {
+  box-shadow: none !important;
 }
 
 .haui-pill-active {
   color: #ffffff;
   background: #050505;
   border-color: #050505;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: none;
 }
 
 .haui-icon-disc {
-  background: rgba(255, 255, 255, 0.46);
-  border: 1px solid rgba(4, 4, 4, 0.055);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.haui-icon-disc svg {
+  filter: none;
 }
 
 .haui-floating-action {
@@ -296,11 +303,11 @@
 }
 
 .haui-ai-action-soft {
-  background: rgba(5, 5, 5, 0.82);
+  background: rgba(5, 5, 5, 0.7);
   color: #ffffff;
   box-shadow:
-    0 10px 20px rgba(0, 0, 0, 0.13),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 8px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .haui-mobile-tabbar-safe {

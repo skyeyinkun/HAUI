@@ -140,7 +140,7 @@ function LicenseRequiredScreen({ experience }: { experience: ReturnType<typeof u
       <Toaster />
       <div className="fixed bottom-1 left-1/2 z-[60] -translate-x-1/2 pointer-events-none">
         <span className="select-none text-[10px] font-medium tracking-wide text-muted-foreground/50">
-          HAUI v{import.meta.env.VITE_APP_VERSION || '5.15.15'}
+          HAUI v{import.meta.env.VITE_APP_VERSION || '5.15.16'}
         </span>
       </div>
     </div>
@@ -149,28 +149,19 @@ function LicenseRequiredScreen({ experience }: { experience: ReturnType<typeof u
 
 function WallPanelOverlay({ enabled }: { enabled: boolean }) {
   const [offset, setOffset] = useState(0);
-  const [dimmed, setDimmed] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
       setOffset(0);
-      setDimmed(false);
       return;
     }
 
     const driftTimer = window.setInterval(() => {
       setOffset((value) => (value + 1) % 4);
     }, 90000);
-    const updateDim = () => {
-      const hour = new Date().getHours();
-      setDimmed(hour >= 22 || hour < 7);
-    };
-    updateDim();
-    const dimTimer = window.setInterval(updateDim, 60000);
 
     return () => {
       window.clearInterval(driftTimer);
-      window.clearInterval(dimTimer);
     };
   }, [enabled]);
 
@@ -179,9 +170,8 @@ function WallPanelOverlay({ enabled }: { enabled: boolean }) {
   return (
     <div
       data-haui-wall-overlay
-      className={`pointer-events-none fixed inset-0 z-[55] transition-opacity duration-700 ${dimmed ? 'opacity-25' : 'opacity-0'}`}
+      className="pointer-events-none fixed inset-0 z-[55] opacity-0 transition-opacity duration-700"
       style={{
-        backgroundColor: '#000',
         transform: `translate(${offset}px, ${offset % 2 === 0 ? 0 : offset}px)`,
       }}
       aria-hidden="true"
@@ -1154,7 +1144,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
                 onClick={() => setSelectedRoom('常用')}
                 className={`px-5 py-2 rounded-full font-['SF_Pro_Display',sans-serif] text-[14px] transition-all whitespace-nowrap ${selectedRoom === '常用'
                   ? "haui-pill-active font-semibold"
-                  : "haui-pill text-[rgba(4,4,4,0.58)] hover:text-[#050505]"
+                  : "haui-pill haui-room-pill text-[rgba(4,4,4,0.58)] hover:text-[#050505]"
                   }`}
               >
                 常用
@@ -1166,7 +1156,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
                   onClick={() => setSelectedRoom(room.name)}
                   className={`px-5 py-2 rounded-full font-['SF_Pro_Display',sans-serif] text-[14px] transition-all whitespace-nowrap ${selectedRoom === room.name
                     ? "haui-pill-active font-semibold"
-                    : "haui-pill text-[rgba(4,4,4,0.58)] hover:text-[#050505]"
+                    : "haui-pill haui-room-pill text-[rgba(4,4,4,0.58)] hover:text-[#050505]"
                     }`}
                 >
                   {room.name}
@@ -1180,7 +1170,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
                   onClick={() => setIsEditingCommon(!isEditingCommon)}
                   className={`px-4 py-2 rounded-full text-[14px] font-medium transition-all ${isEditingCommon
                     ? "bg-red-50 text-red-500 ring-1 ring-red-200"
-                    : "haui-pill text-muted-foreground hover:text-foreground"
+                    : "haui-pill haui-room-pill text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {isEditingCommon ? '完成' : '管理'}
@@ -1345,7 +1335,7 @@ function AuthorizedApp({ licenseEntitlements }: { licenseEntitlements: LicenseEn
       {/* 版本号显示 - 底部居中，提高 z-index 确保显示 */}
       <div className="fixed bottom-1 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
         <span className="text-[10px] text-muted-foreground/50 font-medium tracking-wide select-none">
-          HAUI v{import.meta.env.VITE_APP_VERSION || '5.15.15'}
+          HAUI v{import.meta.env.VITE_APP_VERSION || '5.15.16'}
         </span>
       </div>
 

@@ -1,6 +1,6 @@
 # HAUI 商业交付隔离方案
 
-适用版本：HAUI 5.15.15+
+适用版本：HAUI 5.15.16+
 
 ## 目标
 
@@ -42,7 +42,7 @@ npm run package:customer
 
 ```text
 customer-packages/
-  haui-addon-v5.15.15/
+  haui-addon-v5.15.16/
     INSTALL.md
     haui_dashboard/
       config.yaml

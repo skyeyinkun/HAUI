@@ -546,11 +546,13 @@ export default function AiChatWidget({
     const isMobile = useIsMobile();
     const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
     const lastOpenSignalRef = useRef(0);
+    const suppressOpenSignalRef = useRef(false);
 
     const openWidget = useCallback(() => {
         setIsVisible(true);
         setView('chat');
         setViewMode('floating');
+        suppressOpenSignalRef.current = false;
         onVisibilityChange?.(true);
     }, [onVisibilityChange]);
 
@@ -559,10 +561,12 @@ export default function AiChatWidget({
         confirmResolverRef.current = null;
         setConfirmRequest(null);
         setIsVisible(false);
+        suppressOpenSignalRef.current = true;
         onVisibilityChange?.(false);
     }, [onVisibilityChange]);
 
     useEffect(() => {
+        if (suppressOpenSignalRef.current && openSignal === lastOpenSignalRef.current) return;
         if (openSignal <= lastOpenSignalRef.current) return;
         lastOpenSignalRef.current = openSignal;
         if (entitlements && !entitlements.canUseAi) {
@@ -762,10 +766,10 @@ export default function AiChatWidget({
                     }
                     openWidget();
                 }}
-                className="haui-ai-action-soft fixed bottom-8 right-24 z-50 hidden w-11 h-11 rounded-full text-white cursor-pointer group items-center justify-center md:flex"
+                className="haui-ai-action-soft fixed bottom-8 right-24 z-50 hidden h-10 w-10 rounded-full text-white cursor-pointer group items-center justify-center md:flex"
             >
                 <div className="relative z-10 flex h-full w-full items-center justify-center rounded-full">
-                    <Sparkles className="h-[18px] w-[18px] text-white/90 transition-transform duration-300 group-hover:scale-105" />
+                    <Sparkles className="h-[16px] w-[16px] text-white/78 transition-transform duration-300 group-hover:scale-102" />
                 </div>
             </motion.button>
         );

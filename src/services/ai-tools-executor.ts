@@ -20,14 +20,16 @@ export type AiCallService = (
 
 type ToolArguments = Record<string, unknown>;
 
+export type ServiceCallRiskLevel = 'low' | 'confirm';
+
 export interface ParsedServiceCall {
     domain: string;
     service: string;
     serviceData: HAServiceCallData;
-    riskLevel: 'low' | 'confirm';
+    riskLevel: ServiceCallRiskLevel;
 }
 
-// 安全白名单：仅允许低风险且可被单实体约束的控制。
+// 安全白名单：通过明确实体、同域、数量和高风险拦截校验后的控制可直接执行。
 const ALLOWED_SERVICES: Record<string, Set<string>> = {
     light: new Set(['turn_on', 'turn_off', 'toggle']),
     switch: new Set(['turn_on', 'turn_off', 'toggle']),
@@ -84,6 +86,12 @@ function getDomain(entityId: string): string {
 
 function uniqueValues(values: string[]): string[] {
     return [...new Set(values.filter(Boolean))];
+}
+
+function getRiskLevel(domain: string, serviceData: HAServiceCallData): ServiceCallRiskLevel {
+    void domain;
+    void serviceData;
+    return 'low';
 }
 
 function validateServiceCall(args: ToolArguments, entities: HassEntities): ParsedServiceCall {
@@ -155,7 +163,7 @@ function validateServiceCall(args: ToolArguments, entities: HassEntities): Parse
         domain,
         service,
         serviceData: serviceData as HAServiceCallData,
-        riskLevel: 'low',
+        riskLevel: getRiskLevel(domain, serviceData as HAServiceCallData),
     };
 }
 

@@ -2,7 +2,7 @@
   "name": "haui-dashboard",
   "private": true,
   "description": "Home Assistant Add-on first smart home dashboard with AI, camera, PWA, wall panel, offline Pro licensing, and backup restore.",
-  "version": "5.15.15",
+  "version": "5.15.16",
   "type": "module",
   "scripts": {
     "build": "vite build",

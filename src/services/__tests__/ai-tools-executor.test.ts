@@ -20,6 +20,16 @@ const entities: any = {
     last_changed: '2026-04-30T00:00:00.000Z',
     last_updated: '2026-04-30T00:00:00.000Z',
   },
+  'light.study_strip': {
+    entity_id: 'light.study_strip',
+    state: 'on',
+    attributes: {
+      friendly_name: '书房灯带',
+      brightness: 120,
+    },
+    last_changed: '2026-04-30T00:00:00.000Z',
+    last_updated: '2026-04-30T00:00:00.000Z',
+  },
   'sensor.living_room_temperature': {
     entity_id: 'sensor.living_room_temperature',
     state: '24.6',
@@ -52,6 +62,17 @@ describe('executeHaTools', () => {
 
     expect(preview.riskLevel).toBe('low');
     expect(preview.targetNames).toEqual(['客厅主灯']);
+  });
+
+  it('allows clear multi-entity controls to execute directly after validation', () => {
+    const preview = previewHaServiceToolCall(entities, makeToolCall('call_ha_service', {
+      domain: 'light',
+      service: 'turn_off',
+      service_data: { entity_id: ['light.living_room', 'light.study_strip'] },
+    }));
+
+    expect(preview.riskLevel).toBe('low');
+    expect(preview.targetNames).toEqual(['客厅主灯', '书房灯带']);
   });
 
   it('finds entities by friendly name', async () => {
